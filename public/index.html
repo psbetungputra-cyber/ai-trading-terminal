@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AiSignalFx PRO | Sentinel AI Ecosystem</title>
+<meta name="description" content="AiSignalFx PRO is an institutional AI trading ecosystem powered by Sentinel AI."/>
+<link rel="stylesheet" href="./css/style.css"/>
+<script src="https://s3.tradingview.com/tv.js"></script>
+</head>
+<body>
+<section id="login-screen" class="login-screen">
+  <div class="login-card">
+    <div class="logo-mark">AS</div>
+    <h1>AiSignalFx <span>PRO</span></h1>
+    <p>Institutional AI Trading Ecosystem</p>
+    <small>Powered by Sentinel AI</small>
+    <div class="auth-tabs">
+      <button id="login-tab" class="auth-tab active" onclick="setAuthMode('login')">Login</button>
+      <button id="register-tab" class="auth-tab" onclick="setAuthMode('register')">Register Preview</button>
+    </div>
+    <div id="login-form">
+      <input id="username" type="text" placeholder="Username" />
+      <input id="password" type="password" placeholder="Password" />
+      <button class="primary-btn" onclick="login()">Open Terminal</button>
+    </div>
+    <div id="register-form" class="hidden register-preview">
+      <input type="text" placeholder="Display Name"/>
+      <input type="text" placeholder="Username"/>
+      <input type="email" placeholder="Email Address"/>
+      <input type="password" placeholder="Password"/>
+      <input type="text" placeholder="Country / Timezone"/>
+      <input type="text" placeholder="Trading Style"/>
+      <input type="text" placeholder="Favorite Pairs"/>
+      <button class="primary-btn" onclick="alert('Register preview. Firebase Auth akan diaktifkan nanti.')">Create Free Account</button>
+      <p class="auth-note">Form ini nanti disambungkan ke Firebase Auth + Firestore.</p>
+    </div>
+  </div>
+</section>
+
+<div id="backdrop" class="backdrop" onclick="closeSidebar()"></div>
+
+<main id="app" class="hidden">
+  <aside id="sidebar" class="sidebar">
+    <div class="brand">
+      <div class="brand-top">
+        <div class="brand-name"><div class="brand-logo">AS</div><div><h2>AiSignalFx</h2><p>Sentinel Terminal</p></div></div>
+        <button class="menu-btn" onclick="toggleSidebar()">⋮</button>
+      </div>
+      <div class="user-mini"><div id="avatar" class="avatar">P</div><div><h3 id="display-name">PSBETUNG</h3><span id="role-badge" class="role-badge">Founder</span></div></div>
+    </div>
+    <nav>
+      <div class="nav-title">Main Ecosystem</div>
+      <button class="nav active" onclick="showPage('dashboard', this)"><span class="nav-ico">⌁</span> Dashboard</button>
+      <button class="nav" onclick="showPage('scanner', this)"><span class="nav-ico">◈</span> Signal Scanner <small class="badge vip">VIP</small></button>
+      <button class="nav" onclick="showPage('sentinel', this)"><span class="nav-ico">◆</span> Sentinel AI <small class="badge free">Limited</small></button>
+      <button class="nav" onclick="showPage('sentiment', this)"><span class="nav-ico">◉</span> Market Sentiment</button>
+      <button class="nav" onclick="showPage('fundamental', this)"><span class="nav-ico">◌</span> Fundamental News</button>
+      <button class="nav" onclick="showPage('mapping', this)"><span class="nav-ico">▧</span> Mapping Feed</button>
+      <div class="nav-title">Education & Account</div>
+      <button class="nav" onclick="showPage('journal', this)"><span class="nav-ico">☷</span> Trade Journal</button>
+      <button class="nav" onclick="showPage('academy', this)"><span class="nav-ico">◬</span> Smart Money Academy</button>
+      <button class="nav" onclick="showPage('profile', this)"><span class="nav-ico">◍</span> Profile</button>
+      <button class="nav" onclick="showPage('vip', this)"><span class="nav-ico">♛</span> VIP Access</button>
+      <div class="nav-title owner-only">Owner</div>
+      <button class="nav owner-only" onclick="showPage('admin', this)"><span class="nav-ico">⚙</span> Admin Control</button>
+      <button class="nav owner-only" onclick="showPage('ads', this)"><span class="nav-ico">▣</span> Ads Manager</button>
+    </nav>
+    <div class="sidebar-footer"><button class="disconnect" onclick="location.reload()">Disconnect</button></div>
+  </aside>
+
+  <section class="content">
+    <header class="topbar">
+      <div class="topbar-left"><button class="menu-btn" onclick="toggleSidebar()">⋮</button><div><h1 id="page-title">Institutional Dashboard</h1><p>Global trading intelligence powered by Sentinel AI</p></div></div>
+      <div class="topbar-right"><span class="pill"><span class="dot"></span> Live Terminal</span><span id="clock" class="pill">00:00:00</span><div class="profile-menu-wrap">
+  <button class="profile-top" onclick="toggleProfileMenu()">
+    <div id="top-avatar" class="avatar">P</div>
+  </button>
+
+  <div id="profile-dropdown" class="profile-dropdown hidden">
+    <div class="profile-drop-head">
+      <div id="drop-avatar" class="avatar">P</div>
+      <div>
+        <h3 id="drop-name">PSBETUNG</h3>
+        <p id="drop-role">Founder</p>
+      </div>
+    </div>
+
+    <button onclick="showPageById('profile'); closeProfileMenu();">My Profile</button>
+    <button onclick="showPageById('vip'); closeProfileMenu();">VIP Status</button>
+    <button onclick="alert('Account settings akan disambungkan ke Firebase nanti.'); closeProfileMenu();">Account Settings</button>
+    <button onclick="location.reload()">Logout</button>
+  </div>
+</div></div>
+    </header>
+    <div class="ticker"><div class="ticker-track">
+      <span>XAUUSD <b class="green">2345.12</b></span><span>BTCUSD <b class="red">67120</b></span><span>EURUSD <b class="green">1.0854</b></span><span>GBPUSD <b class="green">1.2643</b></span><span>USDJPY <b class="red">156.23</b></span><span>GBPJPY <b class="yellow">199.45</b></span><span>NAS100 <b class="green">18422</b></span><span>US30 <b class="red">38790</b></span><span>XAUUSD <b class="green">2345.12</b></span><span>BTCUSD <b class="red">67120</b></span>
+    </div></div>
+    <main class="main-scroll">
+      <section id="dashboard" class="page active">
+        <div class="grid-3"><div class="card stat"><p>Market Bias</p><h2 class="green">Bullish</h2></div><div class="card stat"><p>Sentinel Usage</p><h2 id="usage-stat" class="blue">3/day</h2></div><div class="card stat"><p>VIP Scanner</p><h2 id="scanner-stat" class="yellow">Locked</h2></div></div>
+        <div class="main-grid">
+          <div class="card chart-card"><div id="tvchart"></div></div>
+          <div class="side-stack">
+            <div class="card"><div class="section-head"><h3>Sentinel AI Visual</h3><span class="badge free">Free Limited</span></div><p>Upload chart untuk analisa visual. Free user terbatas, VIP unlimited dan reasoning lebih lengkap.</p><button class="small-btn" onclick="showPageById('sentinel')">Open Sentinel AI</button></div>
+            <div class="card vip-lock" id="dashboard-scanner-lock"><div class="vip-content"><h3>Signal Scanner VIP</h3><p>XAUUSD full entry, SL, TP, confidence, dan scanner banyak pair.</p></div><div class="vip-overlay"><div><span class="badge vip">VIP Scanner</span><p>AI AutoScan/Signal Scanner khusus VIP.</p><button onclick="showPageById('vip')">Upgrade VIP</button></div></div></div>
+            <div class="card ads-card"><span class="badge vip">Sponsored</span><h3 style="margin-top:10px;">Market Partner Slot</h3><p>Ruang sponsor / broker / tools. Free users melihat ads, VIP bisa ad-light.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="scanner" class="page">
+        <div id="scanner-lock" class="vip-lock hidden"><div class="vip-content"><div class="grid-3"><div class="card"><h3>XAUUSD</h3><p>BUY • Full entry hidden</p></div><div class="card"><h3>EURUSD</h3><p>SELL • Full reasoning hidden</p></div><div class="card"><h3>GBPJPY</h3><p>WAIT • Full scanner hidden</p></div></div></div><div class="vip-overlay"><div><span class="badge vip">VIP Only</span><h2 style="margin-top:12px;">Signal Scanner Locked</h2><p>Signal Scanner adalah versi baru AI AutoScan VIP. Free user bisa pakai Sentinel AI terbatas dan Mapping Feed.</p><button onclick="showPageById('vip')">Unlock Scanner</button></div></div></div>
+        <div id="scanner-content">
+          <div class="section-head"><div><h2>Signal Scanner VIP</h2><p class="muted">AI AutoScan market radar untuk banyak pair. Khusus VIP/Admin.</p></div><span class="badge vip">VIP Access</span></div>
+          <div class="scanner-tools"><span class="chip">All Pairs</span><span class="chip">XAUUSD</span><span class="chip">Forex</span><span class="chip">Crypto</span><span class="chip">M15</span><span class="chip">H1</span><span class="chip">Confidence 70%+</span></div>
+          <div class="grid-3">
+            <div class="card"><span class="badge buy">BUY</span><h3 style="margin-top:12px;">XAUUSD</h3><p>Liquidity sweep detected. Waiting retest into demand zone.</p><p><b class="green">Confidence:</b> 82%</p></div>
+            <div class="card"><span class="badge sell">SELL</span><h3 style="margin-top:12px;">EURUSD</h3><p>Bearish BOS confirmed. Watch premium zone retest.</p><p><b class="green">Confidence:</b> 76%</p></div>
+            <div class="card"><span class="badge wait">WAIT</span><h3 style="margin-top:12px;">GBPJPY</h3><p>Structure unclear. Wait confirmation.</p><p><b class="yellow">Confidence:</b> 54%</p></div>
+            <div class="card"><span class="badge wait">WAIT</span><h3 style="margin-top:12px;">BTCUSD</h3><p>No clean confirmation. Avoid chasing price.</p></div>
+            <div class="card"><span class="badge buy">BUY</span><h3 style="margin-top:12px;">NAS100</h3><p>Momentum bullish but wait pullback confirmation.</p></div>
+            <div class="card"><span class="badge sell">SELL</span><h3 style="margin-top:12px;">US30</h3><p>Potential bearish retest zone. Watch NY session.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="sentinel" class="page">
+        <div class="grid-3"><div class="card stat"><p>Access</p><h2 id="sentinel-access" class="blue">Free</h2></div><div class="card stat"><p>Daily Limit</p><h2 id="sentinel-limit" class="green">3</h2></div><div class="card stat"><p>Visual AI</p><h2 class="yellow">Upload</h2></div></div>
+        <div class="sentinel-grid">
+          <div class="card"><div class="section-head"><div><h2>Sentinel AI Visual Analysis</h2><p>Upload chart, AI membaca mapping, structure, liquidity, BOS/CHoCH, dan potensi bias.</p></div><span id="sentinel-badge" class="badge free">Free Limited</span></div><div class="upload-box" onclick="document.getElementById('sentinel-upload').click()"><input id="sentinel-upload" type="file" accept="image/*" hidden/><div id="sentinel-preview"><h3>Upload Chart Screenshot</h3><p>Free user: preview terbatas. VIP: unlimited + full reasoning + signal card.</p></div></div><div class="ai-message"><strong>Sentinel AI</strong><p id="sentinel-response">Upload chart untuk memulai analisa visual.</p></div></div>
+          <div class="side-stack"><div class="card"><span class="badge buy">Preview Bias</span><h2 style="margin-top:12px;">XAUUSD</h2><p>Structure: waiting image input</p><p>Liquidity: waiting scan</p><p>Confidence: preview mode</p></div><div class="card vip-lock"><div class="vip-content"><h3>VIP Signal Card</h3><p>Entry: 2345 - 2348</p><p>SL: 2339</p><p>TP: 2360 / 2372</p><p>Risk model: 1:3</p></div><div class="vip-overlay"><div><span class="badge vip">VIP Detail</span><p>Full entry, SL, TP, and reasoning unlocked for VIP.</p></div></div></div><div class="card"><h3>Sentinel Log</h3><p>• Visual scan ready</p><p>• Free mode: limited usage</p><p>• VIP mode: full reasoning</p></div></div>
+        </div>
+      </section>
+
+      <section id="sentiment" class="page"><div class="grid-3"><div class="card stat"><p>Bullish Pressure</p><h2 class="green">62%</h2></div><div class="card stat"><p>Bearish Pressure</p><h2 class="red">25%</h2></div><div class="card stat"><p>Neutral</p><h2 class="yellow">13%</h2></div></div><div class="card"><h2>Market Sentiment</h2><p>Panel awal untuk membaca bias pasar. Nanti bisa tersambung API sentiment/news. Untuk sekarang data masih mockup agar UI dan flow siap dulu.</p></div></section>
+
+      <section id="fundamental" class="page"><div class="section-head"><div><h2>Fundamental News</h2><p class="muted">Economic calendar and market-impact news preview.</p></div><span class="badge wait">Watchlist</span></div><div class="grid-3"><div class="card"><span class="badge sell">High Impact</span><h3 style="margin-top:12px;">USD CPI Data</h3><p>High impact for XAUUSD and major USD pairs.</p></div><div class="card"><span class="badge wait">Medium</span><h3 style="margin-top:12px;">FOMC Speaker</h3><p>Potential volatility during US session.</p></div><div class="card"><span class="badge buy">Watch</span><h3 style="margin-top:12px;">Jobless Claims</h3><p>Labor data can affect USD sentiment.</p></div></div></section>
+
+      <section id="mapping" class="page"><div class="section-head"><div><h2>Mapping Feed</h2><p class="muted">Semua user bisa upload mapping chart untuk komunitas, like, comment, dan nanti Sentinel AI bisa reply.</p></div><span class="badge free">Community</span></div><div class="upload-mini" onclick="document.getElementById('mapping-upload').click()"><input id="mapping-upload" type="file" accept="image/*" hidden/><h3>+ Upload Mapping to Community</h3><p>Ini untuk share mapping publik, bukan analisa private Sentinel AI.</p></div><div id="new-mapping"></div><div class="card feed-post"><div class="post-header"><div class="post-user"><div class="avatar">P</div><div><h3>PSBETUNG</h3><p>SMC Scalper • XAUUSD Mapping</p></div></div><span class="badge buy">Bullish Idea</span></div><p>XAUUSD sweep liquidity lalu reject demand. Menunggu confirmation M5.</p><div class="post-img">Chart Mapping Preview</div><div class="ai-message"><strong>Sentinel AI</strong><p>Mapping cukup valid. Struktur bullish masih terjaga, tetapi tunggu retest dan confirmation candle sebelum entry.</p></div><div class="post-actions"><span>❤️ 128</span><span>💬 34</span><span>🔖 Save</span></div></div><div class="card feed-post ads-card"><span class="badge vip">Sponsored</span><h3 style="margin-top:10px;">Featured Market Partner</h3><p>Slot iklan elegan untuk broker/tools/sponsor.</p></div></section>
+
+      <section id="journal" class="page"><h2>Trade Journal</h2><div class="grid-2" style="margin-top:16px;"><div class="card"><h3>Journal Entry</h3><textarea placeholder="Catat pair, entry, SL, TP, emosi, alasan entry, dan evaluasi trade..."></textarea></div><div class="card"><h3>Sentinel Review Preview</h3><p>Nanti Sentinel AI bisa review trade kamu: apakah entry sesuai BOS, CHoCH, liquidity, OB, dan risk management.</p></div></div></section>
+
+      <section id="academy" class="page"><h2>Smart Money Academy</h2><div class="grid-3" style="margin-top:16px;"><div class="card"><span class="badge free">Module 01</span><h3 style="margin-top:12px;">Market Structure</h3><p>HH, HL, LH, LL untuk membaca arah market.</p></div><div class="card"><span class="badge free">Module 02</span><h3 style="margin-top:12px;">BOS & CHoCH</h3><p>Validasi perubahan struktur dan continuation.</p></div><div class="card"><span class="badge vip">VIP</span><h3 style="margin-top:12px;">AI Practice Mode</h3><p>Latihan membaca chart dan dikoreksi Sentinel AI.</p></div></div></section>
+
+      <section id="profile" class="page"><div class="profile-cover"></div><div class="card profile-body"><div class="profile-avatar" id="profile-avatar">P</div><h2 id="profile-name" style="margin-top:12px;">PSBETUNG</h2><p id="profile-role">Founder / Admin</p><div class="grid-3" style="margin-top:18px;"><div class="card stat"><p>Role</p><h2 class="blue" id="profile-role-box">Admin</h2></div><div class="card stat"><p>Style</p><h2 class="green" id="profile-style">SMC</h2></div><div class="card stat"><p>Pairs</p><h2 class="yellow" id="profile-pairs">XAU</h2></div></div><div class="grid-2"><div class="card"><h3>Profile Overview</h3><p><b>Display Name:</b> <span id="profile-display">PSBETUNG</span></p><p><b>Bio:</b> Institutional SMC trader and AiSignalFx founder.</p><p><b>Country / Timezone:</b> Indonesia / Asia Jakarta</p><p><b>Favorite Pairs:</b> XAUUSD, GBPJPY, BTCUSD</p></div><div class="card"><h3>Account Settings</h3><p>Edit profile, language, timezone, notifications, Telegram/WhatsApp connection, password, and account control.</p><button class="small-btn" onclick="alert('Account Settings akan disambungkan ke Firebase nanti.')">Open Settings</button></div><div class="card"><h3>Activity</h3><p>Mapping posts, comments, saved analysis, signal history, journal records, and Sentinel AI analysis logs.</p></div><div class="card"><h3>VIP Status</h3><p id="vip-status-text">Founder access active.</p><button class="small-btn" onclick="showPageById('vip')">View VIP Access</button></div></div></div></section>
+
+      <section id="vip" class="page"><div class="card"><span class="badge vip">Premium Access</span><h2 style="margin-top:12px;">Unlock Signal Scanner VIP</h2><p>VIP mendapatkan Signal Scanner/AI AutoScan, Sentinel AI unlimited, full signal card, premium reasoning, ad-light experience, dan fitur komunitas premium.</p></div><div class="grid-3" style="margin-top:16px;"><div class="card"><h3>Free</h3><p>Sentinel AI limited, Mapping Feed, sentiment preview, ads shown.</p></div><div class="card"><h3>VIP</h3><p>Signal Scanner VIP, Sentinel AI unlimited, full signal card, ad-light.</p></div><div class="card"><h3>Institutional</h3><p>Advanced engine, priority features, early access, special community.</p></div></div></section>
+
+      <section id="admin" class="page"><div class="section-head"><div><h2>Admin Control</h2><p class="muted">Owner center untuk user, VIP, signal, settings, broadcast, dan platform control.</p></div><span class="badge vip">Owner Mode</span></div><div class="grid-3"><div class="card"><h3>User Management</h3><p>Kontrol user, role, status VIP, dan akses fitur.</p></div><div class="card"><h3>VIP Access</h3><p>Aktif/nonaktifkan Signal Scanner VIP dan blur lock.</p></div><div class="card"><h3>Signal Broadcast</h3><p>Kirim signal ke dashboard, Telegram, dan komunitas.</p></div><div class="card"><h3>Sentinel Settings</h3><p>Atur limit free, mode AI, dan visual analysis.</p></div><div class="card"><h3>News Control</h3><p>Kelola fundamental news dan market alerts.</p></div><div class="card"><h3>Website Settings</h3><p>Branding, maintenance, SEO, dan domain-ready settings.</p></div></div></section>
+
+      <section id="ads" class="page"><div class="card"><span class="badge vip">Monetization</span><h2 style="margin-top:12px;">Ads Manager</h2><p>Kelola AdSense, sponsored banner, broker partner, sponsored mapping post, dan no-ads/ad-light VIP experience.</p></div><div class="grid-3" style="margin-top:16px;"><div class="card"><h3>AdSense Slot</h3><p>Dashboard, feed, academy, and free user pages.</p></div><div class="card"><h3>Sponsored Post</h3><p>Promoted mapping/feed content with clean label.</p></div><div class="card"><h3>Broker Partner</h3><p>Recommended partner placements and affiliate tracking.</p></div></div></section>
+    </main>
+  </section>
+
+  <div id="floating-actions" class="floating collapsed">
+    <button class="float-main" onclick="toggleFloatingActions()">⚙</button>
+    <a class="float-link owner-floating" href="#" onclick="event.preventDefault(); showPageById('admin')">ADM</a>
+    <a class="float-link" href="https://wa.me/6282258464062" target="_blank">WA</a>
+    <a class="float-link" href="https://t.me/aitredingterminal" target="_blank">TG</a>
+  </div>
+</main>
+<script src="./js/app.js"></script>
+</body>
+</html>
