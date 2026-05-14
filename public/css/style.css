@@ -335,3 +335,148 @@
     min-height: 340px !important;
   }
 }
+
+
+
+/* ================================
+   AiSignalFx PRO - Mobile UI V2 Final Polish
+   This patch only affects phones. Desktop remains unchanged.
+   ================================ */
+
+@media (max-width: 720px) {
+  #dashboard .grid-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 7px !important;
+    margin-bottom: 10px !important;
+  }
+
+  #dashboard .grid-3 .card {
+    padding: 10px 7px !important;
+    border-radius: 15px !important;
+    text-align: center !important;
+  }
+
+  #dashboard .grid-3 .stat p {
+    font-size: 7.5px !important;
+    letter-spacing: .9px !important;
+    line-height: 1.2 !important;
+    margin-bottom: 5px !important;
+    white-space: nowrap !important;
+  }
+
+  #dashboard .grid-3 .stat h2 {
+    font-size: 15px !important;
+    line-height: 1.1 !important;
+    white-space: nowrap !important;
+  }
+
+  #dashboard .chart-card,
+  #dashboard #tvchart {
+    height: 310px !important;
+    min-height: 310px !important;
+  }
+
+  #dashboard .side-stack {
+    gap: 10px !important;
+  }
+
+  #dashboard .side-stack .card {
+    padding: 13px !important;
+  }
+
+  #dashboard .side-stack .card h3 {
+    font-size: 14px !important;
+  }
+
+  #dashboard .side-stack .card p {
+    font-size: 11.5px !important;
+  }
+
+  #dashboard .ads-card {
+    display: none !important;
+  }
+
+  .sidebar {
+    width: 76vw !important;
+    max-width: 286px !important;
+  }
+
+  .nav {
+    min-height: 42px !important;
+  }
+
+  .topbar {
+    min-height: 56px !important;
+  }
+
+  .topbar-left {
+    gap: 8px !important;
+  }
+
+  .topbar h1 {
+    max-width: 190px !important;
+  }
+
+  .ticker {
+    height: 30px !important;
+  }
+
+  .ticker-track {
+    font-size: 10px !important;
+    gap: 20px !important;
+  }
+
+  #sentinel .grid-3,
+  #sentiment .grid-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 7px !important;
+  }
+
+  #sentinel .grid-3 .card,
+  #sentiment .grid-3 .card {
+    padding: 10px 7px !important;
+    text-align: center !important;
+  }
+
+  #sentinel .grid-3 .stat h2,
+  #sentiment .grid-3 .stat h2 {
+    font-size: 15px !important;
+  }
+
+  #sentinel .grid-3 .stat p,
+  #sentiment .grid-3 .stat p {
+    font-size: 7.5px !important;
+    letter-spacing: .8px !important;
+  }
+
+  .upload-box {
+    min-height: 190px !important;
+  }
+
+  .post-img {
+    height: 185px !important;
+  }
+
+  .floating {
+    transform: scale(.92);
+    transform-origin: bottom right;
+  }
+}
+
+@media (max-width: 390px) {
+  #dashboard .chart-card,
+  #dashboard #tvchart {
+    height: 285px !important;
+    min-height: 285px !important;
+  }
+
+  #dashboard .grid-3 .stat h2,
+  #sentinel .grid-3 .stat h2,
+  #sentiment .grid-3 .stat h2 {
+    font-size: 13px !important;
+  }
+
+  .topbar h1 {
+    max-width: 165px !important;
+  }
+}
