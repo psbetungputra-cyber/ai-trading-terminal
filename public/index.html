@@ -20,19 +20,19 @@
       <button id="register-tab" class="auth-tab" onclick="setAuthMode('register')">Register Preview</button>
     </div>
     <div id="login-form">
-      <input id="username" type="text" placeholder="Username" />
+      <input id="username" type="text" placeholder="Username or Email" />
       <input id="password" type="password" placeholder="Password" />
       <button class="primary-btn" onclick="login()">Open Terminal</button>
     </div>
     <div id="register-form" class="hidden register-preview">
-      <input type="text" placeholder="Display Name"/>
-      <input type="text" placeholder="Username"/>
-      <input type="email" placeholder="Email Address"/>
-      <input type="password" placeholder="Password"/>
-      <input type="text" placeholder="Country / Timezone"/>
-      <input type="text" placeholder="Trading Style"/>
-      <input type="text" placeholder="Favorite Pairs"/>
-      <button class="primary-btn" onclick="alert('Register preview. Firebase Auth akan diaktifkan nanti.')">Create Free Account</button>
+      <input id="register-display-name" type="text" placeholder="Display Name"/>
+      <input id="register-username" type="text" placeholder="Username"/>
+      <input id="register-email" type="email" placeholder="Email Address"/>
+      <input id="register-password" type="password" placeholder="Password"/>
+      <input id="register-country" type="text" placeholder="Country / Timezone"/>
+      <input id="register-style" type="text" placeholder="Trading Style"/>
+      <input id="register-pairs" type="text" placeholder="Favorite Pairs"/>
+      <button class="primary-btn" onclick="firebaseRegisterFromForm()">Create Free Account</button>
       <p class="auth-note">Form ini nanti disambungkan ke Firebase Auth + Firestore.</p>
     </div>
   </div>
@@ -147,7 +147,7 @@
 
       <section id="vip" class="page"><div class="card"><span class="badge vip">Premium Access</span><h2 style="margin-top:12px;">Unlock Signal Scanner VIP</h2><p>VIP mendapatkan Signal Scanner/AI AutoScan, Sentinel AI unlimited, full signal card, premium reasoning, ad-light experience, dan fitur komunitas premium.</p></div><div class="grid-3" style="margin-top:16px;"><div class="card"><h3>Free</h3><p>Sentinel AI limited, Mapping Feed, sentiment preview, ads shown.</p></div><div class="card"><h3>VIP</h3><p>Signal Scanner VIP, Sentinel AI unlimited, full signal card, ad-light.</p></div><div class="card"><h3>Institutional</h3><p>Advanced engine, priority features, early access, special community.</p></div></div></section>
 
-      <section id="admin" class="page"><div class="section-head"><div><h2>Admin Control</h2><p class="muted">Owner center untuk user, VIP, signal, settings, broadcast, dan platform control.</p></div><span class="badge vip">Owner Mode</span></div><div class="grid-3"><div class="card"><h3>User Management</h3><p>Kontrol user, role, status VIP, dan akses fitur.</p></div><div class="card"><h3>VIP Access</h3><p>Aktif/nonaktifkan Signal Scanner VIP dan blur lock.</p></div><div class="card"><h3>Signal Broadcast</h3><p>Kirim signal ke dashboard, Telegram, dan komunitas.</p></div><div class="card"><h3>Sentinel Settings</h3><p>Atur limit free, mode AI, dan visual analysis.</p></div><div class="card"><h3>News Control</h3><p>Kelola fundamental news dan market alerts.</p></div><div class="card"><h3>Website Settings</h3><p>Branding, maintenance, SEO, dan domain-ready settings.</p></div></div></section>
+      <section id="admin" class="page"><div class="section-head"><div><h2>Admin Control</h2><p class="muted">Owner center untuk user, VIP, signal, settings, broadcast, dan platform control.</p></div><span class="badge vip">Owner Mode</span></div><div class="grid-3"><div class="card"><h3>User Management</h3><p>Kontrol user, role, status VIP, dan akses fitur.</p></div><div class="card"><h3>VIP Access</h3><p>Aktif/nonaktifkan Signal Scanner VIP dan blur lock.</p></div><div class="card"><h3>Signal Broadcast</h3><p>Kirim signal ke dashboard, Telegram, dan komunitas.</p></div><div class="card"><h3>Sentinel Settings</h3><p>Atur limit free, mode AI, dan visual analysis.</p></div><div class="card"><h3>News Control</h3><p>Kelola fundamental news dan market alerts.</p></div><div class="card"><h3>Website Settings</h3><p>Branding, maintenance, SEO, dan domain-ready settings.</p></div><div class="card"><h3>Firebase Foundation</h3><p>Siapkan payment methods, paket VIP, dan mode fitur awal ke Firestore.</p><button class="small-btn" onclick="seedFirebaseFoundationData()">Seed Firebase Foundation</button></div></div></section>
 
       <section id="ads" class="page"><div class="card"><span class="badge vip">Monetization</span><h2 style="margin-top:12px;">Ads Manager</h2><p>Kelola AdSense, sponsored banner, broker partner, sponsored mapping post, dan no-ads/ad-light VIP experience.</p></div><div class="grid-3" style="margin-top:16px;"><div class="card"><h3>AdSense Slot</h3><p>Dashboard, feed, academy, and free user pages.</p></div><div class="card"><h3>Sponsored Post</h3><p>Promoted mapping/feed content with clean label.</p></div><div class="card"><h3>Broker Partner</h3><p>Recommended partner placements and affiliate tracking.</p></div></div></section>
     </main>
@@ -160,6 +160,7 @@
     <a class="float-link" href="https://t.me/aitredingterminal" target="_blank">TG</a>
   </div>
 </main>
+<script type="module" src="./js/firebase.js"></script>
 <script src="./js/app.js"></script>
 </body>
 </html>

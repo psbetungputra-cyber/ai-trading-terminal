@@ -1,22 +1,21 @@
-# AiSignalFx PRO Mobile V2 Final
+# AiSignalFx PRO Firebase Foundation V1
 
-Paket ini berisi polish khusus HP:
-- Dashboard mobile lebih ringkas
-- Stat card jadi compact 3 kolom
-- TradingView mobile lebih pendek
-- Sidebar mobile lebih ramping
-- Sponsor card dashboard disembunyikan di HP
-- Desktop tidak berubah
+Paket ini menambahkan:
+- Firebase Web Config
+- Firebase Authentication email/password
+- Firestore connection
+- Register real via Firebase
+- Login email real via Firebase
+- Demo login tetap aktif
+- Seed data awal paymentMethods, vipPackages, settings/featureModes
 
-Rules:
-- Signal Scanner = VIP/Admin
-- Sentinel AI = Free limited / VIP unlimited
-- Mapping Feed = semua user
-- Admin Control + Ads Manager = Admin
-
-Login demo:
+Demo login:
 - Admin: psbetung / admin123
 - VIP: vip / vip123
 - Free: free / free123
 
-Jangan upload node_modules.
+Firebase login:
+- Register dengan email/password di tab Register
+- Login memakai email/password di tab Login
+
+Storage belum dipakai karena billing belum aktif.

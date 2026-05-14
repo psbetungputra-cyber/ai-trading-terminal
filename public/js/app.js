@@ -27,19 +27,49 @@ function setAuthMode(mode){
   }
 }
 
-function login(){
-  const username = document.getElementById("username").value.trim().toLowerCase();
+function startSession(userProfile){
+  currentUser = userProfile;
+
+  document.getElementById("login-screen").classList.add("hidden");
+  document.getElementById("app").classList.remove("hidden");
+
+  hydrateProfile();
+  applyAccessRules();
+
+  setTimeout(initTradingView, 450);
+}
+
+function loginFirebaseUser(userProfile){
+  startSession(userProfile);
+}
+
+async function login(){
+  const username = document.getElementById("username").value.trim();
   const password = document.getElementById("password").value;
-  if(!USERS[username] || USERS[username].password !== password){
+  const loginKey = username.toLowerCase();
+
+  // Live Firebase login if user enters an email.
+  if(username.includes("@")){
+    if(!window.AiSignalFirebase || !window.AiSignalFirebase.login){
+      alert("Firebase belum siap. Coba refresh halaman.");
+      return;
+    }
+
+    try{
+      await window.AiSignalFirebase.login(username, password);
+    }catch(error){
+      alert("Firebase login gagal: " + (error.message || error));
+    }
+    return;
+  }
+
+  // Demo login tetap aktif sebagai fallback.
+  if(!USERS[loginKey] || USERS[loginKey].password !== password){
     alert("ACCESS DENIED");
     return;
   }
-  currentUser = USERS[username];
-  document.getElementById("login-screen").classList.add("hidden");
-  document.getElementById("app").classList.remove("hidden");
-  hydrateProfile();
-  applyAccessRules();
-  setTimeout(initTradingView, 450);
+
+  startSession(USERS[loginKey]);
 }
 
 function hydrateProfile(){
@@ -299,3 +329,14 @@ window.toggleFloatingActions = toggleFloatingActions;
 
 window.toggleProfileMenu = toggleProfileMenu;
 window.closeProfileMenu = closeProfileMenu;
+
+window.loginFirebaseUser = loginFirebaseUser;
+
+function firebaseRegisterFromForm(){
+  if(!window.AiSignalFirebase || !window.AiSignalFirebase.registerFromForm){
+    alert("Firebase belum siap. Coba refresh halaman.");
+    return;
+  }
+  window.AiSignalFirebase.registerFromForm();
+}
+window.firebaseRegisterFromForm = firebaseRegisterFromForm;
