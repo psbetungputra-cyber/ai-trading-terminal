@@ -1432,3 +1432,195 @@ window.saveLearningModule = saveLearningModule;
 
   setInterval(enhancePaymentCards, 1000);
 })();
+
+/* AiSignalFx PRO - Sentinel Community Interaction Demo */
+(function(){
+  const KEY = "aisignalfx_community_demo_actions";
+
+  function escapeHtml(value){
+    return String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function getActions(){
+    try {
+      return JSON.parse(localStorage.getItem(KEY) || "{}");
+    } catch(e) {
+      return {};
+    }
+  }
+
+  function setActions(data){
+    localStorage.setItem(KEY, JSON.stringify(data));
+  }
+
+  function toast(message){
+    const old = document.querySelector(".community-toast");
+    if (old) old.remove();
+
+    const el = document.createElement("div");
+    el.className = "community-toast";
+    el.textContent = message;
+    document.body.appendChild(el);
+
+    setTimeout(() => el.classList.add("show"), 30);
+    setTimeout(() => {
+      el.classList.remove("show");
+      setTimeout(() => el.remove(), 300);
+    }, 2400);
+  }
+
+  function closeCommunityModal(){
+    document.querySelectorAll(".community-modal-backdrop").forEach(x => x.remove());
+  }
+
+  function getPost(id){
+    try {
+      if (typeof demoCommunityPosts !== "undefined") {
+        return demoCommunityPosts.find(x => x.id === id);
+      }
+    } catch(e) {}
+    return null;
+  }
+
+  function updateAction(postId, type, value){
+    const data = getActions();
+    if (!data[postId]) data[postId] = { liked: false, saved: false, followed: false, comments: [] };
+
+    if (type === "like") data[postId].liked = value;
+    if (type === "save") data[postId].saved = value;
+    if (type === "follow") data[postId].followed = value;
+    if (type === "comment" && value) {
+      data[postId].comments.push({
+        text: value,
+        at: new Date().toLocaleString("id-ID")
+      });
+    }
+
+    setActions(data);
+    return data[postId];
+  }
+
+  function openCommunityDetail(postId){
+    const post = getPost(postId);
+    if (!post) {
+      toast("Mapping detail belum tersedia.");
+      return;
+    }
+
+    const actions = getActions()[postId] || { liked: false, saved: false, followed: false, comments: [] };
+
+    closeCommunityModal();
+
+    const wrap = document.createElement("div");
+    wrap.className = "community-modal-backdrop";
+    wrap.innerHTML = `
+      <div class="community-modal" role="dialog" aria-modal="true">
+        <div class="community-modal-head">
+          <div>
+            <span class="community-kicker">SENTINEL COMMUNITY</span>
+            <h3>${escapeHtml(post.pair || "Mapping Detail")}</h3>
+            <p>${escapeHtml(post.user || "Community Mapper")}</p>
+          </div>
+          <button class="community-close" type="button">×</button>
+        </div>
+
+        <div class="community-preview-card">
+          <span class="badge free">${escapeHtml(post.bias || "WAIT")}</span>
+          <p>${escapeHtml(post.caption || "Mapping preview belum tersedia.")}</p>
+          <small>Mode demo: aksi tersimpan sementara di perangkat ini.</small>
+        </div>
+
+        <div class="community-actions-demo">
+          <button class="small-btn" id="community-like-btn" type="button">${actions.liked ? "Liked" : "Like"}</button>
+          <button class="small-btn" id="community-save-btn" type="button">${actions.saved ? "Saved" : "Save"}</button>
+          <button class="small-btn" id="community-follow-btn" type="button">${actions.followed ? "Following" : "Follow Mapper"}</button>
+        </div>
+
+        <div class="community-comment-box">
+          <textarea id="community-comment-input" placeholder="Tulis komentar edukatif..."></textarea>
+          <button class="small-btn" id="community-comment-send" type="button">Send Comment</button>
+        </div>
+
+        <div id="community-comment-list" class="community-comment-list"></div>
+      </div>
+    `;
+
+    document.body.appendChild(wrap);
+
+    function renderComments(){
+      const latest = getActions()[postId] || { comments: [] };
+      const box = wrap.querySelector("#community-comment-list");
+      if (!box) return;
+
+      if (!latest.comments || !latest.comments.length) {
+        box.innerHTML = `<p class="muted">Belum ada komentar di perangkat ini.</p>`;
+        return;
+      }
+
+      box.innerHTML = latest.comments.slice().reverse().map(c => `
+        <div class="community-comment-item">
+          <b>You</b>
+          <small>${escapeHtml(c.at)}</small>
+          <p>${escapeHtml(c.text)}</p>
+        </div>
+      `).join("");
+    }
+
+    wrap.querySelector(".community-close").onclick = closeCommunityModal;
+    wrap.addEventListener("click", e => {
+      if (e.target === wrap) closeCommunityModal();
+    });
+
+    wrap.querySelector("#community-like-btn").onclick = function(){
+      const current = getActions()[postId]?.liked || false;
+      const next = updateAction(postId, "like", !current);
+      this.textContent = next.liked ? "Liked" : "Like";
+      toast(next.liked ? "Mapping liked locally." : "Like removed.");
+    };
+
+    wrap.querySelector("#community-save-btn").onclick = function(){
+      const current = getActions()[postId]?.saved || false;
+      const next = updateAction(postId, "save", !current);
+      this.textContent = next.saved ? "Saved" : "Save";
+      toast(next.saved ? "Mapping saved locally." : "Save removed.");
+    };
+
+    wrap.querySelector("#community-follow-btn").onclick = function(){
+      const current = getActions()[postId]?.followed || false;
+      const next = updateAction(postId, "follow", !current);
+      this.textContent = next.followed ? "Following" : "Follow Mapper";
+      toast(next.followed ? "Mapper followed locally." : "Unfollowed locally.");
+    };
+
+    wrap.querySelector("#community-comment-send").onclick = function(){
+      const input = wrap.querySelector("#community-comment-input");
+      const text = input.value.trim();
+
+      if (!text) {
+        toast("Tulis komentar dulu.");
+        return;
+      }
+
+      updateAction(postId, "comment", text);
+      input.value = "";
+      renderComments();
+      toast("Comment saved locally.");
+    };
+
+    renderComments();
+  }
+
+  window.openMappingDetail = openCommunityDetail;
+
+  window.followMapper = function(name){
+    const id = "follow_" + String(name || "mapper").toLowerCase().replaceAll(" ", "_");
+    const current = getActions()[id]?.followed || false;
+    const next = updateAction(id, "follow", !current);
+    toast(next.followed ? `Kamu mengikuti ${name}.` : `Kamu berhenti mengikuti ${name}.`);
+  };
+})();
