@@ -1189,3 +1189,216 @@ window.submitMappingPost = submitMappingPost;
 window.openMappingDetail = openMappingDetail;
 window.followMapper = followMapper;
 window.saveLearningModule = saveLearningModule;
+
+/* AiSignalFx PRO - Sentinel Trading Lab Demo Upgrade */
+(function(){
+  function labToast(message){
+    if (typeof window.toast === "function") {
+      window.toast(message);
+      return;
+    }
+    const old = document.querySelector(".lab-toast");
+    if (old) old.remove();
+    const el = document.createElement("div");
+    el.className = "lab-toast";
+    el.textContent = message;
+    document.body.appendChild(el);
+    setTimeout(() => el.classList.add("show"), 30);
+    setTimeout(() => {
+      el.classList.remove("show");
+      setTimeout(() => el.remove(), 300);
+    }, 2600);
+  }
+
+  function getJournalRows(){
+    try {
+      return JSON.parse(localStorage.getItem("aisignalfx_journal_entries") || "[]");
+    } catch(e) {
+      return [];
+    }
+  }
+
+  function setJournalRows(rows){
+    localStorage.setItem("aisignalfx_journal_entries", JSON.stringify(rows));
+  }
+
+  function renderJournalEntriesV32(){
+    const box = document.getElementById("journal-list");
+    if (!box) return;
+    const rows = getJournalRows();
+
+    if (!rows.length) {
+      box.innerHTML = "<p class='muted'>Belum ada journal tersimpan.</p>";
+      return;
+    }
+
+    box.innerHTML = rows.slice().reverse().map(row => `
+      <div class="journal-mini lab-journal-card">
+        <div>
+          <b>${row.pair}</b>
+          <span>${row.bias}</span>
+        </div>
+        <small>${row.createdAt || "-"}</small>
+        <p><b>Entry:</b> ${row.entry} · <b>SL:</b> ${row.sl} · <b>TP:</b> ${row.tp}</p>
+        <p><b>Result:</b> ${row.result}</p>
+        <p>${row.note || "No note"}</p>
+      </div>
+    `).join("");
+  }
+
+  function saveJournalEntryV32(){
+    const row = {
+      pair: document.getElementById("journal-pair")?.value || "XAUUSD",
+      bias: document.getElementById("journal-bias")?.value || "WAIT",
+      entry: document.getElementById("journal-entry")?.value || "-",
+      sl: document.getElementById("journal-sl")?.value || "-",
+      tp: document.getElementById("journal-tp")?.value || "-",
+      result: document.getElementById("journal-result")?.value || "-",
+      note: document.getElementById("journal-note")?.value || "",
+      createdAt: new Date().toLocaleString("id-ID")
+    };
+
+    const rows = getJournalRows();
+    rows.push(row);
+    setJournalRows(rows);
+    renderJournalEntriesV32();
+    labToast("Journal tersimpan di perangkat ini. Firebase sync akan ditambahkan tahap berikutnya.");
+  }
+
+  function renderTradingLabDemo(){
+    const risk = document.getElementById("lab-risk");
+    if (risk) {
+      risk.innerHTML = `
+        <div class="grid-3">
+          <div class="card lab-module-card">
+            <span class="badge free">Risk Calculator</span>
+            <h3>Risk & Reward</h3>
+            <p>Hitung estimasi risiko sebelum entry. Mode ini masih demo untuk edukasi.</p>
+            <div class="lab-calc">
+              <input id="risk-balance" type="number" placeholder="Modal, contoh 1000">
+              <input id="risk-percent" type="number" placeholder="Risk %, contoh 1">
+              <input id="risk-entry" type="number" placeholder="Entry price">
+              <input id="risk-sl" type="number" placeholder="Stop Loss price">
+              <button class="small-btn" id="risk-calc-btn">Calculate Risk</button>
+              <p id="risk-calc-result" class="muted"></p>
+            </div>
+          </div>
+          <div class="card lab-module-card">
+            <span class="badge free">Money Management</span>
+            <h3>1–2% Risk Rule</h3>
+            <p>Batasi risiko per posisi. Hindari menaikkan lot setelah loss beruntun.</p>
+            <ul>
+              <li>Risk normal: 1% per trade</li>
+              <li>Risk agresif: maksimal 2%</li>
+              <li>Stop trading saat daily limit tercapai</li>
+            </ul>
+          </div>
+          <div class="card lab-module-card">
+            <span class="badge vip">Discipline</span>
+            <h3>Anti FOMO Rules</h3>
+            <p>Jangan entry saat candle sudah jauh dari area valid. Tunggu pullback, retest, atau konfirmasi struktur.</p>
+          </div>
+        </div>
+      `;
+    }
+
+    const academy = document.getElementById("lab-academy");
+    if (academy) {
+      academy.innerHTML = `
+        <div class="grid-3">
+          <div class="card lab-module-card"><span class="badge free">Module 01</span><h3>Market Structure</h3><p>Pelajari HH, HL, LH, LL untuk membaca trend dan perubahan struktur.</p><small>Checklist: trend H1/M30, validasi M15/M5.</small></div>
+          <div class="card lab-module-card"><span class="badge free">Module 02</span><h3>BOS & CHoCH</h3><p>BOS menandakan continuation. CHoCH memberi sinyal awal perubahan karakter market.</p><small>Jangan entry hanya karena 1 candle break.</small></div>
+          <div class="card lab-module-card"><span class="badge free">Module 03</span><h3>Order Block</h3><p>Area candle institusional sebelum impuls besar. Valid jika ada displacement dan retest.</p></div>
+          <div class="card lab-module-card"><span class="badge free">Module 04</span><h3>FVG / Imbalance</h3><p>Gap efisiensi harga yang sering menjadi area mitigasi sebelum continuation.</p></div>
+          <div class="card lab-module-card"><span class="badge free">Module 05</span><h3>Liquidity Sweep</h3><p>Harga sering menyapu high/low sebelum bergerak ke arah sebenarnya.</p></div>
+          <div class="card lab-module-card"><span class="badge vip">Module 06</span><h3>Entry Confirmation</h3><p>Gunakan M15/M5/M1 untuk validasi candle, CHoCH kecil, dan risk yang jelas.</p></div>
+        </div>
+      `;
+    }
+
+    const library = document.getElementById("lab-library");
+    if (library) {
+      library.innerHTML = `
+        <div class="grid-3">
+          <div class="card lab-module-card"><h3>Support & Resistance</h3><p>Gunakan sebagai area reaksi, bukan tempat entry buta. Tunggu rejection atau breakout valid.</p></div>
+          <div class="card lab-module-card"><h3>Trendline</h3><p>Hubungkan swing penting. Break trendline perlu validasi struktur, bukan hanya garis tersentuh.</p></div>
+          <div class="card lab-module-card"><h3>Parallel Channel</h3><p>Cocok untuk membaca area premium/discount dalam trend yang teratur.</p></div>
+          <div class="card lab-module-card"><h3>Fibonacci</h3><p>Gunakan 0.5–0.705 sebagai area pullback, lalu tunggu konfirmasi price action.</p></div>
+          <div class="card lab-module-card"><h3>Candlestick Confirmation</h3><p>Engulfing, pin bar, dan displacement lebih kuat jika muncul di area liquidity/OB/FVG.</p></div>
+          <div class="card lab-module-card"><h3>ATR & Volatility</h3><p>ATR membantu membaca jarak SL realistis dan kondisi market terlalu liar.</p></div>
+        </div>
+      `;
+    }
+
+    const news = document.getElementById("lab-newslearn");
+    if (news) {
+      news.innerHTML = `
+        <div class="grid-3">
+          <div class="card lab-module-card">
+            <span class="badge free">News Basic</span>
+            <h3>Actual vs Forecast</h3>
+            <p><b>Previous</b> = data sebelumnya. <b>Forecast</b> = perkiraan market. <b>Actual</b> = data yang keluar sekarang.</p>
+            <small>Actual jauh dari forecast biasanya memicu volatilitas besar.</small>
+          </div>
+          <div class="card lab-module-card">
+            <span class="badge vip">XAUUSD</span>
+            <h3>CPI / Inflation</h3>
+            <p>CPI tinggi bisa menguatkan USD karena market menilai suku bunga bisa tetap tinggi. XAUUSD sering tertekan jika USD menguat.</p>
+          </div>
+          <div class="card lab-module-card">
+            <span class="badge vip">USD News</span>
+            <h3>NFP / Jobs Data</h3>
+            <p>NFP memicu whipsaw. Hindari entry beberapa menit sebelum rilis, tunggu sweep dan struktur baru.</p>
+          </div>
+          <div class="card lab-module-card">
+            <span class="badge vip">FOMC</span>
+            <h3>Interest Rate</h3>
+            <p>Keputusan suku bunga dan statement bank sentral bisa mengubah arah trend besar.</p>
+          </div>
+          <div class="card lab-module-card">
+            <span class="badge free">Safe Rules</span>
+            <h3>High Impact Checklist</h3>
+            <p>15–30 menit sebelum news: kecilkan risk, hindari overtrade, tunggu candle news selesai.</p>
+          </div>
+          <div class="card lab-module-card">
+            <span class="badge free">After News</span>
+            <h3>Post-News Setup</h3>
+            <p>Tunggu liquidity sweep, CHoCH/BOS, lalu cari retest OB/FVG untuk entry lebih aman.</p>
+          </div>
+        </div>
+      `;
+    }
+
+    const calcBtn = document.getElementById("risk-calc-btn");
+    if (calcBtn) {
+      calcBtn.addEventListener("click", function(){
+        const balance = Number(document.getElementById("risk-balance")?.value || 0);
+        const riskPct = Number(document.getElementById("risk-percent")?.value || 0);
+        const entry = Number(document.getElementById("risk-entry")?.value || 0);
+        const sl = Number(document.getElementById("risk-sl")?.value || 0);
+        const riskAmount = balance * (riskPct / 100);
+        const distance = Math.abs(entry - sl);
+        const out = document.getElementById("risk-calc-result");
+        if (!out) return;
+        if (!balance || !riskPct || !entry || !sl) {
+          out.textContent = "Isi modal, risk %, entry, dan SL dulu.";
+          return;
+        }
+        out.innerHTML = `Risk amount: <b>${riskAmount.toFixed(2)}</b> · Distance to SL: <b>${distance.toFixed(2)}</b>. Lot size detail akan disesuaikan per pair pada versi berikutnya.`;
+      });
+    }
+  }
+
+  window.saveJournalEntry = saveJournalEntryV32;
+  window.renderJournalEntries = renderJournalEntriesV32;
+
+  document.addEventListener("DOMContentLoaded", function(){
+    renderTradingLabDemo();
+    renderJournalEntriesV32();
+  });
+
+  setTimeout(function(){
+    renderTradingLabDemo();
+    renderJournalEntriesV32();
+  }, 500);
+})();

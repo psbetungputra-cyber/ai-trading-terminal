@@ -1154,3 +1154,80 @@
     font-size: 13px !important;
   }
 }
+
+/* AiSignalFx PRO - Sentinel Trading Lab Demo Upgrade */
+.lab-module-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.lab-module-card h3 {
+  margin-top: 10px;
+  margin-bottom: 8px;
+}
+
+.lab-module-card p,
+.lab-module-card li {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.lab-module-card ul {
+  margin: 12px 0 0;
+  padding-left: 18px;
+}
+
+.lab-calc {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.lab-journal-card {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.lab-journal-card div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.lab-journal-card span {
+  color: var(--blue);
+  font-weight: 900;
+}
+
+.lab-toast {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: 24px;
+  z-index: 99999;
+  padding: 14px 16px;
+  border: 1px solid rgba(59,130,246,.35);
+  border-radius: 20px;
+  background: rgba(8,12,24,.95);
+  color: #f8fafc;
+  box-shadow: 0 24px 80px rgba(0,0,0,.45);
+  transform: translateY(18px);
+  opacity: 0;
+  transition: .25s ease;
+}
+
+.lab-toast.show {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+@media (max-width: 720px) {
+  #lab .grid-3 {
+    grid-template-columns: 1fr !important;
+  }
+
+  .lab-module-card {
+    padding: 18px !important;
+  }
+}
