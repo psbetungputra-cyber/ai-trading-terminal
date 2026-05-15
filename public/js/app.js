@@ -173,6 +173,9 @@ function showPage(id, button){
   document.getElementById("page-title").innerText = titles[id] || "AiSignalFx PRO";
   closeSidebar();
   if(id === "dashboard") setTimeout(initTradingView, 250);
+  if(id === "vip") setTimeout(loadVipPage, 120);
+  if(id === "admin") setTimeout(loadAdminOverview, 120);
+  if(id === "sentiment") setTimeout(loadManualSentiment, 120);
   applyAccessRules();
 }
 
@@ -224,10 +227,10 @@ function initTradingView(){
     gridColor: "rgba(255,255,255,0.05)",
     allow_symbol_change: true,
 
-    hide_side_toolbar: isMobile,
+    hide_side_toolbar: false,
     details: !isMobile,
     calendar: !isMobile,
-    studies: isMobile ? [] : ["STD;Volume"]
+    studies: []
   });
 
   tvLoaded = true;
@@ -340,3 +343,407 @@ function firebaseRegisterFromForm(){
   window.AiSignalFirebase.registerFromForm();
 }
 window.firebaseRegisterFromForm = firebaseRegisterFromForm;
+
+
+let selectedVipPackage = null;
+let selectedPaymentMethod = null;
+
+function moneyIDR(value){
+  const n = Number(value || 0);
+  return "Rp" + n.toLocaleString("id-ID");
+}
+
+const fallbackPackages = [
+  { id: "vip-starter", name: "VIP Starter", normalPrice: 35000, discount: 10000, finalPrice: 25000, durationDays: 30, label: "Early Promo", active: true },
+  { id: "vip-pro", name: "VIP Pro", normalPrice: 75000, discount: 25000, finalPrice: 50000, durationDays: 30, label: "Best Value", active: true },
+  { id: "founder-promo", name: "Founder Promo", normalPrice: 150000, discount: 50000, finalPrice: 100000, durationDays: 90, label: "Founder Access", active: true }
+];
+
+const fallbackPayments = [
+  { id: "dana", type: "ewallet", name: "DANA", number: "082258464062", accountName: "ROMADON SAPUTRA", active: true },
+  { id: "gopay", type: "ewallet", name: "GoPay", number: "082258464062", accountName: "ROMADON SAPUTRA", active: true },
+  { id: "ovo", type: "ewallet", name: "OVO", number: "082258464062", accountName: "ROMADON SAPUTRA", active: true },
+  { id: "bri", type: "bank", name: "Bank BRI", number: "7705 0101 2157 535", accountName: "ROMADON SAPUTRA", active: true },
+  { id: "jago", type: "bank", name: "Bank Jago", number: "102893930380", accountName: "ROMADON SAPUTRA", active: true },
+  { id: "seabank", type: "bank", name: "SeaBank", number: "901537786673", accountName: "ROMADON SAPUTRA", active: true }
+];
+
+async function getSafeCollection(name, fallback){
+  try{
+    if(window.AiSignalFirebase?.getCollectionDocs){
+      const rows = await window.AiSignalFirebase.getCollectionDocs(name);
+      return rows.length ? rows.filter(x => x.active !== false) : fallback;
+    }
+  }catch(error){
+    console.warn("Firestore fallback:", name, error);
+  }
+  return fallback;
+}
+
+async function loadVipPage(){
+  const packages = await getSafeCollection("vipPackages", fallbackPackages);
+  const payments = await getSafeCollection("paymentMethods", fallbackPayments);
+  renderVipPackages(packages);
+  renderPaymentMethods(payments);
+}
+
+function renderVipPackages(packages){
+  const box = document.getElementById("vip-package-list");
+  if(!box) return;
+
+  box.innerHTML = packages.map(pkg => `
+    <div class="card vip-select-card" onclick='selectVipPackage(${JSON.stringify(pkg).replace(/'/g, "&apos;")})'>
+      <span class="badge vip">${pkg.label || "VIP"}</span>
+      <h3 style="margin-top:12px;">${pkg.name}</h3>
+      <p><s>${moneyIDR(pkg.normalPrice)}</s></p>
+      <h2 class="yellow">${moneyIDR(pkg.finalPrice)}</h2>
+      <p>${pkg.durationDays || 30} hari akses VIP</p>
+    </div>
+  `).join("");
+}
+
+function renderPaymentMethods(methods){
+  const box = document.getElementById("payment-method-list");
+  if(!box) return;
+
+  box.innerHTML = methods.map(method => `
+    <div class="card payment-select-card" onclick='selectPaymentMethod(${JSON.stringify(method).replace(/'/g, "&apos;")})'>
+      <span class="badge free">${method.type || "payment"}</span>
+      <h3 style="margin-top:12px;">${method.name}</h3>
+      <p><b>${method.number}</b></p>
+      <p>a.n. ${method.accountName || "ROMADON SAPUTRA"}</p>
+    </div>
+  `).join("");
+}
+
+function selectVipPackage(pkg){
+  selectedVipPackage = pkg;
+  document.getElementById("selected-package-label").innerText = `${pkg.name} • ${moneyIDR(pkg.finalPrice)}`;
+}
+
+function selectPaymentMethod(method){
+  selectedPaymentMethod = method;
+  document.getElementById("selected-method-label").innerText = `${method.name} • ${method.number}`;
+}
+
+async function submitVipRequest(){
+  if(!currentUser){
+    alert("Login dulu.");
+    return;
+  }
+
+  if(!selectedVipPackage || !selectedPaymentMethod){
+    alert("Pilih paket VIP dan metode pembayaran dulu.");
+    return;
+  }
+
+  const senderName = document.getElementById("vip-payment-name")?.value.trim();
+  const note = document.getElementById("vip-payment-note")?.value.trim();
+  const proofFile = document.getElementById("vip-proof-file")?.files?.[0];
+  let proofUrl = "";
+
+  try{
+    if(proofFile && window.AiSignalCloudinary?.uploadToCloudinary){
+      document.getElementById("vip-upload-status").innerText = "Uploading proof to Cloudinary...";
+      const uploaded = await window.AiSignalCloudinary.uploadToCloudinary(proofFile, "aisignalfx/payment_proofs");
+      proofUrl = uploaded.secure_url;
+      document.getElementById("vip-upload-status").innerText = "Proof uploaded.";
+    }
+  }catch(error){
+    alert("Upload bukti gagal, request tetap bisa dibuat. Kirim bukti via WA/TG. Error: " + error.message);
+  }
+
+  const payload = {
+    userId: currentUser.uid || "demo-" + currentUser.name,
+    userName: currentUser.name,
+    email: currentUser.email || "",
+    packageId: selectedVipPackage.id,
+    packageName: selectedVipPackage.name,
+    amount: selectedVipPackage.finalPrice,
+    durationDays: selectedVipPackage.durationDays || 30,
+    paymentMethod: selectedPaymentMethod.name,
+    paymentNumber: selectedPaymentMethod.number,
+    accountName: selectedPaymentMethod.accountName || "ROMADON SAPUTRA",
+    senderName: senderName || currentUser.name,
+    note: note || "",
+    proofUrl
+  };
+
+  if(window.AiSignalFirebase?.createVipRequest){
+    await window.AiSignalFirebase.createVipRequest(payload);
+    alert("VIP request terkirim ke Admin Control.");
+  }else{
+    alert("Firebase belum siap. Data request belum tersimpan.");
+  }
+}
+
+function showAdminPanel(name){
+  document.querySelectorAll(".admin-panel").forEach(panel => panel.classList.remove("active"));
+  document.querySelectorAll(".admin-tabs button").forEach(btn => btn.classList.remove("active"));
+
+  const target = document.getElementById("admin-panel-" + name);
+  if(target) target.classList.add("active");
+
+  const button = Array.from(document.querySelectorAll(".admin-tabs button")).find(btn => btn.textContent.toLowerCase().includes(name));
+  if(button) button.classList.add("active");
+
+  if(name === "users") loadAdminUsers();
+  if(name === "vip") loadVipRequests();
+  if(name === "pricing") loadAdminPricing();
+  if(name === "payments") loadAdminPayments();
+}
+
+function loadAdminOverview(){
+  if(currentUser?.level === "admin"){
+    loadVipPage();
+  }
+}
+
+async function loadAdminUsers(){
+  const box = document.getElementById("admin-users-list");
+  if(!box) return;
+
+  const users = await getSafeCollection("users", []);
+  if(!users.length){
+    box.innerHTML = `<div class="card"><p>Belum ada user Firebase. User demo tidak masuk database. Coba daftar lewat Register Preview.</p></div>`;
+    return;
+  }
+
+  box.innerHTML = users.map(user => `
+    <div class="card admin-row">
+      <div>
+        <h3>${user.displayName || user.email || user.id}</h3>
+        <p>${user.email || ""}</p>
+        <p>Role: <b>${user.level || "free"}</b></p>
+      </div>
+      <div class="row-actions">
+        <button onclick="setUserRole('${user.id}','free')">Free</button>
+        <button onclick="setUserRole('${user.id}','vip')">VIP</button>
+        <button onclick="setUserRole('${user.id}','admin')">Admin</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+async function setUserRole(uid, level){
+  if(!confirm("Ubah role user jadi " + level + "?")) return;
+  await window.AiSignalFirebase.updateUserRole(uid, level);
+  loadAdminUsers();
+}
+
+async function loadVipRequests(){
+  const box = document.getElementById("admin-vip-requests");
+  if(!box) return;
+
+  const rows = await getSafeCollection("vipRequests", []);
+  if(!rows.length){
+    box.innerHTML = `<div class="card"><p>Belum ada VIP request.</p></div>`;
+    return;
+  }
+
+  box.innerHTML = rows.map(row => `
+    <div class="card admin-row">
+      <div>
+        <h3>${row.userName || "User"} • ${row.packageName || ""}</h3>
+        <p>${moneyIDR(row.amount)} via ${row.paymentMethod || "-"}</p>
+        <p>Status: <b>${row.status || "pending"}</b></p>
+        ${row.proofUrl ? `<p><a href="${row.proofUrl}" target="_blank">Open Proof</a></p>` : `<p>Proof: WA/TG manual or not uploaded</p>`}
+      </div>
+      <div class="row-actions">
+        <button onclick="setVipRequestStatus('${row.id}','approved')">Approve</button>
+        <button onclick="setVipRequestStatus('${row.id}','rejected')">Reject</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+async function setVipRequestStatus(id, status){
+  await window.AiSignalFirebase.updateVipRequestStatus(id, status);
+  loadVipRequests();
+}
+
+async function loadAdminPricing(){
+  const rows = await getSafeCollection("vipPackages", fallbackPackages);
+  const box = document.getElementById("admin-pricing-list");
+  if(box) renderVipPackagesToBox(rows, box);
+}
+
+function renderVipPackagesToBox(rows, box){
+  box.innerHTML = rows.map(pkg => `
+    <div class="card">
+      <span class="badge vip">${pkg.label || "VIP"}</span>
+      <h3 style="margin-top:10px;">${pkg.name}</h3>
+      <p>Normal: ${moneyIDR(pkg.normalPrice)}</p>
+      <p>Diskon: ${moneyIDR(pkg.discount)}</p>
+      <h3 class="yellow">${moneyIDR(pkg.finalPrice)}</h3>
+      <p>${pkg.durationDays || 30} hari</p>
+    </div>
+  `).join("");
+}
+
+async function saveVipPackageFromAdmin(){
+  const data = {
+    id: document.getElementById("pricing-id").value.trim(),
+    name: document.getElementById("pricing-name").value.trim(),
+    normalPrice: Number(document.getElementById("pricing-normal").value || 0),
+    discount: Number(document.getElementById("pricing-discount").value || 0),
+    finalPrice: Number(document.getElementById("pricing-final").value || 0),
+    durationDays: Number(document.getElementById("pricing-days").value || 30),
+    label: document.getElementById("pricing-label").value.trim(),
+    active: true
+  };
+
+  if(!data.id || !data.name){
+    alert("Isi package id dan nama paket.");
+    return;
+  }
+
+  await window.AiSignalFirebase.upsertDoc("vipPackages", data.id, data);
+  alert("Paket VIP tersimpan.");
+  loadAdminPricing();
+}
+
+async function loadAdminPayments(){
+  const rows = await getSafeCollection("paymentMethods", fallbackPayments);
+  const box = document.getElementById("admin-payment-list");
+  if(!box) return;
+  box.innerHTML = rows.map(item => `
+    <div class="card">
+      <span class="badge free">${item.type}</span>
+      <h3 style="margin-top:10px;">${item.name}</h3>
+      <p><b>${item.number}</b></p>
+      <p>a.n. ${item.accountName}</p>
+    </div>
+  `).join("");
+}
+
+async function savePaymentMethodFromAdmin(){
+  const data = {
+    id: document.getElementById("payment-id").value.trim(),
+    name: document.getElementById("payment-name").value.trim(),
+    type: document.getElementById("payment-type").value.trim() || "ewallet",
+    number: document.getElementById("payment-number").value.trim(),
+    accountName: document.getElementById("payment-account").value.trim() || "ROMADON SAPUTRA",
+    active: true
+  };
+
+  if(!data.id || !data.name || !data.number){
+    alert("Isi id, nama metode, dan nomor.");
+    return;
+  }
+
+  await window.AiSignalFirebase.upsertDoc("paymentMethods", data.id, data);
+  alert("Metode pembayaran tersimpan.");
+  loadAdminPayments();
+}
+
+async function saveFeatureModesFromAdmin(){
+  const data = {
+    signalScanner: document.getElementById("mode-scanner").value,
+    sentinelAI: document.getElementById("mode-sentinel").value,
+    news: document.getElementById("mode-news").value,
+    cryptoProvider: document.getElementById("mode-crypto").value,
+    forexProvider: document.getElementById("mode-forex").value
+  };
+
+  await window.AiSignalFirebase.saveFeatureModes(data);
+  alert("Feature mode tersimpan.");
+}
+
+async function saveManualSentiment(){
+  const data = {
+    pair: document.getElementById("admin-sentiment-pair").value,
+    session: document.getElementById("admin-sentiment-session").value,
+    long: document.getElementById("admin-sentiment-long").value,
+    short: document.getElementById("admin-sentiment-short").value,
+    netVolume: document.getElementById("admin-sentiment-volume").value,
+    positions: document.getElementById("admin-sentiment-positions").value,
+    note: document.getElementById("admin-sentiment-note").value,
+    updatedAtText: new Date().toLocaleString("id-ID")
+  };
+
+  if(window.AiSignalFirebase?.saveManualSentiment){
+    await window.AiSignalFirebase.saveManualSentiment(data);
+    alert("Sentiment tersimpan.");
+  }
+  applySentimentToUI(data);
+}
+
+async function loadManualSentiment(){
+  if(window.AiSignalFirebase?.getManualSentiment){
+    const data = await window.AiSignalFirebase.getManualSentiment();
+    if(data) applySentimentToUI(data);
+  }
+}
+
+function applySentimentToUI(data){
+  const set = (id, value) => { const el = document.getElementById(id); if(el) el.innerText = value; };
+  set("sentiment-pair", data.pair || "XAUUSD");
+  set("sentiment-long", (data.long || "59") + "%");
+  set("sentiment-short", (data.short || "41") + "%");
+  set("sentiment-session", data.session || "Asia");
+  set("sentiment-volume", data.netVolume || "+321.66 lots");
+  set("sentiment-positions", data.positions || "14.2K");
+  set("sentiment-note", data.note || "");
+  set("sentiment-updated", data.updatedAtText || "Manual");
+}
+
+function openCalendarWidget(){
+  document.getElementById("calendar-preview")?.classList.toggle("hidden");
+}
+
+async function saveManualNews(){
+  const title = document.getElementById("admin-news-title").value.trim();
+  const body = document.getElementById("admin-news-body").value.trim();
+  if(!title || !body){
+    alert("Isi judul dan berita.");
+    return;
+  }
+  await window.AiSignalFirebase.saveManualNews({ title, body, impact: "manual" });
+  alert("News manual tersimpan.");
+}
+
+async function saveSignalBroadcast(){
+  const pair = document.getElementById("signal-pair").value.trim();
+  const bias = document.getElementById("signal-bias").value.trim();
+  const note = document.getElementById("signal-note").value.trim();
+  if(!pair || !bias){
+    alert("Isi pair dan bias.");
+    return;
+  }
+  await window.AiSignalFirebase.saveSignal({ pair, bias, note, mode: "demo" });
+  alert("Signal demo tersimpan.");
+}
+
+async function saveAdSlot(){
+  const title = document.getElementById("ad-title").value.trim();
+  const link = document.getElementById("ad-link").value.trim();
+  const note = document.getElementById("ad-note").value.trim();
+  if(!title){
+    alert("Isi judul ads.");
+    return;
+  }
+  await window.AiSignalFirebase.saveAd({ title, link, note, active: true });
+  alert("Ad slot tersimpan.");
+}
+
+window.loadVipPage = loadVipPage;
+window.selectVipPackage = selectVipPackage;
+window.selectPaymentMethod = selectPaymentMethod;
+window.submitVipRequest = submitVipRequest;
+window.showAdminPanel = showAdminPanel;
+window.loadAdminOverview = loadAdminOverview;
+window.loadAdminUsers = loadAdminUsers;
+window.setUserRole = setUserRole;
+window.loadVipRequests = loadVipRequests;
+window.setVipRequestStatus = setVipRequestStatus;
+window.loadAdminPricing = loadAdminPricing;
+window.saveVipPackageFromAdmin = saveVipPackageFromAdmin;
+window.loadAdminPayments = loadAdminPayments;
+window.savePaymentMethodFromAdmin = savePaymentMethodFromAdmin;
+window.saveFeatureModesFromAdmin = saveFeatureModesFromAdmin;
+window.saveManualSentiment = saveManualSentiment;
+window.openCalendarWidget = openCalendarWidget;
+window.saveManualNews = saveManualNews;
+window.saveSignalBroadcast = saveSignalBroadcast;
+window.saveAdSlot = saveAdSlot;

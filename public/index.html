@@ -133,9 +133,97 @@
         </div>
       </section>
 
-      <section id="sentiment" class="page"><div class="grid-3"><div class="card stat"><p>Bullish Pressure</p><h2 class="green">62%</h2></div><div class="card stat"><p>Bearish Pressure</p><h2 class="red">25%</h2></div><div class="card stat"><p>Neutral</p><h2 class="yellow">13%</h2></div></div><div class="card"><h2>Market Sentiment</h2><p>Panel awal untuk membaca bias pasar. Nanti bisa tersambung API sentiment/news. Untuk sekarang data masih mockup agar UI dan flow siap dulu.</p></div></section>
+      <section id="sentiment" class="page">
+          <div class="section-head">
+            <div>
+              <h2>Market Sentiment Center</h2>
+              <p class="muted">Data sentiment berbasis input admin/manual. Gambar dari grup cukup jadi referensi, web menampilkan data terstruktur.</p>
+            </div>
+            <span class="badge free">Manual / Admin</span>
+          </div>
 
-      <section id="fundamental" class="page"><div class="section-head"><div><h2>Fundamental News</h2><p class="muted">Economic calendar and market-impact news preview.</p></div><span class="badge wait">Watchlist</span></div><div class="grid-3"><div class="card"><span class="badge sell">High Impact</span><h3 style="margin-top:12px;">USD CPI Data</h3><p>High impact for XAUUSD and major USD pairs.</p></div><div class="card"><span class="badge wait">Medium</span><h3 style="margin-top:12px;">FOMC Speaker</h3><p>Potential volatility during US session.</p></div><div class="card"><span class="badge buy">Watch</span><h3 style="margin-top:12px;">Jobless Claims</h3><p>Labor data can affect USD sentiment.</p></div></div></section>
+          <div class="grid-3 sentiment-compact">
+            <div class="card stat"><p>Pair</p><h2 class="yellow" id="sentiment-pair">XAUUSD</h2></div>
+            <div class="card stat"><p>Long</p><h2 class="green" id="sentiment-long">59%</h2></div>
+            <div class="card stat"><p>Short</p><h2 class="red" id="sentiment-short">41%</h2></div>
+          </div>
+
+          <div class="grid-2">
+            <div class="card">
+              <span class="badge buy" id="sentiment-bias-badge">Bullish Bias</span>
+              <h2 style="margin-top:12px;">Retail Sentiment</h2>
+              <p><b>Session:</b> <span id="sentiment-session">Asia</span></p>
+              <p><b>Net Volume:</b> <span id="sentiment-volume">+321.66 lots</span></p>
+              <p><b>Total Positions:</b> <span id="sentiment-positions">14.2K</span></p>
+              <p><b>Updated:</b> <span id="sentiment-updated">Manual Preview</span></p>
+            </div>
+
+            <div class="card">
+              <h3>Sentinel Market Note</h3>
+              <p id="sentiment-note">Retail masih dominan long. Untuk XAUUSD, tetap hati-hati sweep liquidity sebelum continuation.</p>
+            </div>
+          </div>
+
+          <div class="card owner-only admin-mini-panel" style="margin-top:16px;">
+            <h3>Admin Sentiment Input</h3>
+            <div class="form-grid">
+              <input id="admin-sentiment-pair" placeholder="Pair, contoh XAUUSD" value="XAUUSD">
+              <input id="admin-sentiment-session" placeholder="Session, contoh Asia" value="Asia">
+              <input id="admin-sentiment-long" placeholder="Long %, contoh 59" value="59">
+              <input id="admin-sentiment-short" placeholder="Short %, contoh 41" value="41">
+              <input id="admin-sentiment-volume" placeholder="Net volume" value="+321.66 lots">
+              <input id="admin-sentiment-positions" placeholder="Total positions" value="14.2K">
+            </div>
+            <textarea id="admin-sentiment-note" placeholder="Catatan bias market...">Retail masih dominan long. Tunggu konfirmasi dan hindari FOMO sebelum sweep liquidity selesai.</textarea>
+            <button class="small-btn" onclick="saveManualSentiment()">Save Sentiment</button>
+          </div>
+        </section>
+
+      <section id="fundamental" class="page">
+          <div class="section-head">
+            <div>
+              <h2>Fundamental News & Calendar</h2>
+              <p class="muted">News API mahal kita skip dulu. Sumber awal: TradingView Calendar + news/manual brief dari admin.</p>
+            </div>
+            <span class="badge wait">Manual + Widget</span>
+          </div>
+
+          <div class="grid-2">
+            <div class="card">
+              <span class="badge sell">High Impact</span>
+              <h3 style="margin-top:12px;">Today Market Brief</h3>
+              <div id="news-list">
+                <p><b>USD CPI / FOMC / NFP:</b> pantau high impact news sebelum entry XAUUSD.</p>
+                <p><b>XAUUSD:</b> hindari entry impulsif menjelang news besar.</p>
+                <p><b>Sentinel Note:</b> tunggu sweep liquidity dan confirmation candle.</p>
+              </div>
+            </div>
+
+            <div class="card">
+              <span class="badge free">TradingView Calendar</span>
+              <h3 style="margin-top:12px;">Economic Calendar</h3>
+              <p>Untuk awal, kalender ekonomi bisa pakai widget TradingView / manual watchlist agar biaya tetap rendah.</p>
+              <button class="small-btn" onclick="openCalendarWidget()">Open Calendar Preview</button>
+            </div>
+          </div>
+
+          <div id="calendar-preview" class="card hidden" style="margin-top:16px;">
+            <h3>Calendar Preview</h3>
+            <p>High impact watchlist: CPI, NFP, FOMC, Interest Rate, Jobless Claims, GDP, PPI.</p>
+            <div class="grid-3" style="margin-top:12px;">
+              <div class="card"><span class="badge sell">High</span><h3 style="margin-top:10px;">USD CPI</h3><p>Potential XAUUSD volatility.</p></div>
+              <div class="card"><span class="badge sell">High</span><h3 style="margin-top:10px;">FOMC</h3><p>Watch liquidity sweep.</p></div>
+              <div class="card"><span class="badge wait">Medium</span><h3 style="margin-top:10px;">Jobless Claims</h3><p>USD sentiment catalyst.</p></div>
+            </div>
+          </div>
+
+          <div class="card owner-only admin-mini-panel" style="margin-top:16px;">
+            <h3>Admin News Control</h3>
+            <input id="admin-news-title" placeholder="Judul news / market brief">
+            <textarea id="admin-news-body" placeholder="Isi ringkasan news..."></textarea>
+            <button class="small-btn" onclick="saveManualNews()">Add Manual News</button>
+          </div>
+        </section>
 
       <section id="mapping" class="page"><div class="section-head"><div><h2>Mapping Feed</h2><p class="muted">Semua user bisa upload mapping chart untuk komunitas, like, comment, dan nanti Sentinel AI bisa reply.</p></div><span class="badge free">Community</span></div><div class="upload-mini" onclick="document.getElementById('mapping-upload').click()"><input id="mapping-upload" type="file" accept="image/*" hidden/><h3>+ Upload Mapping to Community</h3><p>Ini untuk share mapping publik, bukan analisa private Sentinel AI.</p></div><div id="new-mapping"></div><div class="card feed-post"><div class="post-header"><div class="post-user"><div class="avatar">P</div><div><h3>PSBETUNG</h3><p>SMC Scalper • XAUUSD Mapping</p></div></div><span class="badge buy">Bullish Idea</span></div><p>XAUUSD sweep liquidity lalu reject demand. Menunggu confirmation M5.</p><div class="post-img">Chart Mapping Preview</div><div class="ai-message"><strong>Sentinel AI</strong><p>Mapping cukup valid. Struktur bullish masih terjaga, tetapi tunggu retest dan confirmation candle sebelum entry.</p></div><div class="post-actions"><span>❤️ 128</span><span>💬 34</span><span>🔖 Save</span></div></div><div class="card feed-post ads-card"><span class="badge vip">Sponsored</span><h3 style="margin-top:10px;">Featured Market Partner</h3><p>Slot iklan elegan untuk broker/tools/sponsor.</p></div></section>
 
@@ -145,11 +233,161 @@
 
       <section id="profile" class="page"><div class="profile-cover"></div><div class="card profile-body"><div class="profile-avatar" id="profile-avatar">P</div><h2 id="profile-name" style="margin-top:12px;">PSBETUNG</h2><p id="profile-role">Founder / Admin</p><div class="grid-3" style="margin-top:18px;"><div class="card stat"><p>Role</p><h2 class="blue" id="profile-role-box">Admin</h2></div><div class="card stat"><p>Style</p><h2 class="green" id="profile-style">SMC</h2></div><div class="card stat"><p>Pairs</p><h2 class="yellow" id="profile-pairs">XAU</h2></div></div><div class="grid-2"><div class="card"><h3>Profile Overview</h3><p><b>Display Name:</b> <span id="profile-display">PSBETUNG</span></p><p><b>Bio:</b> Institutional SMC trader and AiSignalFx founder.</p><p><b>Country / Timezone:</b> Indonesia / Asia Jakarta</p><p><b>Favorite Pairs:</b> XAUUSD, GBPJPY, BTCUSD</p></div><div class="card"><h3>Account Settings</h3><p>Edit profile, language, timezone, notifications, Telegram/WhatsApp connection, password, and account control.</p><button class="small-btn" onclick="alert('Account Settings akan disambungkan ke Firebase nanti.')">Open Settings</button></div><div class="card"><h3>Activity</h3><p>Mapping posts, comments, saved analysis, signal history, journal records, and Sentinel AI analysis logs.</p></div><div class="card"><h3>VIP Status</h3><p id="vip-status-text">Founder access active.</p><button class="small-btn" onclick="showPageById('vip')">View VIP Access</button></div></div></div></section>
 
-      <section id="vip" class="page"><div class="card"><span class="badge vip">Premium Access</span><h2 style="margin-top:12px;">Unlock Signal Scanner VIP</h2><p>VIP mendapatkan Signal Scanner/AI AutoScan, Sentinel AI unlimited, full signal card, premium reasoning, ad-light experience, dan fitur komunitas premium.</p></div><div class="grid-3" style="margin-top:16px;"><div class="card"><h3>Free</h3><p>Sentinel AI limited, Mapping Feed, sentiment preview, ads shown.</p></div><div class="card"><h3>VIP</h3><p>Signal Scanner VIP, Sentinel AI unlimited, full signal card, ad-light.</p></div><div class="card"><h3>Institutional</h3><p>Advanced engine, priority features, early access, special community.</p></div></div></section>
+      <section id="vip" class="page">
+          <div class="section-head">
+            <div>
+              <h2>VIP Access</h2>
+              <p class="muted">Manual payment system: pilih paket, pilih metode bayar, upload bukti via Cloudinary atau kirim via WA/TG.</p>
+            </div>
+            <span class="badge vip">Premium Access</span>
+          </div>
 
-      <section id="admin" class="page"><div class="section-head"><div><h2>Admin Control</h2><p class="muted">Owner center untuk user, VIP, signal, settings, broadcast, dan platform control.</p></div><span class="badge vip">Owner Mode</span></div><div class="grid-3"><div class="card"><h3>User Management</h3><p>Kontrol user, role, status VIP, dan akses fitur.</p></div><div class="card"><h3>VIP Access</h3><p>Aktif/nonaktifkan Signal Scanner VIP dan blur lock.</p></div><div class="card"><h3>Signal Broadcast</h3><p>Kirim signal ke dashboard, Telegram, dan komunitas.</p></div><div class="card"><h3>Sentinel Settings</h3><p>Atur limit free, mode AI, dan visual analysis.</p></div><div class="card"><h3>News Control</h3><p>Kelola fundamental news dan market alerts.</p></div><div class="card"><h3>Website Settings</h3><p>Branding, maintenance, SEO, dan domain-ready settings.</p></div><div class="card"><h3>Firebase Foundation</h3><p>Siapkan payment methods, paket VIP, dan mode fitur awal ke Firestore.</p><button class="small-btn" onclick="seedFirebaseFoundationData()">Seed Firebase Foundation</button></div></div></section>
+          <div class="card">
+            <h3>Pilih Paket VIP</h3>
+            <div id="vip-package-list" class="grid-3" style="margin-top:16px;"></div>
+          </div>
 
-      <section id="ads" class="page"><div class="card"><span class="badge vip">Monetization</span><h2 style="margin-top:12px;">Ads Manager</h2><p>Kelola AdSense, sponsored banner, broker partner, sponsored mapping post, dan no-ads/ad-light VIP experience.</p></div><div class="grid-3" style="margin-top:16px;"><div class="card"><h3>AdSense Slot</h3><p>Dashboard, feed, academy, and free user pages.</p></div><div class="card"><h3>Sponsored Post</h3><p>Promoted mapping/feed content with clean label.</p></div><div class="card"><h3>Broker Partner</h3><p>Recommended partner placements and affiliate tracking.</p></div></div></section>
+          <div class="card" style="margin-top:16px;">
+            <h3>Pilih Metode Pembayaran</h3>
+            <p>Semua pembayaran a.n. <b>ROMADON SAPUTRA</b>.</p>
+            <div id="payment-method-list" class="grid-3" style="margin-top:16px;"></div>
+          </div>
+
+          <div class="card" style="margin-top:16px;">
+            <h3>Konfirmasi Pembayaran</h3>
+            <div class="grid-2">
+              <div>
+                <p><b>Paket dipilih:</b> <span id="selected-package-label">Belum dipilih</span></p>
+                <p><b>Metode dipilih:</b> <span id="selected-method-label">Belum dipilih</span></p>
+                <input id="vip-payment-name" placeholder="Nama pengirim / nama akun">
+                <input id="vip-payment-note" placeholder="Catatan pembayaran, contoh sudah transfer DANA">
+                <input id="vip-proof-file" type="file" accept="image/*">
+                <button class="small-btn" onclick="submitVipRequest()">Submit VIP Request</button>
+              </div>
+              <div class="ai-message">
+                <strong>Info</strong>
+                <p>Kalau upload gambar gagal, kirim bukti pembayaran lewat WA/TG. Admin tetap bisa approve manual.</p>
+                <p id="vip-upload-status">Cloudinary ready: dp2zwkxoi / aisignalfx_upload</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      <section id="admin" class="page">
+          <div class="section-head">
+            <div>
+              <h2>Admin Control</h2>
+              <p class="muted">Owner center untuk user, VIP, payment, mode fitur, signal, news, ads, dan website settings.</p>
+            </div>
+            <span class="badge vip">Owner Mode</span>
+          </div>
+
+          <div class="admin-tabs">
+            <button onclick="showAdminPanel('overview')" class="active">Overview</button>
+            <button onclick="showAdminPanel('users')">Users</button>
+            <button onclick="showAdminPanel('vip')">VIP Requests</button>
+            <button onclick="showAdminPanel('pricing')">Pricing</button>
+            <button onclick="showAdminPanel('payments')">Payments</button>
+            <button onclick="showAdminPanel('modes')">Demo/Live</button>
+            <button onclick="showAdminPanel('content')">Content</button>
+          </div>
+
+          <div id="admin-panel-overview" class="admin-panel active">
+            <div class="grid-3">
+              <div class="card admin-action-card" onclick="showAdminPanel('users')"><h3>User Management</h3><p>Lihat user, role, VIP status, dan akun baru.</p></div>
+              <div class="card admin-action-card" onclick="showAdminPanel('vip')"><h3>VIP Requests</h3><p>Approve/reject request pembayaran VIP.</p></div>
+              <div class="card admin-action-card" onclick="showAdminPanel('pricing')"><h3>VIP Pricing Manager</h3><p>Atur harga, diskon, durasi, dan promo.</p></div>
+              <div class="card admin-action-card" onclick="showAdminPanel('payments')"><h3>Payment Methods</h3><p>Kelola DANA, GoPay, OVO, BRI, Jago, SeaBank.</p></div>
+              <div class="card admin-action-card" onclick="showAdminPanel('modes')"><h3>Demo / Live Mode</h3><p>Atur provider demo, live, coming soon, atau VIP locked.</p></div>
+              <div class="card admin-action-card" onclick="showAdminPanel('content')"><h3>Content Control</h3><p>News, signal broadcast, sentiment, ads, dan settings.</p></div>
+              <div class="card"><h3>Firebase Foundation</h3><p>Siapkan payment methods, paket VIP, dan mode fitur awal ke Firestore.</p><button class="small-btn" onclick="seedFirebaseFoundationData()">Seed Firebase Foundation</button></div>
+            </div>
+          </div>
+
+          <div id="admin-panel-users" class="admin-panel">
+            <div class="section-head"><h3>User Management</h3><button class="small-btn" onclick="loadAdminUsers()">Refresh Users</button></div>
+            <div id="admin-users-list" class="admin-list"></div>
+          </div>
+
+          <div id="admin-panel-vip" class="admin-panel">
+            <div class="section-head"><h3>VIP Payment Requests</h3><button class="small-btn" onclick="loadVipRequests()">Refresh Requests</button></div>
+            <div id="admin-vip-requests" class="admin-list"></div>
+          </div>
+
+          <div id="admin-panel-pricing" class="admin-panel">
+            <h3>VIP Pricing Manager</h3>
+            <div class="form-grid">
+              <input id="pricing-id" placeholder="package id, contoh vip-starter">
+              <input id="pricing-name" placeholder="Nama paket">
+              <input id="pricing-normal" placeholder="Harga normal">
+              <input id="pricing-discount" placeholder="Diskon">
+              <input id="pricing-final" placeholder="Harga final">
+              <input id="pricing-days" placeholder="Durasi hari">
+              <input id="pricing-label" placeholder="Label promo">
+            </div>
+            <button class="small-btn" onclick="saveVipPackageFromAdmin()">Save Package</button>
+            <div id="admin-pricing-list" class="grid-3" style="margin-top:16px;"></div>
+          </div>
+
+          <div id="admin-panel-payments" class="admin-panel">
+            <h3>Payment Methods Manager</h3>
+            <div class="form-grid">
+              <input id="payment-id" placeholder="id, contoh dana">
+              <input id="payment-name" placeholder="Nama metode">
+              <input id="payment-type" placeholder="type: ewallet/bank">
+              <input id="payment-number" placeholder="Nomor rekening/e-wallet">
+              <input id="payment-account" placeholder="Atas nama" value="ROMADON SAPUTRA">
+            </div>
+            <button class="small-btn" onclick="savePaymentMethodFromAdmin()">Save Payment Method</button>
+            <div id="admin-payment-list" class="grid-3" style="margin-top:16px;"></div>
+          </div>
+
+          <div id="admin-panel-modes" class="admin-panel">
+            <h3>Feature Mode Switcher</h3>
+            <p class="muted">Demo tetap aktif sebagai fallback. Real/Live tinggal diaktifkan ketika API/provider sudah siap.</p>
+            <div class="form-grid">
+              <select id="mode-scanner"><option value="demo_vip_locked">Signal Scanner: Demo VIP Locked</option><option value="live_oanda_practice">Live OANDA Practice</option><option value="live_oanda_real">Live OANDA Real</option></select>
+              <select id="mode-sentinel"><option value="demo_free_limited">Sentinel: Demo Free Limited</option><option value="gemini_vision">Gemini Vision</option><option value="openai_vision">OpenAI Vision</option></select>
+              <select id="mode-news"><option value="manual_preview">News: Manual Preview</option><option value="tradingview_calendar">TradingView Calendar</option><option value="news_api_later">News API Later</option></select>
+              <select id="mode-crypto"><option value="binance_public_ready">Crypto: Binance Public Ready</option><option value="demo">Crypto: Demo</option></select>
+              <select id="mode-forex"><option value="demo">Forex/XAUUSD: Demo</option><option value="oanda_practice">OANDA Practice</option><option value="oanda_live">OANDA Live</option></select>
+            </div>
+            <button class="small-btn" onclick="saveFeatureModesFromAdmin()">Save Feature Modes</button>
+          </div>
+
+          <div id="admin-panel-content" class="admin-panel">
+            <div class="grid-2">
+              <div class="card">
+                <h3>Signal Broadcast Demo</h3>
+                <input id="signal-pair" placeholder="Pair, contoh XAUUSD">
+                <input id="signal-bias" placeholder="BUY / SELL / WAIT">
+                <textarea id="signal-note" placeholder="Catatan signal"></textarea>
+                <button class="small-btn" onclick="saveSignalBroadcast()">Save Signal</button>
+              </div>
+              <div class="card">
+                <h3>Ads Manager Demo</h3>
+                <input id="ad-title" placeholder="Judul sponsor / partner">
+                <input id="ad-link" placeholder="Link sponsor">
+                <textarea id="ad-note" placeholder="Catatan iklan"></textarea>
+                <button class="small-btn" onclick="saveAdSlot()">Save Ad Slot</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      <section id="ads" class="page">
+          <div class="card">
+            <span class="badge vip">Monetization</span>
+            <h2 style="margin-top:12px;">Ads Manager</h2>
+            <p>Kelola AdSense, sponsored banner, broker partner, sponsored mapping post, dan no-ads/ad-light VIP experience.</p>
+          </div>
+
+          <div class="grid-3" style="margin-top:16px;">
+            <div class="card"><h3>AdSense Slot</h3><p>Dashboard, feed, academy, and free user pages. Status awal: demo/manual.</p><button class="small-btn" onclick="showPageById('admin'); setTimeout(()=>showAdminPanel('content'),100)">Manage</button></div>
+            <div class="card"><h3>Sponsored Post</h3><p>Promoted mapping/feed content with clean label.</p><button class="small-btn" onclick="showPageById('mapping')">View Feed</button></div>
+            <div class="card"><h3>Broker Partner</h3><p>Recommended partner placements and affiliate tracking.</p><button class="small-btn" onclick="alert('Broker partner slot siap. Link bisa diatur dari Admin Content Control.')">Preview</button></div>
+          </div>
+        </section>
     </main>
   </section>
 
@@ -161,6 +399,7 @@
   </div>
 </main>
 <script type="module" src="./js/firebase.js"></script>
+<script src="./js/cloudinary.js"></script>
 <script src="./js/app.js"></script>
 </body>
 </html>

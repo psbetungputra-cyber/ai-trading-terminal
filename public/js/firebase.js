@@ -12,7 +12,12 @@ import {
   setDoc,
   getDoc,
   serverTimestamp,
-  writeBatch
+  writeBatch,
+  collection,
+  getDocs,
+  addDoc,
+  updateDoc,
+  deleteDoc
 } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -176,6 +181,79 @@ async function seedFoundationData(){
   alert("Firebase foundation data berhasil disiapkan.");
 }
 
+
+async function getCollectionDocs(name){
+  const snap = await getDocs(collection(db, name));
+  return snap.docs.map((item) => ({ id: item.id, ...item.data() }));
+}
+
+async function upsertDoc(collectionName, id, data){
+  const ref = doc(db, collectionName, id);
+  await setDoc(ref, { ...data, updatedAt: serverTimestamp() }, { merge: true });
+  return { id, ...data };
+}
+
+async function addCollectionDoc(collectionName, data){
+  const ref = await addDoc(collection(db, collectionName), {
+    ...data,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  });
+  return ref.id;
+}
+
+async function updateCollectionDoc(collectionName, id, data){
+  await updateDoc(doc(db, collectionName, id), {
+    ...data,
+    updatedAt: serverTimestamp()
+  });
+}
+
+async function createVipRequest(data){
+  return await addCollectionDoc("vipRequests", {
+    ...data,
+    status: "pending"
+  });
+}
+
+async function updateVipRequestStatus(id, status){
+  await updateCollectionDoc("vipRequests", id, { status });
+}
+
+async function updateUserRole(uid, level){
+  const role = level === "admin" ? "Founder" : level === "vip" ? "VIP Member" : "Free Member";
+  await updateCollectionDoc("users", uid, {
+    level,
+    role,
+    vipStatus: level === "vip" ? "active" : level === "admin" ? "founder" : "free"
+  });
+}
+
+async function saveManualSentiment(data){
+  await upsertDoc("settings", "marketSentiment", data);
+}
+
+async function getManualSentiment(){
+  const snap = await getDoc(doc(db, "settings", "marketSentiment"));
+  return snap.exists() ? snap.data() : null;
+}
+
+async function saveFeatureModes(data){
+  await upsertDoc("settings", "featureModes", data);
+}
+
+async function saveManualNews(data){
+  return await addCollectionDoc("news", data);
+}
+
+async function saveSignal(data){
+  return await addCollectionDoc("signals", data);
+}
+
+async function saveAd(data){
+  return await addCollectionDoc("ads", data);
+}
+
 window.AiSignalFirebase = {
   app,
   auth,
@@ -183,7 +261,20 @@ window.AiSignalFirebase = {
   analytics,
   login,
   registerFromForm,
-  seedFoundationData
+  seedFoundationData,
+  getCollectionDocs,
+  upsertDoc,
+  addCollectionDoc,
+  updateCollectionDoc,
+  createVipRequest,
+  updateVipRequestStatus,
+  updateUserRole,
+  saveManualSentiment,
+  getManualSentiment,
+  saveFeatureModes,
+  saveManualNews,
+  saveSignal,
+  saveAd
 };
 
 window.seedFirebaseFoundationData = seedFoundationData;
