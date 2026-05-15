@@ -36,7 +36,8 @@
       <p class="auth-note">Buat akun gratis untuk menyimpan profil, akses Sentinel, dan request VIP.</p>
     </div>
   </div>
-</section>
+
+      </section>
 
 <div id="backdrop" class="backdrop" onclick="closeSidebar()"></div>
 
@@ -57,7 +58,7 @@
       <button class="nav" onclick="showPage('sentinel', this)"><span class="nav-ico">◆</span> Sentinel AI <small class="badge free">Limited</small></button>
       <button class="nav" onclick="showPage('sentiment', this)"><span class="nav-ico">◉</span> Market Sentiment</button>
       <button class="nav" onclick="showPage('fundamental', this)"><span class="nav-ico">◌</span> Fundamental Calendar</button>
-      <button class="nav" onclick="showPage('mapping', this)"><span class="nav-ico">▧</span> Mapping Feed</button>
+      <button class="nav" onclick="showPage('mapping', this)"><span class="nav-ico">▧</span> Sentinel Community</button>
       <div class="nav-title">Education & Account</div>
       <button class="nav" onclick="showPage('lab', this)"><span class="nav-ico">◇</span> Sentinel Trading Lab</button>
       <button class="nav" onclick="showPage('profile', this)"><span class="nav-ico">◍</span> Profile</button>
@@ -157,6 +158,48 @@
           </div>
         </div>
 
+        
+        <div class="grid-2 dashboard-community-market">
+          <div class="card community-spotlight-card">
+            <div class="section-head">
+              <h3>Community Spotlight</h3>
+              <span class="badge vip">Top Mapper</span>
+            </div>
+            <div class="top-mapper-feature">
+              <div class="rank-badge">#1</div>
+              <div>
+                <h2>Romadon Saputra</h2>
+                <p>Sentinel Elite • XAUUSD SMC Mapper</p>
+                <p><b>Followers:</b> 1.2K • <b>Likes:</b> 8.4K • <b>Posts:</b> 34</p>
+                <button class="small-btn" onclick="showPageById('mapping')">View Community</button>
+              </div>
+            </div>
+            <div class="top-mapper-mini">
+              <div><b>#2 Pro Mapper</b><small>BTCUSD • 5.1K likes</small></div>
+              <div><b>#3 Rising Analyst</b><small>GBPJPY • 3.8K likes</small></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="section-head">
+              <h3>Crypto Market Pulse</h3>
+              <span class="badge free">Binance Public</span>
+            </div>
+            <div id="crypto-market-preview" class="crypto-market-preview">
+              <p class="muted">Loading crypto market data...</p>
+            </div>
+            <button class="small-btn" onclick="loadCryptoMarket()">Refresh Crypto</button>
+          </div>
+        </div>
+
+        <div class="card dashboard-fyp">
+          <div class="section-head">
+            <h3>Community Mapping FYP</h3>
+            <button class="small-btn" onclick="showPageById('mapping')">Open Sentinel Community</button>
+          </div>
+          <div id="dashboard-fyp-list" class="grid-3"></div>
+        </div>
+
         <div class="grid-3 performance-strip">
           <div class="card stat"><p>Signals</p><h2 class="blue">20</h2><small>Demo snapshot</small></div>
           <div class="card stat"><p>Win Rate</p><h2 class="green">94.2%</h2><small>Backtest preview</small></div>
@@ -186,18 +229,49 @@
       </section>
 
       <section id="scanner" class="page">
-        <div id="scanner-lock" class="vip-lock hidden"><div class="vip-content"><div class="grid-3"><div class="card"><h3>XAUUSD</h3><p>BUY • Full entry hidden</p></div><div class="card"><h3>EURUSD</h3><p>SELL • Full reasoning hidden</p></div><div class="card"><h3>GBPJPY</h3><p>WAIT • Full scanner hidden</p></div></div></div><div class="vip-overlay"><div><span class="badge vip">VIP Only</span><h2 style="margin-top:12px;">Signal Scanner Locked</h2><p>Signal Scanner adalah versi baru AI AutoScan VIP. Free user bisa pakai Sentinel AI terbatas dan Mapping Feed.</p><button onclick="showPageById('vip')">Unlock Scanner</button></div></div></div>
-        <div id="scanner-content">
-          <div class="section-head"><div><h2>Signal Scanner VIP</h2><p class="muted">AI AutoScan market radar untuk banyak pair. Khusus VIP/Admin.</p></div><span class="badge vip">VIP Access</span></div>
-          <div class="scanner-tools"><span class="chip">All Pairs</span><span class="chip">XAUUSD</span><span class="chip">Forex</span><span class="chip">Crypto</span><span class="chip">M15</span><span class="chip">H1</span><span class="chip">Confidence 70%+</span></div>
-          <div class="grid-3">
-            <div class="card"><span class="badge buy">BUY</span><h3 style="margin-top:12px;">XAUUSD</h3><p>Liquidity sweep detected. Waiting retest into demand zone.</p><p><b class="green">Confidence:</b> 82%</p></div>
-            <div class="card"><span class="badge sell">SELL</span><h3 style="margin-top:12px;">EURUSD</h3><p>Bearish BOS confirmed. Watch premium zone retest.</p><p><b class="green">Confidence:</b> 76%</p></div>
-            <div class="card"><span class="badge wait">WAIT</span><h3 style="margin-top:12px;">GBPJPY</h3><p>Structure unclear. Wait confirmation.</p><p><b class="yellow">Confidence:</b> 54%</p></div>
-            <div class="card"><span class="badge wait">WAIT</span><h3 style="margin-top:12px;">BTCUSD</h3><p>No clean confirmation. Avoid chasing price.</p></div>
-            <div class="card"><span class="badge buy">BUY</span><h3 style="margin-top:12px;">NAS100</h3><p>Momentum bullish but wait pullback confirmation.</p></div>
-            <div class="card"><span class="badge sell">SELL</span><h3 style="margin-top:12px;">US30</h3><p>Potential bearish retest zone. Watch NY session.</p></div>
+        <div id="scanner-lock" class="vip-lock hidden">
+          <div class="vip-content">
+            <div class="grid-3">
+              <div class="card"><h3>XAUUSD</h3><p>Premium signal detail tersedia untuk VIP.</p></div>
+              <div class="card"><h3>EURUSD</h3><p>Market structure preview aktif.</p></div>
+              <div class="card"><h3>BTCUSDT</h3><p>Crypto market pulse aktif.</p></div>
+            </div>
           </div>
+          <div class="vip-overlay">
+            <div>
+              <span class="badge vip">VIP Only</span>
+              <h2 style="margin-top:12px;">Signal Scanner VIP</h2>
+              <p>Free user dapat preview market. VIP membuka full signal, reasoning, entry area, SL/TP, dan scanner multi-pair.</p>
+              <button onclick="showPageById('vip')">Unlock Scanner</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="scanner-content">
+          <div class="section-head">
+            <div>
+              <h2>Signal Scanner VIP</h2>
+              <p class="muted">Market radar untuk forex, gold, indices, dan crypto. Crypto memakai Binance Public API; forex tetap demo sampai provider real aktif.</p>
+            </div>
+            <span class="badge vip">VIP Access</span>
+          </div>
+
+          <div class="scanner-tools">
+            <button class="chip active" onclick="setScannerMode('all')">All</button>
+            <button class="chip" onclick="setScannerMode('forex')">Forex Demo</button>
+            <button class="chip" onclick="setScannerMode('crypto')">Crypto Real</button>
+            <button class="chip" onclick="setScannerMode('gold')">Gold</button>
+            <button class="chip" onclick="setScannerMode('favorites')">Favorites</button>
+          </div>
+
+          <div class="card scanner-summary">
+            <h3>Scanner Status</h3>
+            <p><b>Crypto:</b> Real market data via Binance Public API.</p>
+            <p><b>Forex/Gold:</b> Demo engine aktif sampai provider real tersedia.</p>
+            <p><b>Mode:</b> Demo + Real Free hybrid.</p>
+          </div>
+
+          <div id="scanner-grid" class="grid-3" style="margin-top:16px;"></div>
         </div>
       </section>
 
@@ -302,7 +376,47 @@
           </div>
         </section>
 
-      <section id="mapping" class="page"><div class="section-head"><div><h2>Mapping Feed</h2><p class="muted">Semua user bisa upload mapping chart untuk komunitas, like, comment, dan nanti Sentinel AI bisa reply.</p></div><span class="badge free">Community</span></div><div class="upload-mini" onclick="document.getElementById('mapping-upload').click()"><input id="mapping-upload" type="file" accept="image/*" hidden/><h3>+ Upload Mapping to Community</h3><p>Ini untuk share mapping publik, bukan analisa private Sentinel AI.</p></div><div id="new-mapping"></div><div class="card feed-post"><div class="post-header"><div class="post-user"><div class="avatar">P</div><div><h3>PSBETUNG</h3><p>SMC Scalper • XAUUSD Mapping</p></div></div><span class="badge buy">Bullish Idea</span></div><p>XAUUSD sweep liquidity lalu reject demand. Menunggu confirmation M5.</p><div class="post-img">Chart Mapping Preview</div><div class="ai-message"><strong>Sentinel AI</strong><p>Mapping cukup valid. Struktur bullish masih terjaga, tetapi tunggu retest dan confirmation candle sebelum entry.</p></div><div class="post-actions"><span>❤️ 128</span><span>💬 34</span><span>🔖 Save</span></div></div><div class="card feed-post ads-card"><span class="badge vip">Sponsored</span><h3 style="margin-top:10px;">Featured Market Partner</h3><p>Slot iklan elegan untuk broker/tools/sponsor.</p></div></section>
+      <section id="mapping" class="page">
+        <div class="section-head">
+          <div>
+            <h2>Sentinel Community</h2>
+            <p class="muted">Ruang mapping komunitas: upload ide chart, follow mapper, like, save, dan lihat leaderboard.</p>
+          </div>
+          <span class="badge free">Social Mapping</span>
+        </div>
+
+        <div class="community-tabs">
+          <button class="active" onclick="setCommunityTab('fyp')">For You</button>
+          <button onclick="setCommunityTab('following')">Following</button>
+          <button onclick="setCommunityTab('trending')">Trending</button>
+          <button onclick="setCommunityTab('latest')">Latest</button>
+          <button onclick="setCommunityTab('leaderboard')">Top 10</button>
+          <button onclick="setCommunityTab('upload')">Upload</button>
+        </div>
+
+        <div id="community-leaderboard" class="card">
+          <div class="section-head">
+            <h3>Top Mapper Leaderboard</h3>
+            <span class="badge vip">Top 10</span>
+          </div>
+          <div id="leaderboard-list" class="leaderboard-list"></div>
+        </div>
+
+        <div id="community-upload" class="card community-upload hidden">
+          <h3>Upload Mapping</h3>
+          <div class="form-grid">
+            <input id="mapping-pair" placeholder="Pair, contoh XAUUSD / BTCUSDT">
+            <input id="mapping-bias" placeholder="Bias, contoh BUY / SELL / WAIT">
+            <input id="mapping-title" placeholder="Judul mapping">
+            <input id="mapping-file" type="file" accept="image/*">
+          </div>
+          <textarea id="mapping-caption" placeholder="Tulis caption, area penting, dan alasan mapping..."></textarea>
+          <button class="small-btn" onclick="submitMappingPost()">Post Mapping</button>
+          <p id="mapping-upload-status" class="muted"></p>
+        </div>
+
+        <div id="community-feed" class="community-feed"></div>
+      </section>
 
       <section id="lab" class="page">
         <div class="section-head">
@@ -612,6 +726,7 @@
 </main>
 <script type="module" src="./js/firebase.js"></script>
 <script src="./js/cloudinary.js"></script>
+<script src="./js/binance.js"></script>
 <script src="./js/app.js"></script>
 </body>
 </html>

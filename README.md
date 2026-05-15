@@ -1,20 +1,13 @@
-# AiSignalFx PRO UX Functional Cleanup V2
+# AiSignalFx PRO Market + Community V3
 
 Update besar:
-- Dashboard menjadi command center, bukan full chart.
-- Chart Terminal menjadi menu khusus untuk TradingView.
-- TradingView tools tetap ada, indikator tidak dipaksa tampil.
-- Profile bisa diedit dan disimpan ke Firestore.
-- Avatar bisa upload ke Cloudinary.
-- VIP payment dibuat lebih elegan.
-- Nomor DANA/GoPay/OVO/BRI/Jago/SeaBank bisa disalin langsung.
-- Trade Journal + Smart Money Academy digabung menjadi Sentinel Trading Lab.
-- Fundamental News diganti Fundamental Calendar dengan copywriting profesional.
-- Market Sentiment copywriting dibersihkan.
-- Teks obrolan/internal development di user view dibersihkan.
-- Admin Control dari V1 tetap ada.
-- Cloudinary + Firebase tetap terpasang.
-
-Catatan:
-- OANDA tidak dipakai dulu karena akun OANDA OGM Indonesia tidak mendukung API.
-- Market real provider tetap disiapkan untuk tahap backend berikutnya.
+- Binance Public API untuk crypto real data.
+- Signal Scanner hybrid: Crypto real + Forex/Gold demo.
+- Forex real API belum dipakai; OANDA skip karena OANDA OGM Indonesia tidak support API.
+- Pair forex/gold/indices demo disiapkan.
+- Crypto top 10: BTC, ETH, BNB, SOL, XRP, DOGE, ADA, AVAX, LINK, TON.
+- Sentinel Community menggantikan Mapping Feed.
+- Dashboard menampilkan Community Spotlight + Top Mapper + FYP 3 post.
+- Sentinel Community punya upload mapping, leaderboard top 10, tabs FYP/following/trending/latest.
+- Admin Module Manager untuk Sentinel Trading Lab.
+- Copywriting user-facing dibersihkan agar profesional.
