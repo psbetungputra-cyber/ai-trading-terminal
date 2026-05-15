@@ -1231,3 +1231,137 @@
     padding: 18px !important;
   }
 }
+
+/* AiSignalFx PRO - Compact VIP Payment UX */
+.payment-grid {
+  gap: 12px !important;
+}
+
+.payment-select-card {
+  cursor: pointer !important;
+  min-height: auto !important;
+  padding: 16px !important;
+  border-radius: 22px !important;
+  transition: .22s ease !important;
+}
+
+.payment-select-card:hover,
+.payment-select-card.payment-open {
+  border-color: rgba(34, 211, 238, .45) !important;
+  box-shadow: 0 18px 55px rgba(0, 0, 0, .28) !important;
+  transform: translateY(-1px);
+}
+
+.payment-select-card .badge {
+  margin-bottom: 8px !important;
+}
+
+.payment-select-card h3 {
+  margin: 4px 0 6px !important;
+  font-size: 22px !important;
+}
+
+.payment-number,
+.payment-select-card .payment-account,
+.payment-actions {
+  display: none !important;
+}
+
+.payment-select-card.payment-open .payment-number,
+.payment-select-card.payment-open .payment-account,
+.payment-select-card.payment-open .payment-actions {
+  display: flex !important;
+}
+
+.payment-select-card.payment-open .payment-number {
+  display: block !important;
+  margin-top: 10px !important;
+  padding: 12px !important;
+  border-radius: 16px !important;
+  background: rgba(59, 130, 246, .08) !important;
+  border: 1px solid rgba(59, 130, 246, .18) !important;
+  word-break: break-word !important;
+}
+
+.payment-select-card.payment-open .payment-actions {
+  margin-top: 12px !important;
+  gap: 10px !important;
+}
+
+.payment-select-card::after {
+  content: "Klik untuk lihat detail";
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .5px;
+}
+
+.payment-select-card.payment-open::after {
+  content: "Detail pembayaran aktif";
+  color: #22d3ee;
+}
+
+@media (max-width: 720px) {
+  .payment-grid,
+  #payment-method-list.grid-3 {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+  }
+
+  .payment-select-card {
+    padding: 14px !important;
+    border-radius: 20px !important;
+  }
+
+  .payment-select-card h3 {
+    font-size: 17px !important;
+    line-height: 1.2 !important;
+  }
+
+  .payment-select-card .badge {
+    font-size: 10px !important;
+    padding: 6px 8px !important;
+  }
+
+  .payment-select-card.payment-open {
+    grid-column: 1 / -1 !important;
+  }
+
+  .payment-select-card.payment-open h3 {
+    font-size: 22px !important;
+  }
+
+  .payment-select-card.payment-open .payment-actions {
+    flex-direction: column !important;
+  }
+
+  .payment-select-card.payment-open .payment-actions button {
+    width: 100% !important;
+  }
+}
+
+/* AiSignalFx PRO - Hide closed payment details */
+.payment-select-card:not(.payment-open) p {
+  display: none !important;
+}
+
+.payment-select-card.payment-open p {
+  display: block !important;
+}
+
+@media (max-width: 720px) {
+  .payment-select-card:not(.payment-open) {
+    min-height: 145px !important;
+  }
+
+  .payment-select-card:not(.payment-open)::after {
+    font-size: 13px !important;
+    margin-top: 12px !important;
+  }
+
+  .payment-select-card.payment-open {
+    padding: 18px !important;
+  }
+}

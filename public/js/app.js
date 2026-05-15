@@ -1402,3 +1402,33 @@ window.saveLearningModule = saveLearningModule;
     renderJournalEntriesV32();
   }, 500);
 })();
+
+/* AiSignalFx PRO - Compact Payment Interaction */
+(function(){
+  function enhancePaymentCards(){
+    const cards = document.querySelectorAll(".payment-select-card");
+    if (!cards.length) return;
+
+    cards.forEach(card => {
+      if (card.dataset.compactPaymentReady === "1") return;
+      card.dataset.compactPaymentReady = "1";
+
+      card.addEventListener("click", function(e){
+        if (e.target.closest("button")) return;
+
+        cards.forEach(other => {
+          if (other !== card) other.classList.remove("payment-open");
+        });
+
+        card.classList.toggle("payment-open");
+      });
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", enhancePaymentCards);
+  document.addEventListener("click", function(){
+    setTimeout(enhancePaymentCards, 100);
+  });
+
+  setInterval(enhancePaymentCards, 1000);
+})();
