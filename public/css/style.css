@@ -1578,3 +1578,41 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* AiSignalFx PRO - Crypto Scanner V2 UI */
+.scanner-v2-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.scanner-v2-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.scanner-v2-grid span,
+.scanner-v2-plan {
+  padding: 10px;
+  border: 1px solid rgba(148,163,184,.14);
+  border-radius: 16px;
+  background: rgba(15,23,42,.48);
+  color: var(--muted);
+}
+
+.scanner-v2-plan {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.scanner-v2-plan p {
+  margin: 0;
+}
+
+@media (max-width: 720px) {
+  .scanner-v2-grid {
+    grid-template-columns: 1fr;
+  }
+}
