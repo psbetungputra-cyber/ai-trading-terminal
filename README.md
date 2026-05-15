@@ -1,29 +1,20 @@
-# AiSignalFx PRO Functional Control V1
+# AiSignalFx PRO UX Functional Cleanup V2
 
-Paket besar ini menggabungkan:
-- Firebase Auth + Firestore foundation
-- Cloudinary image storage via unsigned upload
-- VIP Access functional flow
-- Payment methods DANA/GoPay/OVO/BRI/Jago/SeaBank
-- VIP package harga/diskon/durasi
-- VIP request ke Firestore
-- Admin Control active panels
-- User Management
-- VIP Request approve/reject
-- Payment Methods Manager
-- VIP Pricing Manager
-- Demo/Live Mode Switcher
-- Manual Market Sentiment
-- Manual Fundamental News
-- Signal Broadcast demo
-- Ads Manager demo
-- TradingView tetap punya tools, indikator default tidak dipaksa
-
-Cloudinary:
-- cloudName: dp2zwkxoi
-- uploadPreset: aisignalfx_upload
+Update besar:
+- Dashboard menjadi command center, bukan full chart.
+- Chart Terminal menjadi menu khusus untuk TradingView.
+- TradingView tools tetap ada, indikator tidak dipaksa tampil.
+- Profile bisa diedit dan disimpan ke Firestore.
+- Avatar bisa upload ke Cloudinary.
+- VIP payment dibuat lebih elegan.
+- Nomor DANA/GoPay/OVO/BRI/Jago/SeaBank bisa disalin langsung.
+- Trade Journal + Smart Money Academy digabung menjadi Sentinel Trading Lab.
+- Fundamental News diganti Fundamental Calendar dengan copywriting profesional.
+- Market Sentiment copywriting dibersihkan.
+- Teks obrolan/internal development di user view dibersihkan.
+- Admin Control dari V1 tetap ada.
+- Cloudinary + Firebase tetap terpasang.
 
 Catatan:
-- Firebase Storage tidak dipakai karena billing bermasalah.
-- OANDA/Gemini/OpenAI token jangan ditaruh di frontend.
-- API real masuk tahap backend/Vercel Functions berikutnya.
+- OANDA tidak dipakai dulu karena akun OANDA OGM Indonesia tidak mendukung API.
+- Market real provider tetap disiapkan untuk tahap backend berikutnya.

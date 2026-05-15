@@ -36,7 +36,7 @@ function startSession(userProfile){
   hydrateProfile();
   applyAccessRules();
 
-  setTimeout(initTradingView, 450);
+  // Chart initializes when user opens Chart Terminal.
 }
 
 function loginFirebaseUser(userProfile){
@@ -92,6 +92,12 @@ function hydrateProfile(){
   document.getElementById("profile-style").innerText = currentUser.style;
   document.getElementById("profile-pairs").innerText = currentUser.pairs;
   document.getElementById("profile-display").innerText = currentUser.name;
+  const bioEl = document.getElementById("profile-bio");
+  const countryEl = document.getElementById("profile-country");
+  const pairsTextEl = document.getElementById("profile-pairs-text");
+  if(bioEl) bioEl.innerText = currentUser.bio || "Institutional SMC trader and AiSignalFx member.";
+  if(countryEl) countryEl.innerText = currentUser.countryTimezone || "Indonesia / Asia Jakarta";
+  if(pairsTextEl) pairsTextEl.innerText = currentUser.pairs || "XAUUSD";
   document.getElementById("vip-status-text").innerText = currentUser.vipText;
 
   document.querySelectorAll(".owner-only").forEach(el => {
@@ -158,13 +164,13 @@ function showPage(id, button){
 
   const titles = {
     dashboard: "Institutional Dashboard",
+    chart: "Chart Terminal",
     scanner: "Signal Scanner VIP",
     sentinel: "Sentinel AI Visual Analysis",
     sentiment: "Market Sentiment",
-    fundamental: "Fundamental News",
+    fundamental: "Fundamental Calendar",
     mapping: "Mapping Feed",
-    journal: "Trade Journal",
-    academy: "Smart Money Academy",
+    lab: "Sentinel Trading Lab",
     profile: "Profile Center",
     vip: "VIP Access",
     admin: "Admin Control",
@@ -172,10 +178,11 @@ function showPage(id, button){
   };
   document.getElementById("page-title").innerText = titles[id] || "AiSignalFx PRO";
   closeSidebar();
-  if(id === "dashboard") setTimeout(initTradingView, 250);
+  if(id === "chart") setTimeout(initTradingView, 250);
   if(id === "vip") setTimeout(loadVipPage, 120);
   if(id === "admin") setTimeout(loadAdminOverview, 120);
   if(id === "sentiment") setTimeout(loadManualSentiment, 120);
+  if(id === "lab") setTimeout(renderJournalEntries, 120);
   applyAccessRules();
 }
 
@@ -228,6 +235,7 @@ function initTradingView(){
     allow_symbol_change: true,
 
     hide_side_toolbar: false,
+    hide_top_toolbar: false,
     details: !isMobile,
     calendar: !isMobile,
     studies: []
@@ -407,11 +415,17 @@ function renderPaymentMethods(methods){
   if(!box) return;
 
   box.innerHTML = methods.map(method => `
-    <div class="card payment-select-card" onclick='selectPaymentMethod(${JSON.stringify(method).replace(/'/g, "&apos;")})'>
-      <span class="badge free">${method.type || "payment"}</span>
-      <h3 style="margin-top:12px;">${method.name}</h3>
-      <p><b>${method.number}</b></p>
-      <p>a.n. ${method.accountName || "ROMADON SAPUTRA"}</p>
+    <div class="card payment-select-card">
+      <div onclick='selectPaymentMethod(${JSON.stringify(method).replace(/'/g, "&apos;")})'>
+        <span class="badge free">${method.type || "payment"}</span>
+        <h3 style="margin-top:12px;">${method.name}</h3>
+        <p class="payment-number"><b>${method.number}</b></p>
+        <p>a.n. ${method.accountName || "ROMADON SAPUTRA"}</p>
+      </div>
+      <div class="payment-actions">
+        <button onclick="copyPaymentNumber('${method.number}', '${method.name}')">Salin Nomor</button>
+        <button onclick='selectPaymentMethod(${JSON.stringify(method).replace(/'/g, "&apos;")})'>Pilih</button>
+      </div>
     </div>
   `).join("");
 }
@@ -747,3 +761,161 @@ window.openCalendarWidget = openCalendarWidget;
 window.saveManualNews = saveManualNews;
 window.saveSignalBroadcast = saveSignalBroadcast;
 window.saveAdSlot = saveAdSlot;
+
+
+function copyPaymentNumber(number, name){
+  const clean = String(number || "").replace(/\s+/g, "");
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(clean).then(() => {
+      alert(`Nomor ${name} berhasil disalin.`);
+    }).catch(() => {
+      prompt("Salin nomor ini:", clean);
+    });
+  }else{
+    prompt("Salin nomor ini:", clean);
+  }
+}
+
+function toggleProfileEdit(show){
+  const panel = document.getElementById("profile-edit-panel");
+  if(!panel) return;
+  panel.classList.toggle("hidden", !show);
+
+  if(show){
+    document.getElementById("edit-display-name").value = currentUser?.name || "";
+    document.getElementById("edit-username").value = currentUser?.username || "";
+    document.getElementById("edit-country").value = currentUser?.countryTimezone || "Indonesia / Asia Jakarta";
+    document.getElementById("edit-style").value = currentUser?.style || "";
+    document.getElementById("edit-pairs").value = currentUser?.pairs || "";
+    document.getElementById("edit-bio").value = currentUser?.bio || "";
+  }
+}
+
+async function saveProfileChanges(){
+  if(!currentUser){
+    alert("Login dulu.");
+    return;
+  }
+
+  const status = document.getElementById("profile-save-status");
+  if(status) status.innerText = "Saving profile...";
+
+  const displayName = document.getElementById("edit-display-name").value.trim() || currentUser.name;
+  const username = document.getElementById("edit-username").value.trim();
+  const countryTimezone = document.getElementById("edit-country").value.trim();
+  const tradingStyle = document.getElementById("edit-style").value.trim();
+  const favoritePairs = document.getElementById("edit-pairs").value.trim();
+  const bio = document.getElementById("edit-bio").value.trim();
+  const avatarFile = document.getElementById("edit-avatar-file")?.files?.[0];
+
+  let avatarUrl = currentUser.avatarUrl || "";
+  try{
+    if(avatarFile && window.AiSignalCloudinary?.uploadToCloudinary){
+      const uploaded = await window.AiSignalCloudinary.uploadToCloudinary(avatarFile, "aisignalfx/avatars");
+      avatarUrl = uploaded.secure_url;
+    }
+  }catch(error){
+    alert("Upload avatar gagal, profil tetap disimpan tanpa avatar gambar. " + error.message);
+  }
+
+  const avatarLetter = (displayName[0] || "U").toUpperCase();
+
+  const data = {
+    displayName,
+    username,
+    countryTimezone,
+    tradingStyle,
+    favoritePairs,
+    bio,
+    avatar: avatarLetter,
+    avatarUrl
+  };
+
+  currentUser = {
+    ...currentUser,
+    name: displayName,
+    username,
+    countryTimezone,
+    style: tradingStyle,
+    pairs: favoritePairs,
+    bio,
+    avatar: avatarLetter,
+    avatarUrl
+  };
+
+  try{
+    if(window.AiSignalFirebase?.upsertDoc && currentUser.uid){
+      await window.AiSignalFirebase.upsertDoc("users", currentUser.uid, data);
+    }
+    hydrateProfile();
+    toggleProfileEdit(false);
+    if(status) status.innerText = "Profile saved.";
+    alert("Profile berhasil disimpan.");
+  }catch(error){
+    if(status) status.innerText = "Save failed.";
+    alert("Gagal menyimpan profile: " + error.message);
+  }
+}
+
+function expandChartTerminal(){
+  const chartCard = document.querySelector(".chart-terminal-card");
+  if(!chartCard) return;
+  chartCard.classList.toggle("chart-expanded");
+  setTimeout(initTradingView, 250);
+}
+
+function showLabTab(name){
+  document.querySelectorAll(".lab-panel").forEach(panel => panel.classList.remove("active"));
+  document.querySelectorAll(".lab-tabs button").forEach(btn => btn.classList.remove("active"));
+
+  const target = document.getElementById("lab-" + name);
+  if(target) target.classList.add("active");
+
+  const button = Array.from(document.querySelectorAll(".lab-tabs button")).find(btn => btn.getAttribute("onclick")?.includes("'" + name + "'"));
+  if(button) button.classList.add("active");
+}
+
+function saveJournalEntry(){
+  const row = {
+    pair: document.getElementById("journal-pair")?.value || "XAUUSD",
+    bias: document.getElementById("journal-bias")?.value || "WAIT",
+    entry: document.getElementById("journal-entry")?.value || "-",
+    sl: document.getElementById("journal-sl")?.value || "-",
+    tp: document.getElementById("journal-tp")?.value || "-",
+    result: document.getElementById("journal-result")?.value || "-",
+    note: document.getElementById("journal-note")?.value || "",
+    createdAtText: new Date().toLocaleString("id-ID")
+  };
+
+  const key = "aisignalfx_journal_entries";
+  const rows = JSON.parse(localStorage.getItem(key) || "[]");
+  rows.unshift(row);
+  localStorage.setItem(key, JSON.stringify(rows.slice(0, 20)));
+  renderJournalEntries();
+  alert("Journal tersimpan di perangkat ini.");
+}
+
+function renderJournalEntries(){
+  const box = document.getElementById("journal-list");
+  if(!box) return;
+  const rows = JSON.parse(localStorage.getItem("aisignalfx_journal_entries") || "[]");
+  if(!rows.length){
+    box.innerHTML = "<p class='muted'>Belum ada journal tersimpan.</p>";
+    return;
+  }
+  box.innerHTML = rows.map(row => `
+    <div class="journal-mini">
+      <b>${row.pair}</b> • ${row.bias} • Result: ${row.result}
+      <small>${row.createdAtText}</small>
+      <p>${row.note || "No note"}</p>
+    </div>
+  `).join("");
+}
+
+window.copyPaymentNumber = copyPaymentNumber;
+window.toggleProfileEdit = toggleProfileEdit;
+window.saveProfileChanges = saveProfileChanges;
+window.expandChartTerminal = expandChartTerminal;
+window.showLabTab = showLabTab;
+window.saveJournalEntry = saveJournalEntry;
+window.renderJournalEntries = renderJournalEntries;
