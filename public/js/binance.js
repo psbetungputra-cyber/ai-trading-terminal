@@ -45,3 +45,96 @@ window.AiSignalBinance = {
   fetchBinanceTicker24h,
   buildCryptoSignal
 };
+
+/* AiSignalFx PRO - Binance Scanner Upgrade */
+(function(){
+  const TOP = [
+    "BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT",
+    "DOGEUSDT","ADAUSDT","AVAXUSDT","LINKUSDT","TONUSDT"
+  ];
+
+  const HOSTS = [
+    "https://api.binance.com",
+    "https://api1.binance.com",
+    "https://api2.binance.com",
+    "https://api3.binance.com",
+    "https://data-api.binance.vision"
+  ];
+
+  async function fetchAllTickers(){
+    let lastError;
+
+    for (const host of HOSTS) {
+      try {
+        const res = await fetch(host + "/api/v3/ticker/24hr", { cache: "no-store" });
+        if (!res.ok) throw new Error("Binance response " + res.status);
+        const data = await res.json();
+        const allowed = new Set(TOP);
+
+        return data
+          .filter(x => allowed.has(x.symbol))
+          .sort((a, b) => TOP.indexOf(a.symbol) - TOP.indexOf(b.symbol));
+      } catch (err) {
+        lastError = err;
+      }
+    }
+
+    throw lastError || new Error("Binance market data unavailable");
+  }
+
+  function buildSignal(item){
+    const symbol = item.symbol;
+    const price = Number(item.lastPrice || 0);
+    const change = Number(item.priceChangePercent || 0);
+    const volume = Number(item.quoteVolume || item.volume || 0);
+    const high = Number(item.highPrice || price);
+    const low = Number(item.lowPrice || price);
+    const volatility = price ? Math.abs((high - low) / price) * 100 : 0;
+
+    let bias = "WAIT";
+    if (change > 1.1) bias = "BUY";
+    if (change < -1.1) bias = "SELL";
+
+    const confidence = Math.min(
+      94,
+      Math.max(
+        54,
+        Math.round(58 + Math.abs(change) * 5 + Math.min(volatility, 8) * 2 + (volume > 100000000 ? 8 : 0))
+      )
+    );
+
+    const risk = volatility > 6 ? "High" : volatility > 3 ? "Medium" : "Low";
+    const momentum = change > 1.1 ? "Bullish" : change < -1.1 ? "Bearish" : "Neutral";
+
+    let note = "Market masih menunggu struktur lebih jelas.";
+    if (bias === "BUY") note = "Momentum crypto positif. Tunggu pullback dan konfirmasi sebelum entry.";
+    if (bias === "SELL") note = "Tekanan bearish aktif. Waspadai retest sebelum continuation.";
+
+    return {
+      symbol,
+      market: "crypto",
+      bias,
+      confidence,
+      price,
+      change,
+      volume,
+      high,
+      low,
+      risk,
+      momentum,
+      note
+    };
+  }
+
+  async function getCryptoSignals(){
+    const rows = await fetchAllTickers();
+    return rows.map(buildSignal);
+  }
+
+  window.AiSignalBinance = {
+    symbols: TOP,
+    fetchBinanceTicker24h: fetchAllTickers,
+    buildCryptoSignal: buildSignal,
+    getCryptoSignals
+  };
+})();

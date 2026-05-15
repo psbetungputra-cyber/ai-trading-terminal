@@ -1515,3 +1515,66 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* AiSignalFx PRO - Crypto Scanner Upgrade */
+.crypto-signal-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.signal-card-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+
+.crypto-price {
+  font-size: 24px;
+  font-weight: 900;
+  color: #f8fafc;
+}
+
+.crypto-pulse-list {
+  display: grid;
+  gap: 10px;
+}
+
+.crypto-pulse-item {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid rgba(148,163,184,.14);
+  border-radius: 16px;
+  background: rgba(15,23,42,.5);
+}
+
+.scanner-toast {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: 24px;
+  z-index: 100001;
+  padding: 14px 16px;
+  border: 1px solid rgba(59,130,246,.35);
+  border-radius: 20px;
+  background: rgba(8,12,24,.95);
+  color: #f8fafc;
+  box-shadow: 0 24px 80px rgba(0,0,0,.45);
+  transform: translateY(18px);
+  opacity: 0;
+  transition: .25s ease;
+}
+
+.scanner-toast.show {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+@media (max-width: 720px) {
+  .crypto-pulse-item {
+    grid-template-columns: 1fr;
+  }
+}

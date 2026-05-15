@@ -1624,3 +1624,118 @@ window.saveLearningModule = saveLearningModule;
     toast(next.followed ? `Kamu mengikuti ${name}.` : `Kamu berhenti mengikuti ${name}.`);
   };
 })();
+
+/* AiSignalFx PRO - Crypto Scanner Real/Reference Mode */
+(function(){
+  let latestCryptoSignals = [];
+
+  function scannerToast(message){
+    const old = document.querySelector(".scanner-toast");
+    if (old) old.remove();
+
+    const el = document.createElement("div");
+    el.className = "scanner-toast";
+    el.textContent = message;
+    document.body.appendChild(el);
+
+    setTimeout(() => el.classList.add("show"), 30);
+    setTimeout(() => {
+      el.classList.remove("show");
+      setTimeout(() => el.remove(), 300);
+    }, 2600);
+  }
+
+  function fallbackSignals(){
+    return [
+      { symbol: "BTCUSDT", market: "crypto", bias: "WAIT", confidence: 62, price: 0, change: 0, risk: "Medium", momentum: "Neutral", note: "Fallback reference mode. Binance belum tersedia di perangkat ini." },
+      { symbol: "ETHUSDT", market: "crypto", bias: "WAIT", confidence: 60, price: 0, change: 0, risk: "Medium", momentum: "Neutral", note: "Tunggu data real tersambung." },
+      { symbol: "SOLUSDT", market: "crypto", bias: "WAIT", confidence: 58, price: 0, change: 0, risk: "Medium", momentum: "Neutral", note: "Reference scanner aktif sementara." }
+    ];
+  }
+
+  function badgeClass(bias){
+    if (bias === "BUY") return "green";
+    if (bias === "SELL") return "red";
+    return "yellow";
+  }
+
+  function formatPrice(item){
+    if (!item.price) return "Reference";
+    return "$" + Number(item.price).toLocaleString("en-US", {
+      maximumFractionDigits: item.price > 100 ? 2 : 4
+    });
+  }
+
+  function renderScannerGridV32(signals){
+    const grid = document.getElementById("scanner-grid");
+    if (!grid) return;
+
+    const rows = signals && signals.length ? signals : fallbackSignals();
+
+    grid.innerHTML = rows.slice(0, 12).map(item => `
+      <div class="card signal-card crypto-signal-card">
+        <div class="signal-card-top">
+          <span class="badge ${badgeClass(item.bias)}">${item.bias}</span>
+          <span class="badge free">${item.market === "crypto" ? "BINANCE PUBLIC" : "REFERENCE"}</span>
+        </div>
+        <h3>${item.symbol}</h3>
+        <p class="crypto-price">${formatPrice(item)}</p>
+        ${typeof item.change === "number" ? `<p><b>24h:</b> <span class="${item.change >= 0 ? "green" : "red"}">${item.change.toFixed(2)}%</span></p>` : ""}
+        <p><b>Confidence:</b> ${item.confidence}%</p>
+        <p><b>Momentum:</b> ${item.momentum || "Neutral"} · <b>Risk:</b> ${item.risk || "Medium"}</p>
+        <p>${item.note}</p>
+        <small>${item.market === "crypto" ? "Real free mode · Binance Public API" : "Reference mode"}</small>
+      </div>
+    `).join("");
+  }
+
+  function renderCryptoPulse(signals, isFallback = false){
+    const box = document.getElementById("crypto-market-preview");
+    if (!box) return;
+
+    const rows = signals && signals.length ? signals.slice(0, 4) : fallbackSignals();
+
+    box.innerHTML = `
+      <div class="crypto-pulse-list">
+        ${rows.map(item => `
+          <div class="crypto-pulse-item">
+            <b>${item.symbol}</b>
+            <span>${formatPrice(item)}</span>
+            <small class="${(item.change || 0) >= 0 ? "green" : "red"}">${typeof item.change === "number" ? item.change.toFixed(2) + "%" : "0.00%"}</small>
+          </div>
+        `).join("")}
+      </div>
+      <p class="muted">${isFallback ? "Binance data belum tersedia. Scanner memakai fallback reference mode." : "Crypto market data aktif dari Binance Public API."}</p>
+    `;
+  }
+
+  async function loadCryptoMarketV32(){
+    try {
+      if (!window.AiSignalBinance || !window.AiSignalBinance.getCryptoSignals) {
+        throw new Error("Binance connector belum siap");
+      }
+
+      latestCryptoSignals = await window.AiSignalBinance.getCryptoSignals();
+      renderCryptoPulse(latestCryptoSignals, false);
+      renderScannerGridV32(latestCryptoSignals);
+      scannerToast("Crypto scanner updated from Binance Public API.");
+    } catch (err) {
+      latestCryptoSignals = fallbackSignals();
+      renderCryptoPulse(latestCryptoSignals, true);
+      renderScannerGridV32(latestCryptoSignals);
+      scannerToast("Binance data tidak tersedia. Scanner memakai fallback reference mode.");
+    }
+  }
+
+  window.renderScannerGrid = renderScannerGridV32;
+  window.loadCryptoMarket = loadCryptoMarketV32;
+
+  try {
+    renderScannerGrid = renderScannerGridV32;
+    loadCryptoMarket = loadCryptoMarketV32;
+  } catch(e) {}
+
+  document.addEventListener("DOMContentLoaded", function(){
+    setTimeout(loadCryptoMarketV32, 900);
+  });
+})();
