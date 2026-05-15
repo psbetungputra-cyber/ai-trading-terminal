@@ -1061,3 +1061,96 @@
     height: 150px;
   }
 }
+
+/* AiSignalFx PRO - Mobile FYP Mapping Fix */
+@media (max-width: 680px) {
+  .dashboard-fyp {
+    overflow: hidden !important;
+    padding: 22px 16px !important;
+  }
+
+  .dashboard-fyp .section-head {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 14px !important;
+  }
+
+  .dashboard-fyp .section-head h3 {
+    font-size: 22px !important;
+    line-height: 1.2 !important;
+  }
+
+  .dashboard-fyp .section-head .small-btn {
+    width: 100% !important;
+    min-height: 54px !important;
+    border-radius: 22px !important;
+    font-size: 13px !important;
+    letter-spacing: 1.6px !important;
+    white-space: normal !important;
+  }
+
+  #dashboard-fyp-list.grid-3,
+  #dashboard-fyp-list {
+    display: flex !important;
+    grid-template-columns: none !important;
+    gap: 14px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scroll-snap-type: x mandatory !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 4px 2px 12px !important;
+  }
+
+  #dashboard-fyp-list > * {
+    flex: 0 0 78% !important;
+    width: 78% !important;
+    max-width: 280px !important;
+    min-width: 230px !important;
+    scroll-snap-align: start !important;
+  }
+
+  #dashboard-fyp-list .mapping-post-card,
+  #dashboard-fyp-list .card,
+  #dashboard-fyp-list article {
+    min-height: auto !important;
+    padding: 16px !important;
+    border-radius: 22px !important;
+  }
+
+  #dashboard-fyp-list .mapping-thumb {
+    height: 150px !important;
+    min-height: 150px !important;
+    border-radius: 20px !important;
+    margin-bottom: 14px !important;
+    overflow: hidden !important;
+  }
+
+  #dashboard-fyp-list .mapping-thumb div {
+    height: 100% !important;
+    border-radius: 18px !important;
+  }
+
+  #dashboard-fyp-list h3,
+  #dashboard-fyp-list h4,
+  #dashboard-fyp-list strong {
+    font-size: 20px !important;
+    line-height: 1.18 !important;
+    word-break: normal !important;
+    overflow-wrap: normal !important;
+  }
+
+  #dashboard-fyp-list p {
+    font-size: 14px !important;
+    line-height: 1.45 !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 3 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+  }
+
+  #dashboard-fyp-list small,
+  #dashboard-fyp-list span {
+    font-size: 13px !important;
+  }
+}
