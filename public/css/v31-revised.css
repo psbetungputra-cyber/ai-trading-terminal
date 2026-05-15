@@ -314,3 +314,37 @@ body.v31-chart-mode .v31-chart-exit { display: inline-flex; }
   .v31-modal-backdrop { padding: 0; place-items: end stretch; }
   .v31-modal { width: 100%; border-radius: 24px 24px 0 0; max-height: 88vh; }
 }
+
+/* AiSignalFx PRO - v3.1 Modal Position Fix */
+@media (max-width: 720px) {
+  .v31-modal-backdrop {
+    padding: 18px !important;
+    place-items: center !important;
+    align-items: center !important;
+  }
+
+  .v31-modal {
+    width: 100% !important;
+    max-width: 520px !important;
+    max-height: 82dvh !important;
+    overflow-y: auto !important;
+    border-radius: 26px !important;
+    transform: translateY(-3vh) !important;
+  }
+
+  .v31-modal-head {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 3 !important;
+    background: rgba(10, 15, 28, .92) !important;
+    backdrop-filter: blur(16px) !important;
+    border-radius: 26px 26px 0 0 !important;
+  }
+}
+
+@media (max-width: 720px) and (max-height: 680px) {
+  .v31-modal {
+    max-height: 88dvh !important;
+    transform: none !important;
+  }
+}
