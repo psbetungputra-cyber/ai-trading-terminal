@@ -3230,3 +3230,166 @@ body.v31-chart-mode .chart-terminal-compact-top {
     display: none !important;
   }
 }
+
+/* AiSignalFx PRO - Community mobile interaction cleanup */
+@media (max-width: 760px) {
+  #mapping .community-mobile-hide-heavy {
+    display: none !important;
+  }
+}
+
+/* AiSignalFx PRO - Sentinel Community V2 Mobile Feed */
+@media (max-width: 760px) {
+  .community-v2-hide-heavy {
+    display: none !important;
+  }
+
+  #mapping .mapping-post-card {
+    display: none !important;
+  }
+
+  #mapping .v2-map-post {
+    margin: 16px 0;
+    padding: 14px;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 24px;
+    background: linear-gradient(145deg, rgba(15, 23, 42, 0.92), rgba(2, 6, 23, 0.96));
+    overflow: hidden;
+  }
+
+  #mapping .v2-map-image {
+    width: 100%;
+    border-radius: 18px;
+    overflow: hidden;
+    background: #020617;
+    border: 1px solid rgba(148, 163, 184, 0.14);
+  }
+
+  #mapping .v2-map-image img {
+    width: 100%;
+    display: block;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+  }
+
+  #mapping .v2-map-placeholder {
+    height: 150px;
+    border-radius: 18px;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, rgba(30, 64, 175, 0.35), rgba(15, 23, 42, 0.85));
+    text-align: center;
+  }
+
+  #mapping .v2-map-placeholder strong {
+    display: block;
+    color: #fff;
+    font-size: 28px;
+    line-height: 1;
+  }
+
+  #mapping .v2-map-placeholder span {
+    display: block;
+    margin-top: 8px;
+    color: #94a3b8;
+    font-size: 13px;
+    text-transform: uppercase;
+  }
+
+  #mapping .v2-map-body {
+    padding: 12px 2px 2px;
+  }
+
+  #mapping .v2-map-title-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  #mapping .v2-map-title-row h3 {
+    margin: 0;
+    font-size: 20px;
+    color: #fff;
+  }
+
+  #mapping .v2-map-title-row p,
+  #mapping .v2-caption {
+    margin: 6px 0 0;
+    color: #94a3b8;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  #mapping .v2-follow {
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    background: rgba(15, 23, 42, 0.85);
+    color: #7dd3fc;
+    border-radius: 999px;
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  #mapping .v2-follow.active {
+    color: #fff;
+    background: linear-gradient(135deg, #2563eb, #06b6d4);
+  }
+
+  #mapping .v2-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+
+  #mapping .v2-actions button {
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    background: rgba(15, 23, 42, 0.72);
+    color: #cbd5e1;
+    border-radius: 999px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  #mapping .v2-actions button.active {
+    color: #fff;
+    border-color: rgba(56, 189, 248, 0.45);
+    background: rgba(37, 99, 235, 0.35);
+  }
+
+  #mapping .v2-comment-box {
+    display: none;
+    margin-top: 12px;
+    gap: 8px;
+  }
+
+  #mapping .v2-comment-box.show {
+    display: grid;
+  }
+
+  #mapping .v2-comment-box input {
+    width: 100%;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    background: rgba(2, 6, 23, 0.85);
+    color: #fff;
+    border-radius: 14px;
+    padding: 12px;
+  }
+
+  #mapping .v2-comment-box button {
+    border: 0;
+    border-radius: 14px;
+    padding: 11px;
+    background: linear-gradient(135deg, #2563eb, #06b6d4);
+    color: #fff;
+    font-weight: 900;
+  }
+
+  #mapping .v2-comment-box p {
+    margin: 6px 0 0;
+    color: #cbd5e1;
+    font-size: 13px;
+  }
+}

@@ -1160,10 +1160,10 @@ async function submitMappingPost(){
     if(status) status.innerText = "Mapping published.";
     setCommunityTab("latest");
     renderDashboardFyp();
-    alert("Mapping berhasil diposting.");
+    if(status) status.innerText = "Mapping berhasil diposting.";
   }catch(error){
     if(status) status.innerText = "Upload gagal.";
-    alert("Gagal upload mapping: " + error.message);
+    if(status) status.innerText = "Gagal upload mapping. Coba cek gambar atau koneksi.";
   }
 }
 
@@ -2036,5 +2036,137 @@ window.saveLearningModule = saveLearningModule;
     simplifyCommunityMobileMenu();
     setTimeout(simplifyCommunityMobileMenu, 700);
     setTimeout(simplifyCommunityMobileMenu, 1600);
+  });
+})();
+
+
+/* AiSignalFx PRO - Community mobile interaction cleanup */
+(function () {
+  function isMobileCommunity() {
+    return window.matchMedia("(max-width: 760px)").matches &&
+      document.getElementById("mapping")?.classList.contains("active");
+  }
+
+  const oldOpenMappingDetail = window.openMappingDetail;
+  window.openMappingDetail = function (id) {
+    if (isMobileCommunity()) {
+      return;
+    }
+    if (typeof oldOpenMappingDetail === "function") {
+      return oldOpenMappingDetail(id);
+    }
+  };
+
+  function hideCommunityTopMapperMobile() {
+    const page = document.getElementById("mapping");
+    if (!page) return;
+
+    page.querySelectorAll(".card").forEach(function (card) {
+      const text = (card.textContent || "").toLowerCase();
+      if (text.includes("top mapper insight") || text.includes("live command intelligence")) {
+        card.classList.add("community-mobile-hide-heavy");
+      }
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    hideCommunityTopMapperMobile();
+    setTimeout(hideCommunityTopMapperMobile, 700);
+    setTimeout(hideCommunityTopMapperMobile, 1600);
+  });
+})();
+
+
+/* AiSignalFx PRO - Sentinel Community V2 Mobile Feed */
+(function () {
+  function safe(v) {
+    return String(v ?? "").replace(/[&<>"']/g, function (m) {
+      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[m];
+    });
+  }
+
+  function postList() {
+    try {
+      if (typeof communityLatestPosts === "function") return communityLatestPosts();
+      if (typeof demoCommunityPosts !== "undefined") return demoCommunityPosts;
+    } catch (e) {}
+    return [];
+  }
+
+  try {
+    openMappingDetail = function () {
+      return false;
+    };
+    window.openMappingDetail = openMappingDetail;
+  } catch (e) {}
+
+  try {
+    mappingPostCard = function (post, mini = false) {
+      const pair = safe(post.pair || "XAUUSD");
+      const bias = safe(post.bias || "WAIT");
+      const title = safe(post.title || pair + " Mapping");
+      const caption = safe(post.caption || "Mapping idea.");
+      const user = safe(post.user || "Community Mapper");
+      const img = post.image ? String(post.image) : "";
+      const likes = Number(post.likes || 0).toLocaleString("id-ID");
+      const comments = Number(post.comments || 0).toLocaleString("id-ID");
+
+      const visual = img
+        ? `<div class="v2-map-image"><img src="${safe(img)}" alt="${pair} mapping"></div>`
+        : `<div class="v2-map-placeholder"><strong>${pair}</strong><span>${bias}</span></div>`;
+
+      return `
+        <article class="v2-map-post" data-pair="${pair}" data-bias="${bias}">
+          ${visual}
+          <div class="v2-map-body">
+            <div class="v2-map-title-row">
+              <div>
+                <h3>${title}</h3>
+                <p>${user} • ${pair} • ${bias}</p>
+              </div>
+              <button class="v2-follow" onclick="event.stopPropagation(); this.classList.toggle('active'); this.textContent=this.classList.contains('active')?'Following':'Follow';">Follow</button>
+            </div>
+
+            <p class="v2-caption">${caption}</p>
+
+            <div class="v2-actions">
+              <button onclick="event.stopPropagation(); this.classList.toggle('active'); const s=this.querySelector('span'); s.textContent=(Number(String(s.textContent).replace(/\\D/g,''))||0)+1;">♡ <span>${likes}</span></button>
+              <button onclick="event.stopPropagation(); this.closest('.v2-map-post').querySelector('.v2-comment-box').classList.toggle('show');">💬 <span>${comments}</span></button>
+              <button onclick="event.stopPropagation(); this.classList.toggle('active');">🔖 Save</button>
+            </div>
+
+            <div class="v2-comment-box">
+              <input placeholder="Tulis komentar singkat...">
+              <button onclick="event.stopPropagation(); const box=this.closest('.v2-comment-box'); const input=box.querySelector('input'); if(input.value.trim()){ box.insertAdjacentHTML('beforeend','<p><b>You:</b> '+safe(input.value.trim())+'</p>'); input.value=''; }">Send</button>
+            </div>
+          </div>
+        </article>
+      `;
+    };
+    window.mappingPostCard = mappingPostCard;
+  } catch (e) {}
+
+  function renderCommunityV2() {
+    const feed = document.getElementById("community-feed");
+    if (feed) {
+      feed.innerHTML = postList().map(function (post) {
+        return mappingPostCard(post);
+      }).join("");
+    }
+
+    document.querySelectorAll(".dashboard-fyp, .community-spotlight-card, .top-mapper-feature").forEach(function (el) {
+      el.classList.add("community-v2-hide-heavy");
+    });
+  }
+
+  const oldSetCommunityTab = window.setCommunityTab;
+  window.setCommunityTab = function (tab) {
+    if (typeof oldSetCommunityTab === "function") oldSetCommunityTab(tab);
+    setTimeout(renderCommunityV2, 80);
+  };
+
+  document.addEventListener("DOMContentLoaded", function () {
+    setTimeout(renderCommunityV2, 500);
+    setTimeout(renderCommunityV2, 1500);
   });
 })();
