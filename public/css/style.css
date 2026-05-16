@@ -1656,3 +1656,410 @@
     padding: 10px;
   }
 }
+
+/* AiSignalFx PRO - Dashboard Visual Compact */
+.dashboard-visual-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.dash-signal-visual,
+.dash-sentiment-box {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid rgba(59,130,246,.18);
+  border-radius: 22px;
+  background: rgba(15,23,42,.45);
+}
+
+.dash-kicker,
+.dash-pulse-head span {
+  display: inline-flex;
+  color: #60a5fa;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+}
+
+.dash-signal-visual h4 {
+  margin: 8px 0 6px;
+  font-size: 18px;
+}
+
+.dash-signal-visual p {
+  margin: 0 0 12px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.dash-mini-chart {
+  height: 86px;
+  border: 1px solid rgba(148,163,184,.12);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(59,130,246,.12), rgba(15,23,42,.15));
+  overflow: hidden;
+}
+
+.dash-mini-chart svg {
+  width: 100%;
+  height: 100%;
+}
+
+.dash-grid-line {
+  stroke: rgba(148,163,184,.16);
+  stroke-width: 1;
+  fill: none;
+}
+
+.dash-line {
+  stroke: #38bdf8;
+  stroke-width: 4;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.dash-fill {
+  fill: rgba(56,189,248,.14);
+}
+
+.dash-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.dash-chip-row span {
+  padding: 8px 10px;
+  border: 1px solid rgba(148,163,184,.14);
+  border-radius: 999px;
+  background: rgba(15,23,42,.5);
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.dash-meter-label {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+
+.dash-meter {
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(148,163,184,.16);
+  overflow: hidden;
+}
+
+.dash-meter i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #38bdf8, #22c55e);
+}
+
+.dash-session-grid {
+  display: grid;
+  grid-template-columns: repeat(3,1fr);
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.dash-session-grid div {
+  padding: 12px;
+  border: 1px solid rgba(148,163,184,.14);
+  border-radius: 16px;
+  background: rgba(15,23,42,.48);
+  text-align: center;
+}
+
+.dash-session-grid small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+}
+
+.dash-pulse-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 12px 0;
+  color: var(--muted);
+}
+
+.dash-pulse-head b {
+  color: #93c5fd;
+}
+
+@media (max-width: 720px) {
+  .dash-session-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dash-mini-chart {
+    height: 74px;
+  }
+
+  .dash-pulse-head {
+    flex-direction: column;
+  }
+}
+
+/* AiSignalFx PRO - Dashboard Compact Polish */
+#dashboard .card,
+.dashboard-visual-card {
+  background:
+    radial-gradient(circle at 18% 0%, rgba(59,130,246,.11), transparent 34%),
+    radial-gradient(circle at 88% 8%, rgba(34,211,238,.08), transparent 30%),
+    rgba(15, 23, 42, .72) !important;
+  border-color: rgba(148,163,184,.16) !important;
+  box-shadow: 0 24px 80px rgba(0,0,0,.18);
+}
+
+#dashboard .section-head h3,
+#dashboard .card h3 {
+  letter-spacing: -.4px;
+}
+
+.dash-mini-chart {
+  position: relative;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+}
+
+.dash-mini-chart::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255,255,255,.035) 1px, transparent 1px);
+  background-size: 42px 100%, 100% 24px;
+  pointer-events: none;
+}
+
+.dash-line {
+  filter: drop-shadow(0 0 10px rgba(56,189,248,.45));
+}
+
+.dash-chip-row span {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+}
+
+.dashboard-community-market {
+  align-items: stretch;
+}
+
+.community-spotlight-card .top-mapper-feature {
+  display: grid;
+  grid-template-columns: 1fr minmax(180px, 280px);
+  gap: 16px;
+  align-items: center;
+}
+
+.community-spotlight-card .dash-mini-chart {
+  height: 92px;
+}
+
+.crypto-pulse-list {
+  border: 1px solid rgba(148,163,184,.12);
+  border-radius: 22px;
+  overflow: hidden;
+  background: rgba(15,23,42,.38);
+}
+
+.crypto-pulse-item {
+  border-width: 0 0 1px 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.crypto-pulse-item:last-child {
+  border-bottom: 0 !important;
+}
+
+.dash-pulse-head {
+  align-items: center;
+}
+
+.dash-pulse-head b {
+  padding: 8px 12px;
+  border: 1px solid rgba(59,130,246,.22);
+  border-radius: 999px;
+  background: rgba(59,130,246,.08);
+}
+
+.performance-strip .card {
+  text-align: center;
+  min-height: 110px;
+}
+
+.performance-strip .card h2 {
+  margin-top: 8px;
+}
+
+@media (min-width: 900px) {
+  #dashboard .grid-2.dashboard-community-market {
+    grid-template-columns: minmax(0, 1.2fr) minmax(320px, .8fr);
+  }
+
+  #dashboard .card {
+    transition: transform .22s ease, border-color .22s ease, box-shadow .22s ease;
+  }
+
+  #dashboard .card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(59,130,246,.28) !important;
+    box-shadow: 0 28px 90px rgba(0,0,0,.26);
+  }
+}
+
+@media (max-width: 720px) {
+  #dashboard .card,
+  .dashboard-visual-card {
+    border-radius: 24px !important;
+  }
+
+  .community-spotlight-card .top-mapper-feature {
+    grid-template-columns: 1fr;
+  }
+
+  .community-spotlight-card .dash-mini-chart {
+    height: 78px;
+  }
+
+  .dash-chip-row {
+    gap: 7px;
+  }
+
+  .dash-chip-row span {
+    font-size: 11px;
+    padding: 7px 9px;
+  }
+
+  .crypto-pulse-item {
+    grid-template-columns: 1fr auto !important;
+  }
+
+  .crypto-pulse-item small {
+    grid-column: 1 / -1;
+  }
+}
+
+/* AiSignalFx PRO - Scanner Pair Focus Polish */
+#scanner .section-head h2 {
+  font-size: clamp(34px, 6vw, 56px) !important;
+  line-height: 1.05 !important;
+}
+
+#scanner .section-head p {
+  max-width: 760px;
+  font-size: clamp(16px, 2.4vw, 24px) !important;
+  line-height: 1.45 !important;
+}
+
+.scanner-pair-focus {
+  margin: 18px 0;
+  padding: 16px;
+  border: 1px solid rgba(59,130,246,.18);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(59,130,246,.12), transparent 34%),
+    rgba(15,23,42,.58);
+}
+
+.scanner-focus-kicker {
+  color: #60a5fa;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 1.8px;
+}
+
+.scanner-pair-focus h3 {
+  margin: 8px 0 4px;
+  font-size: 22px;
+}
+
+.scanner-pair-focus p {
+  margin: 0 0 14px;
+  color: var(--muted);
+}
+
+.scanner-pair-chips {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.scanner-pair-chips button {
+  flex: 0 0 auto;
+  border: 1px solid rgba(148,163,184,.16);
+  border-radius: 999px;
+  background: rgba(15,23,42,.74);
+  color: #cbd5e1;
+  padding: 10px 14px;
+  font-weight: 900;
+  font-size: 13px;
+}
+
+.scanner-pair-chips button.active {
+  color: #fff;
+  border-color: rgba(59,130,246,.45);
+  background: linear-gradient(135deg, rgba(37,99,235,.55), rgba(6,182,212,.35));
+  box-shadow: 0 12px 40px rgba(37,99,235,.16);
+}
+
+#scanner-grid .scanner-card-hidden {
+  display: none !important;
+}
+
+#scanner-grid.scanner-focus-grid {
+  display: grid !important;
+  grid-template-columns: minmax(0, 760px) !important;
+  justify-content: center !important;
+}
+
+#scanner-grid.scanner-focus-grid .scanner-card-focused {
+  width: 100%;
+  min-height: auto;
+  border-color: rgba(59,130,246,.34) !important;
+  box-shadow: 0 26px 90px rgba(0,0,0,.28);
+}
+
+#scanner-grid.scanner-focus-grid .scanner-v2-grid {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+#scanner-grid.scanner-focus-grid .scanner-v21-plan {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+@media (max-width: 720px) {
+  #scanner .section-head h2 {
+    font-size: 38px !important;
+  }
+
+  #scanner .section-head p {
+    font-size: 20px !important;
+  }
+
+  .scanner-pair-focus {
+    border-radius: 22px;
+    padding: 14px;
+  }
+
+  #scanner-grid.scanner-focus-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  #scanner-grid.scanner-focus-grid .scanner-v2-grid,
+  #scanner-grid.scanner-focus-grid .scanner-v21-plan {
+    grid-template-columns: 1fr !important;
+  }
+}
