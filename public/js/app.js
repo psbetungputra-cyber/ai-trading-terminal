@@ -1946,3 +1946,32 @@ window.saveLearningModule = saveLearningModule;
     setTimeout(hideChartEntry, 1800);
   });
 })();
+
+/* AiSignalFx PRO - Hide dashboard stat cards on mobile */
+(function () {
+  function hideDashboardStats() {
+    var isMobile = window.matchMedia("(max-width: 760px)").matches;
+    var dashboard = document.getElementById("dashboard");
+    if (!dashboard) return;
+
+    dashboard.querySelectorAll(".card").forEach(function (card) {
+      var text = (card.textContent || "").toLowerCase();
+
+      if (
+        text.includes("market bias") ||
+        text.includes("sentinel usage") ||
+        text.includes("vip scanner")
+      ) {
+        card.style.display = isMobile ? "none" : "";
+      }
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    hideDashboardStats();
+    setTimeout(hideDashboardStats, 500);
+    setTimeout(hideDashboardStats, 1500);
+  });
+
+  window.addEventListener("resize", hideDashboardStats);
+})();
