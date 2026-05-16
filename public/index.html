@@ -252,14 +252,14 @@
           <div class="section-head">
             <div>
               <h2>Signal Scanner VIP</h2>
-              <p class="muted">Market radar untuk forex, gold, indices, dan crypto. Crypto memakai Binance Public API; forex tetap demo sampai provider real aktif.</p>
+              <p class="muted">Market radar untuk forex, gold, indices, dan crypto. Crypto live via Binance; forex/gold menggunakan reference mode sampai provider real aktif.</p>
             </div>
             <span class="badge vip">VIP Access</span>
           </div>
 
           <div class="scanner-tools">
             <button class="chip active" onclick="setScannerMode('all')">All</button>
-            <button class="chip" onclick="setScannerMode('forex')">Forex Demo</button>
+            <button class="chip" onclick="setScannerMode('forex')">Forex Ref</button>
             <button class="chip" onclick="setScannerMode('crypto')">Crypto Real</button>
             <button class="chip" onclick="setScannerMode('gold')">Gold</button>
             <button class="chip" onclick="setScannerMode('favorites')">Favorites</button>
@@ -735,5 +735,6 @@
   <script src="./js/scanner-mode-filter-fix.js?v=1"></script>
   <script src="./js/live-header-ticker.js?v=1"></script>
   <script src="./js/scanner-favorites.js?v=1"></script>
+  <script src="./js/forex-reference-mode.js?v=1"></script>
 </body>
 </html>
