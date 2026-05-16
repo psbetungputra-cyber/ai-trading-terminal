@@ -1,1 +1,12 @@
 node_modules/
+
+# AiSignalFx local patch/build leftovers
+.patch-backups/
+*.zip
+aisignalfx-pro-superpower-ui-v4/
+aisignalfx_pro_dashboard_premium_v3_package/
+aisignalfx-pro-dashboard-premium-v3.zip
+install-dashboard-v3.sh
+aisignalfx_dashboard_premium_v2.sh
+public/css/dashboard-premium-v3.css
+public/js/dashboard-premium-v1.js
