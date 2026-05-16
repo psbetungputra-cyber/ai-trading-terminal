@@ -125,6 +125,26 @@
     });
   }
 
+  function scanValue(v, fallback = "calculating") {
+    if (v === undefined || v === null || v === "" || Number.isNaN(Number(v))) return fallback;
+    return v;
+  }
+
+  function scanStatus(x) {
+    if (x && x.valid && (x.entryPrice || x.stopLoss || x.tp1 || x.tp2)) return "VALID SETUP";
+    if (x && x.valid) return "BIAS VALID";
+    return (x && x.status) ? x.status : "BIAS PREVIEW";
+  }
+
+  function scanLevel(x, keys, fallback) {
+    for (const key of keys) {
+      if (x && x[key] !== undefined && x[key] !== null && String(x[key]).trim() !== "") {
+        return x[key];
+      }
+    }
+    return fallback;
+  }
+
   function renderOne(x){
     const g = grid();
     if(!g) return;
@@ -134,7 +154,7 @@
       <div class="card signal-card scanner-v21-card ${x.valid ? "valid-setup":"wait-setup"} scanner-card-focused">
         <div class="signal-card-top">
           <span class="badge ${badge(x.bias)}">${x.bias}</span>
-          <span class="badge ${x.valid ? "vip":"free"}">${x.status}</span>
+          <span class="badge ${x.valid ? "vip":"free"}">${x.status || "BIAS PREVIEW"}</span>
         </div>
         <h3>${x.symbol}</h3>
         <p class="crypto-price">$${fmt(x.price,x.price)}</p>
@@ -147,10 +167,10 @@
         </div>
         <p><b>Confidence:</b> ${x.confidence}% · <b>RSI:</b> ${x.rsi}</p>
         <div class="scanner-v21-plan">
-          <p><b>Entry Zone:</b> ${x.valid ? "Detail aktif pada valid detail layer" : "Wait confirmation"}</p>
-          <p><b>Stop Loss:</b> ${x.valid ? "Dihitung oleh risk layer" : "Wait confirmation"}</p>
-          <p><b>TP 1:</b> ${x.valid ? "Dihitung oleh target layer" : "Wait confirmation"}</p>
-          <p><b>TP 2:</b> ${x.valid ? "Dihitung oleh target layer" : "Wait confirmation"}</p>
+          <p><b>Entry Zone:</b> ${scanLevel(x, ["entryZone", "entryIdea", "entry"], "Tunggu retest dan candle konfirmasi")}</p>
+          <p><b>Stop Loss:</b> ${scanLevel(x, ["stopLoss", "sl", "invalidation"], "Tunggu invalidation candle jelas")}</p>
+          <p><b>TP 1:</b> ${scanLevel(x, ["tp1", "target1", "target"], "Target mengikuti struktur market")}</p>
+          <p><b>TP 2:</b> ${scanLevel(x, ["tp1", "target1", "target"], "Target mengikuti struktur market")}</p>
         </div>
         <p>${x.valid ? "Setup valid secara sistem. Tetap tunggu candle konfirmasi sebelum entry." : `Belum valid untuk entry angka detail. Trend: ${x.trend}, Macro: ${x.macro}, Momentum: ${x.momentum}, Risk: ${x.risk}.`}</p>
         <small>Sentinel Scanner · Binance ticker + klines 1h/4h · educational analysis</small>
@@ -158,15 +178,100 @@
     `;
   }
 
+
+  let stablePairRequestId = 0;
+  const stablePairCache = new Map();
+
+  function readBinanceFastRows(){
+    if (Array.isArray(window.AisignalBinanceLastRows)) return window.AisignalBinanceLastRows;
+
+    const keys = [
+      "aisignalfx_binance_24h_cache_v2",
+      "aisignalfx_binance_24h_cache_v1"
+    ];
+
+    for (const key of keys) {
+      try {
+        const cached = JSON.parse(localStorage.getItem(key) || "null");
+        if (cached && Array.isArray(cached.rows)) return cached.rows;
+      } catch(e) {}
+    }
+
+    return [];
+  }
+
+  function quickAnalyzeFromTicker(symbol){
+    const rows = readBinanceFastRows();
+    const t = rows.find(x => x.symbol === symbol);
+    if (!t) return null;
+
+    const price = +(t.lastPrice || 0);
+    const change = +(t.priceChangePercent || 0);
+    const high = +(t.highPrice || price);
+    const low = +(t.lowPrice || price);
+    const range = price ? Math.abs((high - low) / price) * 100 : 0;
+
+    const bias = change > 1.2 ? "BUY" : change < -1.2 ? "SELL" : "WAIT";
+    const trend = change > 0.8 ? "Bullish" : change < -0.8 ? "Bearish" : "Neutral";
+    const macro = trend;
+    const momentum = Math.abs(change) > 1.2 ? "Active" : "Mixed";
+    const risk = range > 7 ? "High" : range > 3.5 ? "Medium" : "Low";
+    const confidence = Math.min(88, Math.max(55, Math.round(58 + Math.abs(change) * 6 + Math.min(range, 6) * 2)));
+
+    return {
+      symbol,
+      price,
+      change,
+      trend,
+      macro,
+      momentum,
+      risk,
+      bias,
+      confidence,
+      valid: false,
+      note: "Fast Binance cache preview. Detail 1H/4H diperbarui di background.",
+      source: "fast-cache",
+      status: "BIAS PREVIEW",
+      rsi: null,
+      entryZone: "Tunggu retest dan candle konfirmasi",
+      stopLoss: "Tunggu invalidation candle jelas",
+      tp1: "Target mengikuti struktur market",
+      tp2: "Target mengikuti struktur market"
+    };
+  }
+
   async function loadPair(symbol){
     ensureFocus();
     activeChip(symbol);
+
     const g = grid();
-    if(g) g.innerHTML = `<p class="muted scanner-fast-loading">Loading ${symbol} stable scanner...</p>`;
+    const reqId = ++stablePairRequestId;
+
+    const cached = stablePairCache.get(symbol);
+    if (cached) {
+      renderOne(cached);
+    } else {
+      const quick = quickAnalyzeFromTicker(symbol);
+      if (quick) {
+        stablePairCache.set(symbol, quick);
+        renderOne(quick);
+      } else if (g && !g.querySelector(".signal-card")) {
+        g.innerHTML = `<p class="muted scanner-fast-loading">Preparing ${symbol} scanner...</p>`;
+      }
+    }
+
     try{
-      renderOne(await analyze(symbol));
+      const full = await analyze(symbol);
+      stablePairCache.set(symbol, full);
+
+      const current = localStorage.getItem(KEY) || "BTCUSDT";
+      if (reqId === stablePairRequestId && current === symbol) {
+        renderOne(full);
+      }
     }catch(e){
-      if(g) g.innerHTML = `<p class="muted">Data ${symbol} belum tersedia. Coba refresh.</p>`;
+      if (reqId === stablePairRequestId && g && !g.querySelector(".signal-card")) {
+        g.innerHTML = `<p class="muted">Data ${symbol} belum tersedia. Coba refresh.</p>`;
+      }
     }
   }
 
@@ -234,7 +339,6 @@
   };
 
   document.addEventListener("DOMContentLoaded", ()=>{
-    setTimeout(loadSaved,700);
-    setTimeout(loadSaved,2200);
+    setTimeout(loadSaved,500);
   });
 })();

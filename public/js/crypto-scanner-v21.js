@@ -125,10 +125,10 @@
       risk !== "High" &&
       ((bias === "BUY" && rsiSafeBuy) || (bias === "SELL" && rsiSafeSell));
 
-    let entryZone = "Wait confirmation";
-    let stopLoss = "Wait confirmation";
-    let tp1 = "Wait confirmation";
-    let tp2 = "Wait confirmation";
+    let entryZone = "Tunggu konfirmasi";
+    let stopLoss = "Tunggu konfirmasi";
+    let tp1 = "Tunggu konfirmasi";
+    let tp2 = "Tunggu konfirmasi";
 
     if (validSetup && bias === "BUY") {
       const entryLow = price - atrValue * 0.35;
@@ -199,10 +199,10 @@
           rsi: 50,
           status: "WAIT CONFIRMATION",
           validSetup: false,
-          entryZone: "Wait confirmation",
-          stopLoss: "Wait confirmation",
-          tp1: "Wait confirmation",
-          tp2: "Wait confirmation",
+          entryZone: "Tunggu konfirmasi",
+          stopLoss: "Tunggu konfirmasi",
+          tp1: "Tunggu konfirmasi",
+          tp2: "Tunggu konfirmasi",
           reason: "Klines belum terbaca. Scanner memakai reference mode."
         });
       }
@@ -224,7 +224,7 @@
       <div class="card signal-card scanner-v21-card ${x.validSetup ? "valid-setup" : "wait-setup"}">
         <div class="signal-card-top">
           <span class="badge ${badgeClass(x.bias)}">${x.bias}</span>
-          <span class="badge ${x.validSetup ? "vip" : "free"}">${x.status}</span>
+          <span class="badge ${x.validSetup ? "vip" : "free"}">${x.status || "BIAS PREVIEW"}</span>
         </div>
 
         <h3>${x.symbol}</h3>
