@@ -1059,6 +1059,20 @@ function mappingPostCard(post, mini = false){
   `;
 }
 
+
+function communityLatestPosts(){
+  return [...demoCommunityPosts].sort((a,b) => {
+    const ai = String(a.id || "");
+    const bi = String(b.id || "");
+    const at = Number(ai.replace("local-","")) || 0;
+    const bt = Number(bi.replace("local-","")) || 0;
+
+    if (!!b.image !== !!a.image) return b.image ? 1 : -1;
+    return bt - at;
+  });
+}
+
+
 function renderCommunity(){
   const feed = document.getElementById("community-feed");
   const leaderboard = document.getElementById("leaderboard-list");
@@ -1074,7 +1088,7 @@ function renderCommunity(){
   }
 
   if(feed){
-    feed.innerHTML = demoCommunityPosts.map(post => mappingPostCard(post)).join("");
+    feed.innerHTML = communityLatestPosts().map(post => mappingPostCard(post)).join("");
   }
 }
 
@@ -1100,11 +1114,11 @@ function setCommunityTab(tab){
   }
 
   if(tab === "latest"){
-    feed.innerHTML = [...demoCommunityPosts].reverse().map(post => mappingPostCard(post)).join("");
+    feed.innerHTML = communityLatestPosts().map(post => mappingPostCard(post)).join("");
     return;
   }
 
-  feed.innerHTML = demoCommunityPosts.map(post => mappingPostCard(post)).join("");
+  feed.innerHTML = communityLatestPosts().map(post => mappingPostCard(post)).join("");
 }
 
 async function submitMappingPost(){
@@ -1115,12 +1129,13 @@ async function submitMappingPost(){
   const file = document.getElementById("mapping-file")?.files?.[0];
   const status = document.getElementById("mapping-upload-status");
   let image = "";
+    let localPreview = file ? URL.createObjectURL(file) : "";
 
   try{
     if(file && window.AiSignalCloudinary?.uploadToCloudinary){
       if(status) status.innerText = "Uploading mapping...";
       const uploaded = await window.AiSignalCloudinary.uploadToCloudinary(file, "aisignalfx/mapping_feed");
-      image = uploaded.secure_url;
+      image = (uploaded && (uploaded.secure_url || uploaded.url)) || localPreview || "";
     }
 
     const post = {
@@ -1974,4 +1989,52 @@ window.saveLearningModule = saveLearningModule;
   });
 
   window.addEventListener("resize", hideDashboardStats);
+})();
+
+/* AiSignalFx PRO - Community mobile menu simplify */
+(function () {
+  function simplifyCommunityMobileMenu() {
+    const page = document.getElementById("mapping");
+    if (!page) return;
+
+    const tabs = page.querySelector(".community-tabs");
+    if (!tabs) return;
+
+    if (!page.querySelector(".community-upload-main-btn")) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "community-upload-main-btn";
+      btn.innerHTML = "📸 Upload Mapping";
+      btn.onclick = function () {
+        if (typeof window.setCommunityTab === "function") {
+          window.setCommunityTab("upload");
+        }
+        setTimeout(function () {
+          document.getElementById("community-upload")?.scrollIntoView({
+            behavior: "smooth",
+            block: "start"
+          });
+        }, 120);
+      };
+      tabs.insertAdjacentElement("beforebegin", btn);
+    }
+
+    tabs.querySelectorAll("button").forEach(function (btn) {
+      const text = (btn.textContent || "").toLowerCase();
+
+      if (
+        text.includes("for you") ||
+        text.includes("following") ||
+        text.includes("upload")
+      ) {
+        btn.classList.add("community-mobile-hide-tab");
+      }
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    simplifyCommunityMobileMenu();
+    setTimeout(simplifyCommunityMobileMenu, 700);
+    setTimeout(simplifyCommunityMobileMenu, 1600);
+  });
 })();
