@@ -1834,3 +1834,115 @@ window.saveLearningModule = saveLearningModule;
     wrapLoginClearLock();
   });
 })();
+
+/* AiSignalFx PRO - Compact Chart Symbol Navigation */
+(function () {
+  const symbols = ["XAUUSD", "BTCUSDT", "ETHUSDT", "EURUSD", "GBPUSD", "USDJPY", "NAS100", "US30"];
+  let index = 0;
+
+  window.changeChartSymbol = function (direction) {
+    index = (index + direction + symbols.length) % symbols.length;
+    const symbol = symbols[index];
+
+    const title = document.getElementById("chart-terminal-title");
+    if (title) title.textContent = symbol + " Chart";
+
+    window.currentChartSymbol = symbol;
+
+    if (typeof window.initTradingView === "function") {
+      try {
+        window.initTradingView(symbol);
+      } catch (error) {
+        console.warn("Chart symbol switch skipped:", error);
+      }
+    }
+  };
+})();
+
+
+
+/* AiSignalFx PRO - Single chart close button */
+(function () {
+  function injectChartCloseButton() {
+    const card = document.querySelector(".chart-terminal-card");
+    if (!card) return;
+    if (card.querySelector(".chart-close-only")) return;
+
+    const btn = document.createElement("button");
+    btn.className = "chart-close-only";
+    btn.type = "button";
+    btn.textContent = "×";
+    btn.onclick = function () {
+      if (typeof window.expandChartTerminal === "function") {
+        window.expandChartTerminal();
+      } else {
+        document.body.classList.remove("v31-chart-mode");
+      }
+    };
+
+    card.appendChild(btn);
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    setTimeout(injectChartCloseButton, 300);
+    setTimeout(injectChartCloseButton, 1200);
+  });
+})();
+
+/* AiSignalFx PRO - Temporarily disable Chart Terminal */
+(function () {
+  function hideChartEntry() {
+    document.querySelectorAll("button, a").forEach((el) => {
+      const text = (el.textContent || "").toLowerCase();
+      const action = (el.getAttribute("onclick") || "").toLowerCase();
+
+      if (
+        text.includes("chart terminal") ||
+        text.includes("live chart") ||
+        text.includes("fullscreen chart") ||
+        action.includes("showpage('chart") ||
+        action.includes('showpage("chart') ||
+        action.includes("showpagebyid('chart") ||
+        action.includes('showpagebyid("chart')
+      ) {
+        el.style.display = "none";
+      }
+    });
+
+    const chartPage = document.getElementById("chart");
+    if (chartPage) chartPage.style.display = "none";
+  }
+
+  function blockChartNavigation(attempt = 0) {
+    if (typeof window.showPageById === "function" && !window.showPageById.__chartDisabled) {
+      const original = window.showPageById;
+      window.showPageById = function (id) {
+        if (String(id).toLowerCase() === "chart") {
+          return original.call(this, "scanner");
+        }
+        return original.apply(this, arguments);
+      };
+      window.showPageById.__chartDisabled = true;
+    }
+
+    if (typeof window.showPage === "function" && !window.showPage.__chartDisabled) {
+      const original = window.showPage;
+      window.showPage = function (id, btn) {
+        if (String(id).toLowerCase() === "chart") {
+          return original.call(this, "scanner", btn);
+        }
+        return original.apply(this, arguments);
+      };
+      window.showPage.__chartDisabled = true;
+    }
+
+    if (attempt < 12) setTimeout(() => blockChartNavigation(attempt + 1), 250);
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    hideChartEntry();
+    blockChartNavigation();
+    setTimeout(hideChartEntry, 800);
+    setTimeout(hideChartEntry, 1800);
+  });
+})();
