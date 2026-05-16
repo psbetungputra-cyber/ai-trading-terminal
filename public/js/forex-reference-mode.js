@@ -169,6 +169,31 @@
     });
   }
 
+  const referenceSelection = {
+    forex: null,
+    gold: null
+  };
+
+  function getReferenceVisibleRows(mode, rows) {
+    const list = Array.isArray(rows) ? rows : [];
+    if (!referenceSelection[mode] && list.length) {
+      referenceSelection[mode] = list[0].symbol;
+    }
+
+    if (referenceSelection[mode] === "__all__") return list;
+
+    const focused = list.filter(x => x.symbol === referenceSelection[mode]);
+    return focused.length ? focused : list.slice(0, 1);
+  }
+
+  window.setReferencePair = function(mode, symbol) {
+    const m = String(mode || "").toLowerCase();
+    referenceSelection[m] = symbol;
+
+    if (m === "forex") renderReference("forex", forexPairs);
+    if (m === "gold") renderReference("gold", goldPairs);
+  };
+
   function renderReference(mode, rows){
     const g = grid();
     if (!g) return;
@@ -178,49 +203,81 @@
 
     activeTop(mode);
 
+    const fullRows = Array.isArray(rows) ? rows : [];
+    const visibleRows = getReferenceVisibleRows(mode, fullRows);
+    const current = referenceSelection[mode] || (fullRows[0] && fullRows[0].symbol) || "__all__";
+    const isAll = current === "__all__";
+
     const title = mode === "gold" ? "Gold & Metals Reference" : "Forex Reference Scanner";
     const label = mode === "gold" ? "GOLD REFERENCE" : "FOREX REFERENCE";
 
-    g.className = "grid-3 scanner-reference-grid forex-reference-grid";
+    const pairSelector = `
+      <div class="reference-pair-scroll-wrap">
+        <div class="reference-pair-scroll">
+          ${fullRows.map(x => `
+            <button type="button"
+              class="reference-pair-chip ${current === x.symbol ? "active" : ""}"
+              onclick="setReferencePair('${mode}', '${x.symbol}')">
+              <span>${x.symbol}</span>
+              <small>${x.bias || "WAIT"}</small>
+            </button>
+          `).join("")}
+
+          <button type="button"
+            class="reference-pair-chip all-pairs ${isAll ? "active" : ""}"
+            onclick="setReferencePair('${mode}', '__all__')">
+            <span>All Pairs</span>
+            <small>View all</small>
+          </button>
+        </div>
+      </div>
+    `;
+
+    g.className = "scanner-reference-shell forex-reference-grid";
     g.innerHTML = `
       <div class="card scanner-mode-note forex-reference-note">
         <span class="badge free">${label}</span>
         <h3>${title}</h3>
         <p class="muted">
-          Mode ini memakai reference data sementara. Crypto sudah live via Binance; forex/gold akan di-upgrade ke yfinance/FMP/backend saat engine data siap.
+          Mode ini memakai reference data sementara. Crypto sudah live via Binance; forex/gold akan di-upgrade ke finance/FMP/backend saat engine data siap.
         </p>
       </div>
 
-      ${rows.map(x => `
-        <div class="card signal-card forex-reference-card">
-          <div class="signal-card-top">
-            <span class="badge ${badgeClass(x.bias)}">${x.bias}</span>
-            <span class="badge free">REFERENCE</span>
+      ${pairSelector}
+
+      <div class="${isAll ? "reference-all-grid" : "reference-focus-grid"}">
+        ${visibleRows.map(x => `
+          <div class="card signal-card forex-reference-card">
+            <div class="signal-card-top">
+              <span class="badge ${badgeClass(x.bias)}">${x.bias}</span>
+              <span class="badge free">REFERENCE</span>
+            </div>
+
+            <h3>${x.symbol}</h3>
+            <p class="crypto-price">${x.price}</p>
+            <p><b>Change:</b> <span class="${String(x.change).includes("-") ? "red" : "green"}">${x.change}</span></p>
+
+            <div class="scanner-v2-grid">
+              <span><b>Trend:</b> ${x.trend}</span>
+              <span><b>Macro:</b> ${x.macro}</span>
+              <span><b>Momentum:</b> ${x.momentum}</span>
+              <span><b>Risk:</b> ${x.risk}</span>
+            </div>
+
+            <p><b>Confidence:</b> ${x.confidence}%</p>
+            <p><b>Session:</b> ${x.session}</p>
+            <p>${x.note || "Reference mode forex/gold."}</p>
+
+            <div class="forex-reference-footer">
+              <span>Reference intelligence</span>
+              <span>Educational analysis</span>
+            </div>
           </div>
-
-          <h3>${x.symbol}</h3>
-          <p class="crypto-price">${x.price}</p>
-          <p><b>Change:</b> <span class="${String(x.change).includes("-") ? "red" : "green"}">${x.change}</span></p>
-
-          <div class="scanner-v2-grid">
-            <span><b>Trend:</b> ${x.trend}</span>
-            <span><b>Macro:</b> ${x.macro}</span>
-            <span><b>Momentum:</b> ${x.momentum}</span>
-            <span><b>Risk:</b> ${x.risk}</span>
-          </div>
-
-          <p><b>Confidence:</b> ${x.confidence}%</p>
-          <p><b>Session:</b> ${x.session}</p>
-          <p>${x.note}</p>
-
-          <div class="forex-reference-footer">
-            <span>Reference intelligence</span>
-            <span>Educational analysis</span>
-          </div>
-        </div>
-      `).join("")}
+        `).join("")}
+      </div>
     `;
   }
+
 
   window.setScannerMode = function(mode){
     const m = String(mode || "").toLowerCase();
