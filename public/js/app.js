@@ -1739,3 +1739,39 @@ window.saveLearningModule = saveLearningModule;
     setTimeout(loadCryptoMarketV32, 900);
   });
 })();
+
+/* AiSignalFx PRO - Restore cached Firebase user after refresh */
+(function () {
+  const CACHE_KEY = "aisignalfx:firebase_user";
+
+  function restoreCachedUser(attempt = 0) {
+    try {
+      const raw = localStorage.getItem(CACHE_KEY);
+      if (!raw) return;
+
+      const profile = JSON.parse(raw);
+      if (!profile || !profile.uid) return;
+
+      if (typeof window.loginFirebaseUser === "function") {
+        window.loginFirebaseUser(profile);
+
+        if (typeof window.showPageById === "function") {
+          setTimeout(() => window.showPageById("dashboard"), 120);
+        }
+
+        return;
+      }
+
+      if (attempt < 15) {
+        setTimeout(() => restoreCachedUser(attempt + 1), 180);
+      }
+    } catch (error) {
+      console.warn("Cached user restore skipped:", error);
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    setTimeout(() => restoreCachedUser(), 80);
+    setTimeout(() => restoreCachedUser(), 600);
+  });
+})();

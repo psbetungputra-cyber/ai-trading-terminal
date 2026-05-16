@@ -1,11 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
 import { getAnalytics, isSupported as analyticsSupported } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-analytics.js";
-import {
-  getAuth,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  updateProfile
-} from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
 import {
   getFirestore,
   doc,
@@ -34,6 +29,37 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+
+const authPersistenceReady = setPersistence(auth, browserLocalPersistence).catch((error) => {
+  console.warn("Auth persistence fallback:", error);
+});
+
+function applyFirebaseSession(profile, attempt = 0) {
+  if (typeof window.loginFirebaseUser === "function") {
+    window.loginFirebaseUser(profile);
+    return;
+  }
+
+  if (attempt < 12) {
+    setTimeout(() => applyFirebaseSession(profile, attempt + 1), 250);
+  }
+}
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user) return;
+
+  try {
+    await authPersistenceReady.catch(() => {});
+    const data = await ensureUserDocument(user);
+    const profile = normalizeUserProfile(user, data);
+    localStorage.setItem("aisignalfx:firebase_user", JSON.stringify(profile));
+    applyFirebaseSession(profile);
+  } catch (error) {
+    console.warn("Auth restore failed:", error);
+    const profile = normalizeUserProfile(user, {});
+    applyFirebaseSession(profile);
+  }
+});
 
 let analytics = null;
 analyticsSupported()
@@ -112,6 +138,7 @@ async function registerFromForm(){
   }
 
   try{
+    await authPersistenceReady.catch(() => {});
     const credential = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(credential.user, { displayName });
 
@@ -131,6 +158,7 @@ async function registerFromForm(){
 }
 
 async function login(email, password){
+  await authPersistenceReady.catch(() => {});
   const credential = await signInWithEmailAndPassword(auth, email, password);
   const data = await ensureUserDocument(credential.user);
   window.loginFirebaseUser(normalizeUserProfile(credential.user, data));
