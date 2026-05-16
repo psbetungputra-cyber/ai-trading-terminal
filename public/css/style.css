@@ -2689,3 +2689,258 @@
   width: 18px;
   height: 18px;
 }
+
+/* AiSignalFx PRO - SMC Candlestick Charts */
+.smc-candle-chart {
+  color: #38bdf8;
+}
+
+.smc-candle-chart .wick {
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+.smc-candle-chart .body {
+  stroke-width: 1.4;
+}
+
+.smc-candle-chart .bull {
+  fill: rgba(34, 197, 94, 0.72);
+  stroke: rgba(34, 197, 94, 0.95);
+}
+
+.smc-candle-chart .bear {
+  fill: rgba(248, 113, 113, 0.7);
+  stroke: rgba(248, 113, 113, 0.95);
+}
+
+.smc-candle-chart .level,
+.smc-candle-chart .mid {
+  stroke: rgba(147, 197, 253, 0.62);
+  stroke-width: 2;
+  stroke-dasharray: 7 6;
+}
+
+.smc-candle-chart .mid {
+  stroke: rgba(250, 204, 21, 0.62);
+}
+
+.smc-candle-chart .zone {
+  fill: rgba(59, 130, 246, 0.18);
+  stroke: rgba(96, 165, 250, 0.38);
+  stroke-width: 1.5;
+}
+
+.smc-candle-chart .chart-title {
+  fill: #93c5fd;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.smc-candle-chart .chart-note {
+  fill: #e5edf7;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+/* AiSignalFx PRO - SMC Candlestick Charts */
+.smc-candle-chart {
+  color: #38bdf8;
+}
+
+.smc-candle-chart .wick {
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+.smc-candle-chart .body {
+  stroke-width: 1.4;
+}
+
+.smc-candle-chart .bull {
+  fill: rgba(34, 197, 94, 0.72);
+  stroke: rgba(34, 197, 94, 0.95);
+}
+
+.smc-candle-chart .bear {
+  fill: rgba(248, 113, 113, 0.7);
+  stroke: rgba(248, 113, 113, 0.95);
+}
+
+.smc-candle-chart .level,
+.smc-candle-chart .mid {
+  stroke: rgba(147, 197, 253, 0.62);
+  stroke-width: 2;
+  stroke-dasharray: 7 6;
+}
+
+.smc-candle-chart .mid {
+  stroke: rgba(250, 204, 21, 0.62);
+}
+
+.smc-candle-chart .zone {
+  fill: rgba(59, 130, 246, 0.18);
+  stroke: rgba(96, 165, 250, 0.38);
+  stroke-width: 1.5;
+}
+
+.smc-candle-chart .chart-title {
+  fill: #93c5fd;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.smc-candle-chart .chart-note {
+  fill: #e5edf7;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+/* AiSignalFx PRO - SMC Real Mini Chart */
+.smc-real-chart .chart-bg {
+  fill: rgba(8, 15, 28, 0.95);
+  stroke: rgba(59, 130, 246, 0.18);
+  stroke-width: 1.2;
+}
+
+.smc-real-chart .grid-h,
+.smc-real-chart .grid-v {
+  stroke: rgba(148, 163, 184, 0.10);
+  stroke-width: 1;
+}
+
+.smc-real-chart .wick {
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+
+.smc-real-chart .body {
+  stroke-width: 1.2;
+}
+
+.smc-real-chart .bull {
+  fill: rgba(34, 197, 94, 0.88);
+  stroke: rgba(74, 222, 128, 1);
+}
+
+.smc-real-chart .bear {
+  fill: rgba(239, 68, 68, 0.86);
+  stroke: rgba(248, 113, 113, 1);
+}
+
+.smc-real-chart .zone-box {
+  fill: rgba(59, 130, 246, 0.16);
+  stroke: rgba(96, 165, 250, 0.42);
+  stroke-width: 1.5;
+}
+
+.smc-real-chart .level-line {
+  stroke: rgba(250, 204, 21, 0.72);
+  stroke-width: 1.5;
+  stroke-dasharray: 6 5;
+}
+
+.smc-real-chart .chart-title {
+  fill: #93c5fd;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
+.smc-real-chart .chart-note {
+  fill: #e5edf7;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+/* AiSignalFx PRO - SMC MT-style Mini Chart */
+.smc-mt-chart {
+  background: #f8fafc;
+  border-color: rgba(15, 23, 42, 0.14);
+  color: #0f172a;
+  padding: 0;
+  overflow: hidden;
+}
+
+.smc-mt-chart .mt-bg {
+  fill: #ffffff;
+  stroke: rgba(15, 23, 42, 0.10);
+}
+
+.smc-mt-chart .mt-grid {
+  stroke: rgba(100, 116, 139, 0.18);
+  stroke-width: 1;
+  stroke-dasharray: 5 5;
+}
+
+.smc-mt-chart .mt-wick {
+  stroke-width: 1.15;
+}
+
+.smc-mt-chart .mt-body {
+  stroke-width: 0.8;
+}
+
+.smc-mt-chart .up {
+  fill: rgba(20, 184, 166, 0.82);
+  stroke: rgba(13, 148, 136, 0.95);
+}
+
+.smc-mt-chart .down {
+  fill: rgba(239, 68, 68, 0.78);
+  stroke: rgba(220, 38, 38, 0.92);
+}
+
+.smc-mt-chart .mt-zone {
+  fill: rgba(239, 68, 68, 0.16);
+  stroke: rgba(239, 68, 68, 0.18);
+}
+
+.smc-mt-chart .mt-level {
+  stroke: rgba(15, 23, 42, 0.35);
+  stroke-width: 2;
+  stroke-dasharray: 8 6;
+}
+
+.smc-mt-chart .mt-current {
+  stroke: rgba(13, 148, 136, 0.95);
+  stroke-width: 1.4;
+}
+
+.smc-mt-chart .mt-price-tag {
+  fill: rgba(13, 148, 136, 0.95);
+}
+
+.smc-mt-chart .mt-title {
+  fill: #0f172a;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.smc-mt-chart .mt-price {
+  fill: #0f172a;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.smc-mt-chart .mt-price-now {
+  fill: #ffffff;
+  font-size: 8px;
+  font-weight: 900;
+}
+
+.smc-mt-chart .mt-note {
+  fill: #334155;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.smc-mt-chart .mt-time {
+  fill: #334155;
+  font-size: 9px;
+  font-weight: 700;
+}

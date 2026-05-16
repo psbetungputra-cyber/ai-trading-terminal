@@ -147,28 +147,96 @@
     }
   ];
 
+
   function chart(type) {
-    const charts = {
-      structure: `<polyline points="25,130 80,90 125,112 180,62 225,84 305,35"/><text x="72" y="82">HH</text><text x="118" y="128">HL</text><text x="176" y="56">HH</text><text x="220" y="100">HL</text>`,
-      bos: `<polyline points="25,120 80,80 130,105 185,55 240,95 315,42"/><line x1="185" y1="55" x2="330" y2="55"/><text x="250" y="48">BOS</text><line x1="130" y1="105" x2="330" y2="105"/><text x="230" y="122">CHoCH</text>`,
-      liquidity: `<line x1="35" y1="42" x2="325" y2="42"/><line x1="35" y1="130" x2="325" y2="130"/><polyline points="40,120 90,70 135,105 180,65 225,110 285,82 320,120"/><text x="45" y="31">BSL</text><text x="45" y="155">SSL</text>`,
-      sweep: `<line x1="40" y1="62" x2="310" y2="62"/><polyline points="35,120 85,88 130,103 180,65 215,42 250,85 315,128"/><circle cx="215" cy="42" r="8"/><text x="224" y="39">Sweep</text>`,
-      inducement: `<rect x="86" y="92" width="70" height="34" rx="8"/><polyline points="35,125 88,98 130,116 175,82 210,60 250,92 315,38"/><text x="77" y="145">Inducement</text><text x="215" y="56">POI</text>`,
-      fvg: `<rect x="145" y="55" width="72" height="58" rx="8"/><polyline points="40,125 95,112 135,100 175,42 230,58 300,38"/><text x="156" y="89">FVG</text>`,
-      ob: `<rect x="80" y="100" width="76" height="32" rx="7"/><polyline points="35,120 80,115 125,118 170,72 220,52 290,35"/><text x="86" y="96">OB</text><text x="175" y="88">Displacement</text>`,
-      pd: `<line x1="45" y1="40" x2="315" y2="40"/><line x1="45" y1="85" x2="315" y2="85"/><line x1="45" y1="130" x2="315" y2="130"/><text x="55" y="32">Premium</text><text x="55" y="81">50%</text><text x="55" y="154">Discount</text>`,
-      entry: `<polyline points="35,125 80,105 125,114 170,70 220,86 285,45"/><rect x="155" y="72" width="68" height="38" rx="8"/><circle cx="128" cy="114" r="7"/><text x="95" y="145">Sweep</text><text x="164" y="68">POI</text><text x="235" y="55">Entry</text>`,
-      checklist: `<polyline points="45,95 80,128 150,50"/><polyline points="175,95 210,128 305,38"/><text x="52" y="154">Valid setup checklist</text>`
+    const data = {
+      structure: {
+        label: "Bullish structure",
+        zone: "",
+        candles: [[28,118,132,88,92,1],[58,92,98,80,84,1],[88,84,116,82,110,0],[118,110,116,74,78,1],[148,78,88,66,70,1],[178,70,96,68,90,0],[208,90,96,54,58,1],[238,58,82,52,76,0],[268,76,82,38,42,1]],
+        notes: [["HH",142,62],["HL",174,110],["HH",262,34]]
+      },
+      bos: {
+        label: "Break structure",
+        zone: '<line class="level" x1="35" y1="70" x2="325" y2="70"/>',
+        candles: [[35,120,128,96,100,1],[65,100,108,86,90,1],[95,90,116,88,110,0],[125,110,118,82,86,1],[155,86,96,75,78,1],[185,78,84,58,62,1],[215,62,86,60,82,0],[245,82,90,54,58,1],[275,58,66,38,42,1]],
+        notes: [["BOS",252,52],["close above",205,104]]
+      },
+      liquidity: {
+        label: "Liquidity pool",
+        zone: '<line class="level" x1="30" y1="48" x2="330" y2="48"/><line class="level" x1="30" y1="132" x2="330" y2="132"/>',
+        candles: [[35,120,126,94,98,1],[65,98,105,78,84,1],[95,84,112,80,108,0],[125,108,115,76,82,1],[155,82,112,78,108,0],[185,108,118,70,76,1],[215,76,116,74,110,0],[245,110,118,82,88,1],[275,88,124,84,120,0]],
+        notes: [["BSL",45,38],["SSL",45,158]]
+      },
+      sweep: {
+        label: "Sweep then reject",
+        zone: '<line class="level" x1="35" y1="62" x2="325" y2="62"/>',
+        candles: [[35,120,128,92,98,1],[65,98,108,82,88,1],[95,88,112,86,108,0],[125,108,116,74,78,1],[155,78,84,54,58,1],[185,58,42,38,78,0],[215,78,86,70,84,0],[245,84,94,82,92,0],[275,92,122,88,118,0]],
+        notes: [["sweep high",170,34],["reversal",230,140]]
+      },
+      inducement: {
+        label: "Inducement before POI",
+        zone: '<rect class="zone" x="190" y="48" width="78" height="40" rx="8"/>',
+        candles: [[35,125,130,104,108,1],[65,108,112,92,96,1],[95,96,116,92,112,0],[125,112,118,90,94,1],[155,94,122,92,118,0],[185,118,124,80,84,1],[215,84,90,58,62,1],[245,62,86,60,82,0],[275,82,94,48,52,1]],
+        notes: [["inducement",92,145],["POI",213,44]]
+      },
+      fvg: {
+        label: "Fair Value Gap",
+        zone: '<rect class="zone" x="145" y="58" width="78" height="54" rx="8"/>',
+        candles: [[35,126,132,112,116,1],[65,116,122,108,112,1],[95,112,118,100,104,1],[125,104,108,92,96,1],[155,96,100,48,54,1],[185,54,62,42,48,1],[215,48,72,46,68,0],[245,68,80,58,62,1],[275,62,68,44,48,1]],
+        notes: [["FVG",166,90],["impulse",188,38]]
+      },
+      ob: {
+        label: "Order Block",
+        zone: '<rect class="zone" x="70" y="100" width="75" height="34" rx="8"/>',
+        candles: [[35,122,130,112,118,0],[65,118,124,108,112,0],[95,112,120,100,104,0],[125,104,110,88,92,1],[155,92,96,62,66,1],[185,66,72,50,54,1],[215,54,70,52,66,0],[245,66,74,46,50,1],[275,50,58,36,40,1]],
+        notes: [["OB",88,96],["displacement",160,84]]
+      },
+      pd: {
+        label: "Premium / Discount",
+        zone: '<line class="level" x1="35" y1="52" x2="325" y2="52"/><line class="mid" x1="35" y1="88" x2="325" y2="88"/><line class="level" x1="35" y1="128" x2="325" y2="128"/>',
+        candles: [[40,122,132,112,116,1],[70,116,124,96,100,1],[100,100,108,78,82,1],[130,82,92,70,88,0],[160,88,96,58,62,1],[190,62,74,56,70,0],[220,70,82,66,78,0],[250,78,88,74,84,0],[280,84,94,80,90,0]],
+        notes: [["Premium",48,42],["50%",48,84],["Discount",48,154]]
+      },
+      entry: {
+        label: "Sweep + CHoCH entry",
+        zone: '<rect class="zone" x="155" y="70" width="78" height="42" rx="8"/>',
+        candles: [[35,122,130,102,106,1],[65,106,112,90,94,1],[95,94,126,90,122,0],[125,122,132,112,116,0],[155,116,120,84,88,1],[185,88,94,72,78,1],[215,78,92,76,88,0],[245,88,96,62,66,1],[275,66,74,46,50,1]],
+        notes: [["sweep",84,145],["POI",178,66],["entry",252,58]]
+      },
+      checklist: {
+        label: "Valid setup",
+        zone: '<rect class="zone" x="55" y="46" width="250" height="82" rx="16"/>',
+        candles: [[60,116,124,100,104,1],[90,104,110,88,92,1],[120,92,118,90,114,0],[150,114,122,82,86,1],[180,86,92,66,70,1],[210,70,80,64,76,0],[240,76,86,56,60,1],[270,60,70,48,52,1]],
+        notes: [["Bias + Liquidity + POI + Confirmation",62,150]]
+      }
     };
 
+    const item = data[type] || data.structure;
+
+    function candle(c) {
+      const [x, open, high, low, close, bull] = c;
+      const y = Math.min(open, close);
+      const h = Math.max(8, Math.abs(close - open));
+      const cls = bull ? "bull" : "bear";
+      return `
+        <line class="wick ${cls}" x1="${x}" y1="${high}" x2="${x}" y2="${low}"></line>
+        <rect class="body ${cls}" x="${x - 6}" y="${y}" width="12" height="${h}" rx="3"></rect>
+      `;
+    }
+
     return `
-      <div class="smc-chart">
+      <div class="smc-chart smc-candle-chart">
         <svg viewBox="0 0 360 170">
-          ${charts[type] || charts.structure}
+          <text class="chart-title" x="18" y="22">${item.label}</text>
+          ${item.zone || ""}
+          ${item.candles.map(candle).join("")}
+          ${(item.notes || []).map(n => `<text class="chart-note" x="${n[1]}" y="${n[2]}">${n[0]}</text>`).join("")}
         </svg>
       </div>
     `;
   }
+
 
   function renderModules() {
     return modules.map((m, i) => `
