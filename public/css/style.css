@@ -1616,3 +1616,43 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* AiSignalFx PRO - Crypto Scanner V2.1 Valid Setup */
+.scanner-v21-card.valid-setup {
+  border-color: rgba(34,197,94,.38);
+  box-shadow: 0 24px 80px rgba(34,197,94,.08);
+}
+
+.scanner-v21-card.wait-setup {
+  border-color: rgba(250,204,21,.22);
+}
+
+.scanner-v21-plan {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0;
+  padding: 12px;
+  border: 1px solid rgba(148,163,184,.14);
+  border-radius: 18px;
+  background: rgba(15,23,42,.52);
+}
+
+.scanner-v21-plan p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.scanner-v21-card.valid-setup .scanner-v21-plan {
+  border-color: rgba(34,197,94,.28);
+  background: rgba(34,197,94,.06);
+}
+
+.scanner-v21-card.wait-setup .scanner-v21-plan {
+  opacity: .82;
+}
+
+@media (max-width: 720px) {
+  .scanner-v21-plan {
+    padding: 10px;
+  }
+}
