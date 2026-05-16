@@ -2063,3 +2063,216 @@
     grid-template-columns: 1fr !important;
   }
 }
+
+/* AiSignalFx PRO - Stable Scanner Rescue */
+.scanner-fast-loading { padding: 18px; }
+
+.scanner-pair-focus h3 {
+  font-size: clamp(22px, 4vw, 34px) !important;
+  line-height: 1.12 !important;
+}
+
+.scanner-pair-focus p {
+  font-size: clamp(14px, 2.4vw, 18px) !important;
+}
+
+@media (max-width: 720px) {
+  .scanner-pair-focus {
+    padding: 18px !important;
+  }
+  .scanner-pair-chips button {
+    padding: 10px 14px !important;
+    font-size: 13px !important;
+  }
+}
+
+/* AiSignalFx PRO - Scanner Mode Filter Fix */
+.scanner-reference-grid {
+  margin-top: 18px;
+}
+
+.scanner-mode-note {
+  grid-column: 1 / -1;
+  border-color: rgba(59,130,246,.18) !important;
+  background:
+    radial-gradient(circle at 14% 0%, rgba(59,130,246,.12), transparent 34%),
+    rgba(15,23,42,.58) !important;
+}
+
+.scanner-reference-card {
+  min-height: 320px;
+}
+
+@media (max-width: 720px) {
+  .scanner-reference-card {
+    min-height: auto;
+  }
+}
+
+/* AiSignalFx PRO - Live Header Ticker */
+.live-ticker-status,
+.live-ticker-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 28px;
+  white-space: nowrap;
+}
+
+.live-ticker-status {
+  color: #93c5fd;
+  font-weight: 900;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+
+.live-ticker-status i {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #22c55e;
+  box-shadow: 0 0 0 6px rgba(34,197,94,.12);
+}
+
+.live-ticker-item b {
+  color: #cbd5e1;
+  font-weight: 900;
+}
+
+.live-ticker-item strong {
+  font-weight: 900;
+}
+
+.live-ticker-item small {
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.live-ticker-item.reference {
+  opacity: .88;
+}
+
+.live-ticker-item.crypto-live b::after {
+  content: " LIVE";
+  margin-left: 4px;
+  color: #60a5fa;
+  font-size: 9px;
+  letter-spacing: .8px;
+}
+
+@media (max-width: 720px) {
+  .live-ticker-status,
+  .live-ticker-item {
+    margin-right: 22px;
+  }
+
+  .live-ticker-item small {
+    display: none;
+  }
+}
+
+/* AiSignalFx PRO - Live Header Ticker Visibility Fix */
+.ticker-track .live-ticker-status {
+  display: inline-flex !important;
+}
+
+.ticker-track .crypto-live {
+  display: inline-flex !important;
+}
+
+.ticker-track {
+  min-width: max-content;
+}
+
+@media (max-width: 720px) {
+  .live-ticker-status {
+    font-size: 10px !important;
+  }
+
+  .live-ticker-item.crypto-live b::after {
+    content: "" !important;
+  }
+}
+
+/* AiSignalFx PRO - Favorites & Professional Scanner Copy */
+.favorite-star-btn {
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgba(250,204,21,.28);
+  border-radius: 999px;
+  background: rgba(15,23,42,.72);
+  color: #94a3b8;
+  font-size: 20px;
+  font-weight: 900;
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+  transition: .2s ease;
+}
+
+.signal-card-top .favorite-star-btn {
+  margin-left: auto;
+}
+
+.signal-card > .favorite-star-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+}
+
+.favorite-star-btn.active {
+  color: #facc15;
+  border-color: rgba(250,204,21,.5);
+  background: rgba(250,204,21,.12);
+  box-shadow: 0 0 0 6px rgba(250,204,21,.06);
+}
+
+.favorite-star-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(250,204,21,.55);
+}
+
+.favorite-grid .favorite-market-card {
+  position: relative;
+  min-height: 280px;
+}
+
+.favorite-empty {
+  min-height: 220px;
+}
+
+.favorite-toast {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: 24px;
+  z-index: 100001;
+  padding: 14px 16px;
+  border: 1px solid rgba(250,204,21,.28);
+  border-radius: 20px;
+  background: rgba(8,12,24,.96);
+  color: #f8fafc;
+  box-shadow: 0 24px 80px rgba(0,0,0,.45);
+  transform: translateY(18px);
+  opacity: 0;
+  pointer-events: none;
+  transition: .22s ease;
+}
+
+.favorite-toast.show {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+@media (max-width: 720px) {
+  .favorite-star-btn {
+    width: 34px;
+    height: 34px;
+    font-size: 18px;
+  }
+
+  .favorite-grid .favorite-market-card {
+    min-height: auto;
+  }
+}
