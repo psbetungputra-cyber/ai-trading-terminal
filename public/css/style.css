@@ -2483,3 +2483,209 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* AiSignalFx PRO - Sentinel Trading Lab Interactive */
+.lab-journal-tools {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 14px 0;
+}
+
+.muted-btn {
+  opacity: 0.75;
+}
+
+.journal-history {
+  margin-top: 14px;
+}
+
+.lab-empty-state {
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(15, 23, 42, 0.55);
+  border-radius: 18px;
+  padding: 14px;
+  display: grid;
+  gap: 4px;
+}
+
+.lab-empty-state span {
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.lab-history-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.lab-journal-card,
+.lab-upgrade-card {
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.88), rgba(2, 6, 23, 0.82));
+  border-radius: 22px;
+  padding: 16px;
+}
+
+.lab-journal-card div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.lab-journal-card span,
+.lab-module-list span,
+.lab-info-grid span {
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.lab-info-grid,
+.lab-module-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.lab-info-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.lab-info-grid div,
+.lab-module-list div {
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(15, 23, 42, 0.58);
+  border-radius: 16px;
+  padding: 12px;
+  display: grid;
+  gap: 5px;
+}
+
+@media (max-width: 760px) {
+  .lab-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .lab-journal-card div {
+    display: grid;
+  }
+}
+
+/* AiSignalFx PRO - SMC Academy */
+.smc-academy {
+  display: grid;
+  gap: 14px;
+}
+
+.smc-card {
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(2, 6, 23, 0.86));
+  border-radius: 22px;
+  overflow: hidden;
+}
+
+.smc-card summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  color: #e5edf7;
+}
+
+.smc-card summary::-webkit-details-marker {
+  display: none;
+}
+
+.smc-card summary span {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: rgba(59, 130, 246, 0.16);
+  border: 1px solid rgba(96, 165, 250, 0.32);
+  color: #93c5fd;
+  font-weight: 900;
+  font-size: 12px;
+}
+
+.smc-card p,
+.smc-card ul {
+  margin: 0 16px 14px;
+}
+
+.smc-card li {
+  margin: 7px 0;
+  color: #cbd5e1;
+}
+
+.smc-chart {
+  margin: 0 16px 14px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(15, 23, 42, 0.58);
+  border-radius: 18px;
+  padding: 10px;
+  color: #38bdf8;
+}
+
+.smc-chart svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.smc-chart text {
+  fill: #cbd5e1;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+/* AiSignalFx PRO - SMC Academy Checklist */
+.smc-chart svg polyline,
+.smc-chart svg line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.smc-chart svg line {
+  stroke-dasharray: 7 6;
+}
+
+.smc-chart svg rect {
+  fill: currentColor;
+  opacity: 0.16;
+}
+
+.smc-chart svg circle {
+  fill: currentColor;
+}
+
+.smc-checklist {
+  margin: 0 16px 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.smc-checklist label {
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(15, 23, 42, 0.58);
+  border-radius: 14px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #cbd5e1;
+  font-weight: 700;
+}
+
+.smc-checklist input {
+  width: 18px;
+  height: 18px;
+}
