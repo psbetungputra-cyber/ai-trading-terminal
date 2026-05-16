@@ -2471,3 +2471,15 @@
     max-width: 100%;
   }
 }
+
+/* Safer wording for Forex/Gold Reference Mode */
+.forex-reference-card .badge {
+  white-space: nowrap;
+}
+
+.reference-pair-chip small {
+  max-width: 76px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

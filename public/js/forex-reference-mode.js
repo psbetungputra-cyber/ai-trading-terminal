@@ -174,6 +174,14 @@
     gold: null
   };
 
+  function referenceBiasLabel(bias) {
+    const b = String(bias || "").toUpperCase();
+    if (b === "BUY") return "Bullish Bias";
+    if (b === "SELL") return "Bearish Bias";
+    if (b === "WAIT") return "Neutral";
+    return "Reference Bias";
+  }
+
   function getReferenceVisibleRows(mode, rows) {
     const list = Array.isArray(rows) ? rows : [];
     if (!referenceSelection[mode] && list.length) {
@@ -219,7 +227,7 @@
               class="reference-pair-chip ${current === x.symbol ? "active" : ""}"
               onclick="setReferencePair('${mode}', '${x.symbol}')">
               <span>${x.symbol}</span>
-              <small>${x.bias || "WAIT"}</small>
+              <small>${referenceBiasLabel(x.bias)}</small>
             </button>
           `).join("")}
 
@@ -249,7 +257,7 @@
         ${visibleRows.map(x => `
           <div class="card signal-card forex-reference-card">
             <div class="signal-card-top">
-              <span class="badge ${badgeClass(x.bias)}">${x.bias}</span>
+              <span class="badge ${badgeClass(x.bias)}">${referenceBiasLabel(x.bias)}</span>
               <span class="badge free">REFERENCE</span>
             </div>
 
