@@ -1746,6 +1746,7 @@ window.saveLearningModule = saveLearningModule;
 
   function restoreCachedUser(attempt = 0) {
     try {
+      if (localStorage.getItem("aisignalfx:manual_logout") === "1") return;
       const raw = localStorage.getItem(CACHE_KEY);
       if (!raw) return;
 
@@ -1773,5 +1774,63 @@ window.saveLearningModule = saveLearningModule;
   document.addEventListener("DOMContentLoaded", function () {
     setTimeout(() => restoreCachedUser(), 80);
     setTimeout(() => restoreCachedUser(), 600);
+  });
+})();
+
+
+/* AiSignalFx PRO - Logout Guard */
+(function () {
+  const USER_CACHE = "aisignalfx:firebase_user";
+  const LOGOUT_LOCK = "aisignalfx:manual_logout";
+
+  function clearLoginCache() {
+    localStorage.setItem(LOGOUT_LOCK, "1");
+    localStorage.removeItem(USER_CACHE);
+    localStorage.removeItem("aisignalfx_user");
+    localStorage.removeItem("aisignalfx:profile");
+    sessionStorage.clear();
+  }
+
+  window.clearAisignalLoginCache = clearLoginCache;
+
+  document.addEventListener("click", function (event) {
+    const el = event.target.closest("button,a");
+    if (!el) return;
+
+    const text = (el.textContent || "").toLowerCase();
+    const action = (el.getAttribute("onclick") || "").toLowerCase();
+
+    if (
+      text.includes("logout") ||
+      text.includes("log out") ||
+      text.includes("keluar") ||
+      action.includes("logout")
+    ) {
+      clearLoginCache();
+
+      if (typeof window.logoutFirebaseAuth === "function") {
+        window.logoutFirebaseAuth();
+      }
+    }
+  }, true);
+
+  function wrapLoginClearLock(attempt = 0) {
+    if (typeof window.loginFirebaseUser === "function" && !window.loginFirebaseUser.__logoutGuarded) {
+      const original = window.loginFirebaseUser;
+      window.loginFirebaseUser = function () {
+        localStorage.removeItem(LOGOUT_LOCK);
+        return original.apply(this, arguments);
+      };
+      window.loginFirebaseUser.__logoutGuarded = true;
+      return;
+    }
+
+    if (attempt < 15) {
+      setTimeout(() => wrapLoginClearLock(attempt + 1), 200);
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    wrapLoginClearLock();
   });
 })();
