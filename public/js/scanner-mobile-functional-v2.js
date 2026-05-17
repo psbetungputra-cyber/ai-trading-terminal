@@ -17,7 +17,9 @@
     pair: "BTCUSDT",
     tf: "15m",
     live: {},
-    loading: false
+    loading: false,
+    detailCandles: {},
+    detailLoading: false
   };
 
   function isMobile() {
@@ -437,13 +439,59 @@
         }
 
         .asfx-room-chart::after {
-          content: "Chart Room Preview";
-          position: absolute;
-          left: 16px;
-          bottom: 16px;
+          display: none;
+        }
+
+        .asfx-room-chart-svg {
+          position: relative;
+          width: 100%;
+          height: 100%;
+          display: block;
+          z-index: 2;
+        }
+
+        .asfx-chart-empty {
+          position: relative;
+          z-index: 2;
+          height: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
           color: #94a3b8;
-          font-size: 12px;
+          font-size: 13px;
           font-weight: 900;
+        }
+
+        .asfx-room-ref-chart {
+          height: 100%;
+          position: relative;
+          z-index: 2;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+          padding: 22px;
+        }
+
+        .asfx-room-ref-chart small {
+          display: block;
+          color: #60a5fa;
+          font-size: 11px;
+          font-weight: 900;
+          letter-spacing: .14em;
+          margin-bottom: 8px;
+        }
+
+        .asfx-room-ref-chart b {
+          color: #fff;
+          font-size: 24px;
+        }
+
+        .asfx-room-ref-chart p {
+          color: #94a3b8;
+          font-size: 13px;
+          line-height: 1.45;
+          margin: 10px 0 0;
         }
 
         .asfx-detail-grid {
@@ -555,6 +603,10 @@
 
     document.body.appendChild(room);
 
+    if (state.mode === "crypto") {
+      loadDetailCandles();
+    }
+
     room.addEventListener("click", (e) => {
       if (e.target.closest("[data-close-detail]")) {
         room.remove();
@@ -569,13 +621,205 @@
 
       const panel = room.querySelector("[data-detail-panel]");
       panel.innerHTML = detailPanelHTML(tab.dataset.detailTab, data);
+
+      if (tab.dataset.detailTab === "chart" && state.mode === "crypto") {
+        loadDetailCandles();
+      }
     });
   }
 
+
+  async function loadDetailCandles() {
+    if (state.mode !== "crypto") return;
+
+    const key = `${state.pair}_${state.tf}`;
+    if (state.detailCandles[key] && state.detailCandles[key].length) {
+      refreshDetailChart();
+      return;
+    }
+
+    if (state.detailLoading) return;
+    state.detailLoading = true;
+    refreshDetailChart();
+
+    const intervalMap = {
+      "5m": "5m",
+      "15m": "15m",
+      "1H": "1h",
+      "4H": "4h"
+    };
+
+    const interval = intervalMap[state.tf] || "15m";
+    const symbol = state.pair || "BTCUSDT";
+
+    const urls = [
+      `https://data-api.binance.vision/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=70`,
+      `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=70`
+    ];
+
+    let lastErr = null;
+
+    for (const url of urls) {
+      try {
+        const res = await fetch(url, { cache: "no-store" });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const rows = await res.json();
+
+        const candles = rows.map(row => ({
+          t: Number(row[0]),
+          o: Number(row[1]),
+          h: Number(row[2]),
+          l: Number(row[3]),
+          c: Number(row[4])
+        })).filter(c => Number.isFinite(c.o) && Number.isFinite(c.c));
+
+        state.detailCandles[key] = candles;
+        state.detailLoading = false;
+        refreshDetailChart();
+        return;
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+
+    console.warn("Detail chart candle error:", lastErr);
+    state.detailLoading = false;
+    refreshDetailChart(true);
+  }
+
+  function refreshDetailChart(error) {
+    const box = document.querySelector("[data-room-chart]");
+    if (!box) return;
+
+    if (error) {
+      box.innerHTML = `<div class="asfx-chart-empty">Chart feed error. Try refresh.</div>`;
+      return;
+    }
+
+    box.innerHTML = detailChartHTML();
+  }
+
+  function detailChartHTML() {
+    const key = `${state.pair}_${state.tf}`;
+    const candles = state.detailCandles[key] || [];
+
+    if (state.detailLoading && !candles.length) {
+      return `<div class="asfx-chart-empty">Loading ${safe(state.pair)} candles...</div>`;
+    }
+
+    if (!candles.length) {
+      return `<div class="asfx-chart-empty">Waiting candle data...</div>`;
+    }
+
+    return detailCandleSvg(candles);
+  }
+
+  function detailCandleSvg(candles) {
+    const visible = candles.slice(-48);
+    const w = 760;
+    const h = 360;
+    const padL = 34;
+    const padR = 88;
+    const padT = 30;
+    const padB = 34;
+    const chartW = w - padL - padR;
+    const chartH = h - padT - padB;
+
+    const highs = visible.map(c => c.h);
+    const lows = visible.map(c => c.l);
+    const max = Math.max(...highs);
+    const min = Math.min(...lows);
+    const range = Math.max(max - min, 1);
+    const step = chartW / Math.max(visible.length - 1, 1);
+    const bodyW = Math.max(5, Math.min(10, step * .55));
+
+    function y(price) {
+      return padT + ((max - price) / range) * chartH;
+    }
+
+    function fmtPrice(v) {
+      return Number(v).toLocaleString("en-US", { maximumFractionDigits: v > 100 ? 2 : 5 });
+    }
+
+    const grid = [1/6,2/6,3/6,4/6,5/6].map(p => {
+      const yy = padT + chartH * p;
+      const price = max - range * p;
+      return `
+        <line x1="${padL}" y1="${yy}" x2="${w-padR+12}" y2="${yy}" stroke="rgba(148,163,184,.16)" />
+        <text x="${w-padR+20}" y="${yy+5}" fill="#94a3b8" font-size="12" font-weight="800">${fmtPrice(price)}</text>
+      `;
+    }).join("");
+
+    const candleSvg = visible.map((c, i) => {
+      const x = padL + i * step;
+      const up = c.c >= c.o;
+      const color = up ? "#22c55e" : "#ef4444";
+      const highY = y(c.h);
+      const lowY = y(c.l);
+      const openY = y(c.o);
+      const closeY = y(c.c);
+      const top = Math.min(openY, closeY);
+      const height = Math.max(3, Math.abs(openY - closeY));
+
+      return `
+        <line x1="${x}" y1="${highY}" x2="${x}" y2="${lowY}" stroke="${color}" stroke-width="2" stroke-linecap="round"/>
+        <rect x="${x - bodyW/2}" y="${top}" width="${bodyW}" height="${height}" rx="2" fill="${color}"/>
+      `;
+    }).join("");
+
+    const last = visible[visible.length - 1];
+    const lastY = y(last.c);
+    const lastPrice = fmtPrice(last.c);
+
+    return `
+      <svg class="asfx-room-chart-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="asfxRoomBg" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stop-color="#0f172a" stop-opacity=".98"/>
+            <stop offset="100%" stop-color="#020617" stop-opacity=".98"/>
+          </linearGradient>
+        </defs>
+
+        <rect x="0" y="0" width="${w}" height="${h}" fill="url(#asfxRoomBg)" rx="24"/>
+        <g opacity=".7">
+          ${grid}
+          ${[0,1,2,3,4].map(i => {
+            const xx = padL + (chartW/4) * i;
+            return `<line x1="${xx}" y1="${padT}" x2="${xx}" y2="${padT+chartH}" stroke="rgba(148,163,184,.10)" />`;
+          }).join("")}
+        </g>
+
+        <g>${candleSvg}</g>
+
+        <line x1="${padL}" y1="${lastY}" x2="${w-padR+12}" y2="${lastY}" stroke="rgba(96,165,250,.75)" stroke-dasharray="5 6" stroke-width="2"/>
+        <rect x="${w-padR+18}" y="${lastY-16}" width="74" height="31" rx="8" fill="rgba(37,99,235,.95)"/>
+        <text x="${w-padR+26}" y="${lastY+5}" fill="#fff" font-size="12" font-weight="900">${lastPrice}</text>
+
+        <text x="${padL}" y="22" fill="#93c5fd" font-size="12" font-weight="900">${safe(state.pair)} · ${safe(state.tf)}</text>
+      </svg>
+    `;
+  }
+
+  function referenceChartHTML(data) {
+    return `
+      <div class="asfx-room-ref-chart">
+        <div>
+          <small>Reference Mode</small>
+          <b>${safe(data.symbol)} · ${safe(state.tf)}</b>
+          <p>Forex/gold masih reference mode. Real broker/provider feed akan ditambahkan tahap berikutnya.</p>
+        </div>
+      </div>
+    `;
+  }
+
+
   function detailPanelHTML(tab, data) {
     if (tab === "chart") {
+      const isCrypto = state.mode === "crypto";
       return `
-        <div class="asfx-room-chart"></div>
+        <div class="asfx-room-chart" data-room-chart>
+          ${isCrypto ? detailChartHTML() : referenceChartHTML(data)}
+        </div>
       `;
     }
 
@@ -1309,4 +1553,111 @@
   setTimeout(update, 500);
   setTimeout(update, 1500);
   window.addEventListener("resize", update);
+})();
+
+/* ASFX Detail Room Polish V1 */
+(function(){
+  function injectDetailRoomPolishV1(){
+    if (document.getElementById("asfx-detail-room-polish-v1")) return;
+
+    const style = document.createElement("style");
+    style.id = "asfx-detail-room-polish-v1";
+    style.textContent = `
+      @media (max-width: 760px) {
+        .asfx-detail-room {
+          padding: 10px 7px 110px !important;
+        }
+
+        .asfx-detail-top {
+          align-items: center !important;
+          gap: 8px !important;
+          margin-bottom: 10px !important;
+        }
+
+        .asfx-detail-back {
+          height: 34px !important;
+          padding: 0 11px !important;
+          font-size: 13px !important;
+          border-radius: 999px !important;
+          flex: 0 0 auto !important;
+        }
+
+        .asfx-detail-title {
+          min-width: 0 !important;
+          flex: 1 !important;
+        }
+
+        .asfx-detail-title small {
+          font-size: 9px !important;
+          letter-spacing: .16em !important;
+          white-space: nowrap !important;
+        }
+
+        .asfx-detail-title h2 {
+          font-size: clamp(20px, 6vw, 28px) !important;
+          line-height: 1.05 !important;
+          padding: 0 !important;
+          margin-top: 3px !important;
+          white-space: nowrap !important;
+          overflow: hidden !important;
+          text-overflow: ellipsis !important;
+        }
+
+        .asfx-detail-card {
+          padding: 10px !important;
+          border-radius: 24px !important;
+        }
+
+        .asfx-detail-tabs {
+          gap: 7px !important;
+          margin-bottom: 10px !important;
+        }
+
+        .asfx-detail-tabs button {
+          height: 33px !important;
+          padding: 0 12px !important;
+          font-size: 10px !important;
+        }
+
+        .asfx-detail-panel {
+          min-height: 0 !important;
+        }
+
+        .asfx-room-chart {
+          height: 345px !important;
+          border-radius: 20px !important;
+        }
+
+        .asfx-detail-mini {
+          padding: 11px !important;
+          border-radius: 16px !important;
+        }
+
+        .asfx-ai-box {
+          border-radius: 18px !important;
+          padding: 12px !important;
+        }
+
+        .asfx-ai-msg {
+          font-size: 13px !important;
+          line-height: 1.42 !important;
+        }
+
+        .asfx-ai-input input {
+          height: 38px !important;
+          font-size: 12px !important;
+        }
+
+        .asfx-ai-input button {
+          height: 38px !important;
+          font-size: 12px !important;
+        }
+      }
+    `;
+
+    document.head.appendChild(style);
+  }
+
+  setTimeout(injectDetailRoomPolishV1, 300);
+  setTimeout(injectDetailRoomPolishV1, 1200);
 })();
