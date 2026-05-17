@@ -494,43 +494,107 @@
   }
 
   function chartSvg() {
+  const state = window.asfxMobileRealChart || {};
+  const candles = Array.isArray(state.candles) ? state.candles.slice(-42) : [];
+  const symbol = state.symbol || "BTCUSDT";
+  const interval = state.interval || "15m";
+  const status = state.status || "loading";
+
+  if (!candles.length) {
+    const msg = status === "error" ? "Binance candle feed unavailable" : "Loading Binance candles...";
     return `
-      <svg class="m2-chart" viewBox="0 0 420 260" preserveAspectRatio="none">
-        <defs>
-          <linearGradient id="m2Line" x1="0" x2="1">
-            <stop offset="0%" stop-color="#2563eb"/>
-            <stop offset="100%" stop-color="#22d3ee"/>
-          </linearGradient>
-        </defs>
-
-        <g class="grid">
-          <line x1="0" y1="52" x2="420" y2="52"/>
-          <line x1="0" y1="104" x2="420" y2="104"/>
-          <line x1="0" y1="156" x2="420" y2="156"/>
-          <line x1="0" y1="208" x2="420" y2="208"/>
-          <line x1="70" y1="0" x2="70" y2="260"/>
-          <line x1="140" y1="0" x2="140" y2="260"/>
-          <line x1="210" y1="0" x2="210" y2="260"/>
-          <line x1="280" y1="0" x2="280" y2="260"/>
-          <line x1="350" y1="0" x2="350" y2="260"/>
+      <svg class="m2-chart" viewBox="0 0 760 540" preserveAspectRatio="none" aria-label="Real candle chart loading">
+        <rect x="0" y="0" width="760" height="540" rx="34" fill="#020617"/>
+        <g opacity=".45" stroke="rgba(148,163,184,.22)" stroke-width="1.2">
+          <line x1="0" y1="108" x2="760" y2="108"/>
+          <line x1="0" y1="216" x2="760" y2="216"/>
+          <line x1="0" y1="324" x2="760" y2="324"/>
+          <line x1="0" y1="432" x2="760" y2="432"/>
+          <line x1="152" y1="0" x2="152" y2="540"/>
+          <line x1="304" y1="0" x2="304" y2="540"/>
+          <line x1="456" y1="0" x2="456" y2="540"/>
+          <line x1="608" y1="0" x2="608" y2="540"/>
         </g>
-
-        <line class="tp" x1="20" y1="54" x2="390" y2="54"/>
-        <line class="tp" x1="20" y1="104" x2="390" y2="104"/>
-        <line class="entry" x1="20" y1="142" x2="390" y2="142"/>
-        <line class="sl" x1="20" y1="194" x2="390" y2="194"/>
-
-        <text x="26" y="45" class="green">TP2 2360.00</text>
-        <text x="26" y="95" class="green">TP1 2352.00</text>
-        <text x="300" y="134" class="blue">ENTRY 2345.67</text>
-        <text x="26" y="210" class="red">SL 2330.00</text>
-
-        <path class="area" d="M18 206 L45 188 L72 194 L98 166 L124 172 L150 146 L176 162 L202 128 L228 116 L254 132 L280 126 L306 148 L332 104 L358 82 L386 70 L386 260 L18 260 Z"/>
-        <polyline class="line" points="18,206 45,188 72,194 98,166 124,172 150,146 176,162 202,128 228,116 254,132 280,126 306,148 332,104 358,82 386,70" stroke="url(#m2Line)"/>
-        <circle cx="386" cy="70" r="7" fill="#2f7cff"/>
+        <text x="42" y="72" fill="#60a5fa" font-size="24" font-weight="900">${symbol}</text>
+        <text x="42" y="108" fill="#94a3b8" font-size="16" font-weight="700">Crypto Live · Binance ${interval}</text>
+        <text x="42" y="286" fill="#e5e7eb" font-size="22" font-weight="800">${msg}</text>
+        <text x="42" y="322" fill="#94a3b8" font-size="14" font-weight="700"> Waiting for real market data.</text>
       </svg>
     `;
   }
+
+  const highs = candles.map(c => c.h);
+  const lows = candles.map(c => c.l);
+  const max = Math.max(...highs);
+  const min = Math.min(...lows);
+  const range = Math.max(max - min, 1);
+  const pad = range * 0.12;
+  const top = max + pad;
+  const bottom = min - pad;
+  const chartH = 420;
+  const chartTop = 62;
+  const chartLeft = 38;
+  const chartW = 565;
+  const step = chartW / candles.length;
+  const bodyW = Math.max(5, step * 0.55);
+
+  const y = (price) => chartTop + ((top - price) / (top - bottom)) * chartH;
+  const fmt = (v) => Number(v).toLocaleString("en-US", { maximumFractionDigits: v > 100 ? 2 : 5 });
+
+  const last = candles[candles.length - 1];
+  const lastPrice = last.c;
+  const lastY = y(lastPrice);
+
+  const grid = [1/6, 2/6, 3/6, 4/6, 5/6].map(p => {
+    const gy = chartTop + chartH * p;
+    const price = top - (top - bottom) * p;
+    return `<line x1="${chartLeft}" y1="${gy}" x2="${chartLeft + chartW}" y2="${gy}" stroke="rgba(148,163,184,.20)" stroke-width="1.2"/>
+            <text x="${chartLeft + chartW + 12}" y="${gy + 5}" fill="#94a3b8" font-size="13" font-weight="700">${fmt(price)}</text>`;
+  }).join("");
+
+  const candleSvg = candles.map((c, i) => {
+    const cx = chartLeft + i * step + step / 2;
+    const openY = y(c.o);
+    const closeY = y(c.c);
+    const highY = y(c.h);
+    const lowY = y(c.l);
+    const bullish = c.c >= c.o;
+    const color = bullish ? "#22c55e" : "#ef4444";
+    const bodyY = Math.min(openY, closeY);
+    const bodyH = Math.max(Math.abs(closeY - openY), 3);
+
+    return `<line x1="${cx}" y1="${highY}" x2="${cx}" y2="${lowY}" stroke="${color}" stroke-width="2" stroke-linecap="round"/>
+            <rect x="${cx - bodyW / 2}" y="${bodyY}" width="${bodyW}" height="${bodyH}" rx="3" fill="${color}"/>`;
+  }).join("");
+
+  return `
+    <svg class="m2-chart" viewBox="0 0 760 540" preserveAspectRatio="none" aria-label="Real Binance candle chart">
+      <defs>
+        <linearGradient id="realCandleBgM2" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stop-color="#020617" stop-opacity=".98"/>
+          <stop offset="100%" stop-color="#0f172a" stop-opacity=".78"/>
+        </linearGradient>
+      </defs>
+
+      <rect x="0" y="0" width="760" height="540" rx="34" fill="url(#realCandleBgM2)"/>
+
+      <g opacity=".48" stroke="rgba(148,163,184,.18)" stroke-width="1">
+        <line x1="178" y1="42" x2="178" y2="498"/>
+        <line x1="308" y1="42" x2="308" y2="498"/>
+        <line x1="438" y1="42" x2="438" y2="498"/>
+        <line x1="568" y1="42" x2="568" y2="498"/>
+      </g>
+
+      <g>${grid}</g>
+
+      <line x1="${chartLeft}" y1="${lastY}" x2="${chartLeft + chartW}" y2="${lastY}" stroke="rgba(96,165,250,.72)" stroke-width="1.7" stroke-dasharray="6 6"/>
+      <rect x="${chartLeft + chartW + 12}" y="${lastY - 16}" width="108" height="30" rx="8" fill="rgba(37,99,235,.95)"/>
+      <text x="${chartLeft + chartW + 20}" y="${lastY + 4}" fill="#ffffff" font-size="13" font-weight="900">${fmt(lastPrice)}</text>
+
+      <g>${candleSvg}</g>
+    </svg>
+  `;
+}
 
   function miniChart() {
     return `
@@ -680,8 +744,8 @@
         <section class="m2-card m2-signal">
           <div class="m2-head">
             <div class="m2-title">
-              <h2><span>XAUUSD</span>Active Signal</h2>
-              <p>BUY setup • Strength 85%</p>
+              <h2><span>BTCUSDT</span>Active Signal</h2>
+              <p>Live candle · 15m</p>
             </div>
             <div class="m2-live"><i></i> LIVE</div>
           </div>
@@ -691,14 +755,14 @@
           </div>
 
           <div class="m2-stats">
-            <div><small>Bias</small><b class="buy">BUY</b></div>
-            <div><small>Entry</small><b class="blue">2345.67</b></div>
-            <div><small>Stop Loss</small><b class="red">2330.00</b></div>
-            <div><small>Target</small><b class="green">2360.00</b></div>
-          </div>
-        </section>
+          <div><small>Pair</small><b class="blue asfx-stat-blur">BTCUSDT</b></div>
+          <div><small>Price</small><b class="blue asfx-stat-blur">${mobileRealChartPriceLabel()}</b></div>
+          <div><small>Status</small><b class="green asfx-stat-blur">${mobileRealChartStatusLabel()}</b></div>
+          <div><small>VIP</small><b class="red asfx-stat-blur">Locked</b></div>
+        </div>
+      </section>
 
-        <section class="m2-card m2-explore" onclick="mobileDashGo('scanner')">
+      <section class="m2-card m2-explore" onclick="mobileDashGo('scanner')">
           <div class="m2-radar">◎</div>
           <div>
             <h3>Explore Signal Scanner</h3>
@@ -764,4 +828,303 @@
   };
 
   schedule();
+
+function mobileRealChartPriceLabel() {
+  const state = window.asfxMobileRealChart || {};
+  const candles = Array.isArray(state.candles) ? state.candles : [];
+  const last = candles[candles.length - 1];
+  if (!last) return "Loading";
+  return Number(last.c).toLocaleString("en-US", { maximumFractionDigits: 2 });
+}
+
+function mobileRealChartStatusLabel() {
+  const state = window.asfxMobileRealChart || {};
+  if (state.status === "live") return "Live";
+  if (state.status === "error") return "Feed Error";
+  return "Loading";
+}
+
+async function loadMobileRealChartCandles() {
+  const symbol = "BTCUSDT";
+  const interval = "15m";
+  const endpoints = [
+    `https://data-api.binance.vision/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=60`,
+    `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=60`
+  ];
+
+  window.asfxMobileRealChart = {
+    ...(window.asfxMobileRealChart || {}),
+    symbol,
+    interval,
+    status: "loading"
+  };
+
+  refreshMobileRealChartCard();
+
+  let lastErr = null;
+
+  for (const url of endpoints) {
+    try {
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) throw new Error(`Binance HTTP ${res.status}`);
+
+      const rows = await res.json();
+      const candles = rows.map((row) => ({
+        t: Number(row[0]),
+        o: Number(row[1]),
+        h: Number(row[2]),
+        l: Number(row[3]),
+        c: Number(row[4]),
+        v: Number(row[5])
+      })).filter((c) => Number.isFinite(c.o) && Number.isFinite(c.c));
+
+      if (!candles.length) throw new Error("No candle rows");
+
+      window.asfxMobileRealChart = {
+        symbol,
+        interval,
+        status: "live",
+        candles,
+        updatedAt: Date.now()
+      };
+
+      refreshMobileRealChartCard();
+      return;
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+
+  console.warn("AiSignalFx mobile real chart feed error:", lastErr);
+  window.asfxMobileRealChart = {
+    ...(window.asfxMobileRealChart || {}),
+    symbol,
+    interval,
+    status: "error"
+  };
+  refreshMobileRealChartCard();
+}
+
+
+function refreshMobileRealChartCard() {
+  const signal = document.querySelector(".m2-card.m2-signal");
+  if (!signal) return;
+
+  const chartBox = signal.querySelector(".m2-chartbox");
+  if (chartBox) {
+    chartBox.innerHTML = chartSvg();
+  }
+
+  const stats = signal.querySelector(".m2-stats");
+  if (stats) {
+    stats.innerHTML = `
+      <div><small>Pair</small><b class="blue asfx-stat-blur">BTCUSDT</b></div>
+      <div><small>Price</small><b class="blue asfx-stat-blur">${mobileRealChartPriceLabel()}</b></div>
+      <div><small>Status</small><b class="green asfx-stat-blur">${mobileRealChartStatusLabel()}</b></div>
+      <div><small>VIP</small><b class="red asfx-stat-blur">Locked</b></div>
+    `;
+  }
+}
+
+function injectMobileRealChartSizeFix() {
+  if (document.getElementById("asfx-mobile-real-chart-size-fix")) return;
+
+  const style = document.createElement("style");
+  style.id = "asfx-mobile-real-chart-size-fix";
+  style.textContent = `
+    @media (max-width: 760px) {
+      .m2-card.m2-signal {
+        margin-left: 10px !important;
+        margin-right: 10px !important;
+        padding-left: 14px !important;
+        padding-right: 14px !important;
+      }
+
+      .m2-chartbox {
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        min-height: 360px !important;
+      }
+
+      .m2-chart {
+        min-height: 360px !important;
+      }
+
+      .m2-title h2 {
+        font-size: clamp(30px, 9vw, 46px) !important;
+        line-height: 1.06 !important;
+      }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+function startMobileRealChartEngineV1() {
+  if (window.asfxMobileRealChartStarted) return;
+  window.asfxMobileRealChartStarted = true;
+  injectMobileRealChartSizeFix();
+  setTimeout(refreshMobileRealChartCard, 250);
+  loadMobileRealChartCandles();
+  setInterval(loadMobileRealChartCandles, 15000);
+}
+
+startMobileRealChartEngineV1();
+
+
+
+
+
+
+
+
+
+
+
+
+/* ASFX MOBILE DASHBOARD CLEAR FINAL */
+function injectMobileDashboardClearFinal() {
+  if (document.getElementById("asfx-mobile-dashboard-clear-final")) return;
+
+  const style = document.createElement("style");
+  style.id = "asfx-mobile-dashboard-clear-final";
+  style.textContent = `
+    @media (max-width: 760px) {
+      #dashboard .m2 {
+        padding-left: 5px !important;
+        padding-right: 5px !important;
+        padding-bottom: 145px !important;
+      }
+
+      .m2-card.m2-signal {
+        margin-left: 4px !important;
+        margin-right: 4px !important;
+        padding-left: 10px !important;
+        padding-right: 10px !important;
+        padding-bottom: 14px !important;
+        border-radius: 28px !important;
+        overflow: hidden !important;
+      }
+
+      .m2-head {
+        gap: 8px !important;
+        align-items: flex-start !important;
+      }
+
+      .m2-title h2 {
+        font-size: clamp(22px, 6.2vw, 30px) !important;
+        line-height: 1.05 !important;
+        letter-spacing: -0.03em !important;
+        margin: 0 !important;
+      }
+
+      .m2-title h2 span {
+        display: inline !important;
+        margin-right: 6px !important;
+      }
+
+      .m2-title p {
+        margin-top: 5px !important;
+        font-size: 12px !important;
+        line-height: 1.25 !important;
+        opacity: .78 !important;
+      }
+
+      .m2-live {
+        transform: scale(.78) !important;
+        transform-origin: top right !important;
+        flex: 0 0 auto !important;
+      }
+
+      .m2-chartbox {
+        margin-top: 10px !important;
+        height: 395px !important;
+        min-height: 395px !important;
+        max-height: 395px !important;
+        overflow: hidden !important;
+        border-radius: 24px !important;
+      }
+
+      .m2-chartbox svg,
+      .m2-chart {
+        width: 100% !important;
+        height: 395px !important;
+        min-height: 395px !important;
+        max-height: 395px !important;
+        display: block !important;
+      }
+
+      .m2-card.m2-signal .m2-stats {
+        display: grid !important;
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+        gap: 8px !important;
+        margin-top: 12px !important;
+      }
+
+      .m2-card.m2-signal .m2-stats > div {
+        min-width: 0 !important;
+        height: 62px !important;
+        padding: 8px 5px !important;
+        border-radius: 17px !important;
+        text-align: center !important;
+      }
+
+      .m2-card.m2-signal .m2-stats small {
+        display: block !important;
+        font-size: 10px !important;
+        line-height: 1 !important;
+        margin-bottom: 5px !important;
+      }
+
+      .m2-card.m2-signal .m2-stats b {
+        display: block !important;
+        font-size: clamp(11px, 3.4vw, 15px) !important;
+        line-height: 1.05 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+      }
+
+      .m2-card.m2-signal .asfx-stat-blur {
+        filter: blur(2.4px) !important;
+        opacity: .72 !important;
+        user-select: none !important;
+      }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+injectMobileDashboardClearFinal();
+
+
+
+/* ASFX MOBILE OUTER CARD GRID5 FIX */
+function injectMobileOuterCardGrid5Fix() {
+  if (document.getElementById("asfx-mobile-outer-card-grid5-fix")) return;
+
+  const style = document.createElement("style");
+  style.id = "asfx-mobile-outer-card-grid5-fix";
+  style.textContent = `
+    @media (max-width: 760px) {
+      #dashboard .m2 {
+        padding-left: 2px !important;
+        padding-right: 2px !important;
+      }
+
+      .m2-card.m2-signal {
+        margin-left: 2px !important;
+        margin-right: 2px !important;
+      }
+
+      .m2-chartbox {
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+      }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+injectMobileOuterCardGrid5Fix();
+
 })();
