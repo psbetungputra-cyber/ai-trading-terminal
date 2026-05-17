@@ -163,7 +163,7 @@ function showPage(id, button){
   if(button) button.classList.add("active");
 
   const titles = {
-    dashboard: "Institutional Dashboard",
+    dashboard: "AiSignalFx PRO",
     chart: "Chart Terminal",
     scanner: "Signal Scanner VIP",
     sentinel: "Sentinel AI Visual Analysis",
@@ -176,7 +176,8 @@ function showPage(id, button){
     admin: "Admin Control",
     ads: "Ads Manager"
   };
-  document.getElementById("page-title").innerText = titles[id] || "AiSignalFx PRO";
+  const pageTitleEl = document.getElementById("page-title");
+  if (pageTitleEl) pageTitleEl.innerText = window.innerWidth <= 768 ? "AiSignalFx PRO" : (titles[id] || "AiSignalFx PRO");
   closeSidebar();
   if(id === "chart") setTimeout(initTradingView, 250);
   if(id === "vip") setTimeout(loadVipPage, 120);

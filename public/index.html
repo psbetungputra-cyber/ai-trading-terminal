@@ -8,6 +8,55 @@
 <link rel="stylesheet" href="./css/style.css"/>
 <script src="https://s3.tradingview.com/tv.js"></script>
   <link rel="stylesheet" href="./css/v31-revised.css">
+<style>
+/* Active AiSignalFx brand header */
+.brand-header{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  min-width:0;
+}
+.brand-lockup{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  min-width:0;
+}
+.brand-mark{
+  width:32px;
+  height:32px;
+  border-radius:12px;
+  display:grid;
+  place-items:center;
+  color:#60a5fa;
+  font-weight:900;
+  background:linear-gradient(135deg, rgba(37,99,235,.24), rgba(14,165,233,.10));
+  border:1px solid rgba(96,165,250,.28);
+  box-shadow:0 10px 26px rgba(37,99,235,.18);
+}
+.brand-copy{
+  min-width:0;
+}
+.brand-copy h1{
+  margin:0;
+  font-size:14px!important;
+  letter-spacing:.07em!important;
+  text-transform:none!important;
+  white-space:nowrap!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+}
+.brand-copy p{
+  margin:2px 0 0;
+  font-size:10px;
+  opacity:.65;
+  white-space:nowrap;
+}
+@media(max-width:768px){
+  .brand-copy p{display:none!important}
+  .menu-btn{font-size:20px!important}
+}
+</style>
 </head>
 <body>
 <section id="login-screen" class="login-screen">
@@ -73,7 +122,16 @@
 
   <section class="content">
     <header class="topbar">
-      <div class="topbar-left"><button class="menu-btn" onclick="toggleSidebar()">⋮</button><div><h1 id="page-title">Institutional Dashboard</h1><p>Global trading intelligence powered by Sentinel AI</p></div></div>
+      <div class="topbar-left brand-header">
+  <button class="menu-btn" onclick="toggleSidebar()" aria-label="Open menu">☰</button>
+  <div class="brand-lockup">
+    <div class="brand-mark" aria-hidden="true">◆</div>
+    <div class="brand-copy">
+      <h1 id="page-title">AiSignalFx PRO</h1>
+      <p>Sentinel Intelligence</p>
+    </div>
+  </div>
+</div>
       <div class="topbar-right"><span class="pill"><span class="dot"></span> Live Terminal</span><span id="clock" class="pill">00:00:00</span><div class="profile-menu-wrap">
   <button class="profile-top" onclick="toggleProfileMenu()">
     <div id="top-avatar" class="avatar">P</div>
