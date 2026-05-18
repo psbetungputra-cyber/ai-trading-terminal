@@ -4202,3 +4202,176 @@
 })();
 
 /* ASFX_SIGNAL_PLAN_READINESS_V1 */
+
+/* ASFX_SIGNAL_ROOM_DATA_HYDRATOR_V1 */
+(() => {
+  if (window.__ASFX_SIGNAL_ROOM_DATA_HYDRATOR_V1__) return;
+  window.__ASFX_SIGNAL_ROOM_DATA_HYDRATOR_V1__ = true;
+
+  const esc = (value, fallback = "-") => {
+    const text = String(value ?? fallback);
+    return text
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  };
+
+  const pick = (...values) => {
+    for (const value of values) {
+      if (value !== undefined && value !== null && String(value).trim() !== "") return value;
+    }
+    return "-";
+  };
+
+  const latest = () => {
+    try {
+      return (
+        window.AiSignalSMZStatusFlowV1?.last?.() ||
+        window.AiSignalSMZEngineV1?.last?.() ||
+        window.__ASFX_LAST_SMZ_ANALYSIS__ ||
+        {}
+      );
+    } catch (_) {
+      return window.__ASFX_LAST_SMZ_ANALYSIS__ || {};
+    }
+  };
+
+  const confidenceText = (d) => {
+    const n = Number(d.confidence);
+    if (!Number.isFinite(n)) return "Waiting";
+    return `${Math.round(n)}%`;
+  };
+
+  const statusText = (d) => pick(d.signalStatus, d.status, "Waiting Zone");
+  const detailText = (d) => pick(d.statusDetail, d.reason, "Menunggu candle dan struktur yang lebih bersih sebelum final signal plan aktif.");
+
+  const panelKey = (d, tab) => [
+    tab,
+    d.pair,
+    d.symbol,
+    d.bias,
+    d.confidence,
+    d.risk,
+    d.structure,
+    d.zoneState,
+    d.liquidity,
+    d.imbalance,
+    d.signalStatus,
+    d.statusDetail
+  ].join("|");
+
+  const setPanel = (selector, key, html) => {
+    document.querySelectorAll(selector).forEach((el) => {
+      if (!el || el.dataset.asfxHydratorKey === key) return;
+      el.dataset.asfxHydratorKey = key;
+      el.innerHTML = html;
+    });
+  };
+
+  const hydrate = () => {
+    const d = latest();
+    if (!d || Object.keys(d).length === 0) return false;
+
+    const pair = esc(pick(d.pair, d.symbol, "Market"));
+    const bias = esc(pick(d.bias, "WAIT"));
+    const risk = esc(pick(d.risk, "Medium"));
+    const confidence = esc(confidenceText(d));
+    const status = esc(statusText(d));
+    const detail = esc(detailText(d));
+    const structure = esc(pick(d.structure, "Waiting structure"));
+    const zone = esc(pick(d.zoneState, d.zone, "Waiting zone"));
+    const demand = esc(pick(d.demandZone, "Waiting candle range"));
+    const supply = esc(pick(d.supplyZone, "Waiting candle range"));
+    const liquidity = esc(pick(d.liquidity, "No clear liquidity sweep"));
+    const imbalance = esc(pick(d.imbalance, "No clear FVG / imbalance"));
+    const phase = esc(pick(d.smzPhase, d.phase, "Observation"));
+
+    setPanel(
+      '[data-asfx-bridge-rendered="risk"]',
+      panelKey(d, "risk"),
+      `
+        <div class="asfx-bridge-kicker">Risk Guard</div>
+        <div class="asfx-bridge-title">${risk} Risk - ${pair}</div>
+        <div class="asfx-bridge-sub">Risk Guard membaca volatilitas, posisi harga terhadap zona, struktur, dan validasi setup.</div>
+        <br>
+        <b style="color:#fff">Risk Validation</b><br>
+        Bias: <b style="color:#fff">${bias}</b><br>
+        Confidence: <b style="color:#fff">${confidence}</b><br>
+        Structure: <b style="color:#fff">${structure}</b><br>
+        Zone: <b style="color:#fff">${zone}</b><br>
+        Demand Area: <b style="color:#fff">${demand}</b><br>
+        Supply Area: <b style="color:#fff">${supply}</b><br>
+        Liquidity: <b style="color:#fff">${liquidity}</b><br>
+        Imbalance: <b style="color:#fff">${imbalance}</b>
+      `
+    );
+
+    setPanel(
+      '[data-asfx-bridge-rendered="chat"]',
+      panelKey(d, "chat"),
+      `
+        <div class="asfx-bridge-kicker">AI Insight</div>
+        <div class="asfx-bridge-title">${status}</div>
+        <div class="asfx-bridge-sub">AI Insight menerjemahkan hasil SMZ Engine menjadi bahasa trader yang mudah dipahami.</div>
+        <br>
+        Status: <b style="color:#fff">${status}</b><br>
+        Phase: <b style="color:#fff">${phase}</b><br>
+        Bias: <b style="color:#fff">${bias}</b><br>
+        Risk: <b style="color:#fff">${risk}</b><br>
+        <br>
+        <b style="color:#fff">Insight</b><br>
+        ${detail}
+      `
+    );
+
+    setPanel(
+      '[data-asfx-bridge-rendered="signal"]',
+      panelKey(d, "signal"),
+      `
+        <div class="asfx-bridge-kicker">Final Signal Plan</div>
+        <div class="asfx-bridge-title">${status}</div>
+        <div class="asfx-bridge-sub">Final plan membaca Chart, Risk Guard, AI Insight, dan SMZ context sebelum eksekusi.</div>
+        <br>
+        <b style="color:#fff">Signal Readiness</b><br>
+        Pair: <b style="color:#fff">${pair}</b><br>
+        Bias: <b style="color:#fff">${bias}</b><br>
+        Risk: <b style="color:#fff">${risk}</b><br>
+        Confidence: <b style="color:#fff">${confidence}</b><br>
+        Structure: <b style="color:#fff">${structure}</b><br>
+        Zone: <b style="color:#fff">${zone}</b><br>
+        <br>
+        <b style="color:#fff">Execution Detail</b><br>
+        Entry, SL, TP, dan final execution masih dikunci sampai validasi candle, risk, dan zona lebih matang.
+      `
+    );
+
+    return true;
+  };
+
+  let pending = false;
+  const schedule = () => {
+    if (pending) return;
+    pending = true;
+    setTimeout(() => {
+      pending = false;
+      hydrate();
+    }, 120);
+  };
+
+  window.ASFXSignalRoomDataHydratorV1 = {
+    version: "1.0.0",
+    hydrate,
+    latest
+  };
+
+  setTimeout(hydrate, 800);
+  setTimeout(hydrate, 1800);
+  setInterval(hydrate, 3000);
+
+  const observer = new MutationObserver(schedule);
+  observer.observe(document.body, { childList: true, subtree: true });
+
+  console.info("ASFX Signal Room Data Hydrator V1 ready.");
+})();
