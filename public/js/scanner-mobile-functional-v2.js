@@ -297,11 +297,34 @@
 
   function canOpenSignalDetail() {
     const params = new URLSearchParams(window.location.search);
-    return (
+
+    const qOwner =
       params.get("owner") === "1" ||
-      localStorage.getItem("asfxRole") === "admin" ||
-      localStorage.getItem("asfxRole") === "vip"
-    );
+      params.get("admin") === "1" ||
+      String(params.get("access") || "").toLowerCase() === "owner";
+
+    if (qOwner) return true;
+
+    if (window.ASFXAccessGuard?.canOpenSignalRoom?.() === true) return true;
+
+    const role = String(localStorage.getItem("asfxRole") || "").toLowerCase();
+    const canOpen = localStorage.getItem("asfxCanOpenSignalRoom") === "1";
+
+    if (canOpen || ["owner", "founder", "admin", "vip"].includes(role)) return true;
+
+    try {
+      const cached = JSON.parse(localStorage.getItem("aisignalfx:firebase_user") || "null");
+      const email = String(cached?.email || "").toLowerCase();
+      const cachedRole = String(cached?.role || "").toLowerCase();
+      const cachedLevel = String(cached?.level || "").toLowerCase();
+
+      if (email === "psbetungputra@gmail.com") return true;
+      if (["owner", "founder", "admin", "vip"].includes(cachedRole)) return true;
+      if (["owner", "admin", "vip"].includes(cachedLevel)) return true;
+      if (cached?.vipAccess === true) return true;
+    } catch (err) {}
+
+    return false;
   }
 
   function injectSignalDetailRoomStyle() {
@@ -3766,3 +3789,5 @@
 
   console.info("ASFX Scanner Access Guard Bridge V1 ready.");
 })();
+
+/* ASFX_SCANNER_DIRECT_ACCESS_FIX_V1 */

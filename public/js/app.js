@@ -2428,3 +2428,28 @@ window.saveLearningModule = saveLearningModule;
 
   console.info("ASFX Firebase Access Guard V1 ready.");
 })();
+
+
+/* ASFX_ACCESS_ROLE_PERSIST_FIX_V1 */
+(() => {
+  if (window.__ASFX_ACCESS_ROLE_PERSIST_FIX_V1__) return;
+  window.__ASFX_ACCESS_ROLE_PERSIST_FIX_V1__ = true;
+
+  const persistRole = () => {
+    try {
+      const access = window.ASFXAccessGuard?.getAccess?.();
+      if (!access) return;
+
+      localStorage.setItem("asfxRole", access.role || "free");
+      localStorage.setItem("asfxCanOpenSignalRoom", access.canOpenSignalRoom ? "1" : "0");
+      localStorage.setItem("asfxCanOpenAdmin", access.canOpenAdmin ? "1" : "0");
+    } catch (err) {}
+  };
+
+  setTimeout(persistRole, 300);
+  setTimeout(persistRole, 1200);
+  setInterval(persistRole, 5000);
+  document.addEventListener("click", () => setTimeout(persistRole, 200), true);
+
+  console.info("ASFX Access Role Persist Fix V1 ready.");
+})();
