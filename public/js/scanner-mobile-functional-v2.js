@@ -2661,9 +2661,9 @@
     return `
       <div class="asfx-bridge-wrap" data-asfx-bridge-rendered="signal">
         <div class="asfx-bridge-head">
-          <div class="asfx-bridge-kicker">Live Signal Bridge</div>
+          <div class="asfx-bridge-kicker">Final Signal Plan</div>
           <div class="asfx-bridge-title">${d.pair} · ${d.tf}</div>
-          <div class="asfx-bridge-sub">Scanner preview sekarang tersambung ke Detail Room. Chart tetap live, sedangkan signal summary membaca konteks pair aktif.</div>
+          <div class="asfx-bridge-sub">Signal tab menjadi hasil akhir setelah Chart, Risk Guard, dan AI Insight membaca candle live.</div>
         </div>
 
         <div class="asfx-bridge-grid">
@@ -2682,8 +2682,15 @@
         </div>
 
         <div class="asfx-bridge-box">
-          <b style="color:#fff">Focus Setup: ${d.setup}</b><br>
-          Harga aktif: <b style="color:#fff">${d.price}</b>. Untuk tahap ini sinyal masih preview edukasi; entry, SL, TP, dan full reasoning akan dikunci untuk VIP.
+          <b style="color:#fff">Current Plan Preview</b><br>
+          Pair aktif: <b style="color:#fff">${d.pair}</b> · Timeframe: <b style="color:#fff">${d.tf}</b><br>
+          Harga aktif: <b style="color:#fff">${d.price}</b><br>
+          Focus setup: <b style="color:#fff">${d.setup}</b><br><br>
+          Untuk tahap ini sinyal masih preview edukasi. Entry zone, SL, TP, invalidation, dan full reasoning akan dibuka lewat VIP/owner saat SMZ Engine siap.
+        </div>
+
+        <div class="asfx-bridge-lock">
+          Locked execution detail: entry zone, stop loss, take profit, invalidation rule, position sizing, confidence breakdown, dan signal history.
         </div>
       </div>
     `;
@@ -2693,9 +2700,9 @@
     return `
       <div class="asfx-bridge-wrap" data-asfx-bridge-rendered="risk">
         <div class="asfx-bridge-head">
-          <div class="asfx-bridge-kicker">Risk Control</div>
+          <div class="asfx-bridge-kicker">Risk Guard</div>
           <div class="asfx-bridge-title">${d.risk} Risk · ${d.pair}</div>
-          <div class="asfx-bridge-sub">Risk tab disiapkan untuk validasi setup sebelum entry. Detail eksekusi penuh tetap VIP.</div>
+          <div class="asfx-bridge-sub">Risk tab memvalidasi apakah setup aman, terlalu jauh, terlalu volatile, atau masih harus menunggu zona.</div>
         </div>
 
         <div class="asfx-bridge-grid">
@@ -2713,8 +2720,13 @@
           </div>
         </div>
 
+        <div class="asfx-bridge-box">
+          <b style="color:#fff">Risk Guard sementara</b><br>
+          Sistem membaca bias, momentum, dan harga aktif. Validasi lengkap seperti distance-to-zone, ATR risk, invalidation, dan risk/reward akan masuk di SMZ Engine.
+        </div>
+
         <div class="asfx-bridge-lock">
-          VIP unlock: entry zone, stop loss, take profit, invalidation rule, position sizing, dan full risk reasoning.
+          VIP/owner unlock: exact entry zone, stop loss, take profit, invalidation rule, position sizing, dan full risk reasoning.
         </div>
       </div>
     `;
@@ -2725,12 +2737,18 @@
       <div class="asfx-bridge-wrap" data-asfx-bridge-rendered="chat">
         <div class="asfx-bridge-head">
           <div class="asfx-bridge-kicker">AI Insight</div>
-          <div class="asfx-bridge-title">Ask Sentinel · ${d.pair}</div>
-          <div class="asfx-bridge-sub">AI Insight menjelaskan bias, candle behavior, risk, dan alasan setup dengan bahasa trader yang mudah dipahami.</div>
+          <div class="asfx-bridge-title">Sentinel Insight · ${d.pair}</div>
+          <div class="asfx-bridge-sub">AI Insight menjelaskan bias, candle behavior, risk, dan hal yang harus ditunggu sebelum entry.</div>
         </div>
 
         <div class="asfx-bridge-box">
-          Contoh prompt: “Jelaskan kenapa ${d.pair} bias ${d.bias} di ${d.tf}, apa invalidasinya, dan apa yang harus ditunggu sebelum entry?”
+          <b style="color:#fff">Ringkasan:</b> ${d.pair} di ${d.tf} sekarang bias <b class="${biasClass(d.bias)}">${d.bias}</b>, confidence <b>${d.confidence}</b>, risk <b>${d.risk}</b>.<br><br>
+          ${d.setup}. Harga aktif berada di <b style="color:#fff">${d.price}</b>. Jangan mengejar harga kalau sudah terlalu jauh dari zona valid.
+        </div>
+
+        <div class="asfx-bridge-box">
+          <b style="color:#fff">Yang ditunggu:</b><br>
+          Tunggu zona valid, reaksi candle yang bersih, dan konfirmasi struktur sebelum Final Signal Plan aktif.
         </div>
       </div>
     `;
@@ -3792,3 +3810,5 @@
 /* ASFX_SCANNER_DIRECT_ACCESS_FIX_V1 */
 
 /* ASFX_SIGNAL_ROOM_TABS_FORCE_V2 */
+
+/* ASFX_SIGNAL_ROOM_CONTENT_V1 */
