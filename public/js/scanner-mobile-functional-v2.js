@@ -3455,3 +3455,245 @@
 })();
 
 /* AISIGNAL_BRIDGE_PLACEMENT_FIX_V1 */
+
+
+/* AISIGNAL_SINGLE_PRICE_SOURCE_V1 */
+(() => {
+  if (window.__AISIGNAL_SINGLE_PRICE_SOURCE_V1__) return;
+  window.__AISIGNAL_SINGLE_PRICE_SOURCE_V1__ = true;
+
+  const SYMBOLS = [
+    "BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT",
+    "DOGEUSDT", "ADAUSDT", "AVAXUSDT", "LINKUSDT", "TONUSDT"
+  ];
+
+  const cache = {};
+
+  const ownText = (el) => {
+    if (!el) return "";
+    return Array.from(el.childNodes || [])
+      .filter((n) => n.nodeType === Node.TEXT_NODE)
+      .map((n) => n.textContent || "")
+      .join("")
+      .trim();
+  };
+
+  const isVisible = (el) => {
+    if (!el) return false;
+    const rect = el.getBoundingClientRect();
+    const style = window.getComputedStyle(el);
+    return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
+  };
+
+  const formatPrice = (symbol, price) => {
+    const n = Number(price);
+    if (!Number.isFinite(n)) return "--";
+
+    if (n >= 1000) {
+      return n.toLocaleString("en-US", {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      });
+    }
+
+    if (n >= 1) {
+      return n.toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 4,
+      });
+    }
+
+    return n.toLocaleString("en-US", {
+      minimumFractionDigits: 4,
+      maximumFractionDigits: 6,
+    });
+  };
+
+  const extractPrice = (payload, symbol) => {
+    if (!payload) return null;
+
+    if (Array.isArray(payload)) {
+      const item = payload.find((x) => String(x?.symbol || "").toUpperCase() === symbol);
+      return Number(item?.price || item?.lastPrice || item?.close);
+    }
+
+    const candidates = [
+      payload.price,
+      payload.lastPrice,
+      payload.close,
+      payload.data?.price,
+      payload.data?.lastPrice,
+      payload.data?.close,
+      payload.result?.price,
+      payload.result?.lastPrice,
+      payload.ticker?.price,
+      payload.ticker?.lastPrice,
+    ];
+
+    for (const v of candidates) {
+      const n = Number(v);
+      if (Number.isFinite(n) && n > 0) return n;
+    }
+
+    return null;
+  };
+
+  const fetchJson = async (url) => {
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  };
+
+  const fetchPrice = async (symbol) => {
+    const urls = [
+      `/api/binance/ticker/price?symbol=${symbol}`,
+      `/api/binance?type=ticker&symbol=${symbol}`,
+      `/api/binance?endpoint=ticker/price&symbol=${symbol}`,
+      `/api/binance?path=/api/v3/ticker/price&symbol=${symbol}`,
+      `https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`
+    ];
+
+    let lastError = null;
+
+    for (const url of urls) {
+      try {
+        const payload = await fetchJson(url);
+        const price = extractPrice(payload, symbol);
+        if (price && Number.isFinite(price)) return price;
+      } catch (err) {
+        lastError = err;
+      }
+    }
+
+    throw lastError || new Error("Price source not available");
+  };
+
+  const detectActiveSymbol = () => {
+    const activeNodes = Array.from(
+      document.querySelectorAll("button, [role='button'], [data-symbol], .active, .selected, .chip")
+    ).filter(isVisible);
+
+    for (const el of activeNodes) {
+      const text = `${ownText(el)} ${el.textContent || ""} ${el.dataset?.symbol || ""}`.toUpperCase();
+      const found = SYMBOLS.find((s) => text.includes(s));
+      if (found) return found;
+    }
+
+    const body = document.body ? document.body.innerText.toUpperCase() : "";
+    return SYMBOLS.find((s) => body.includes(s)) || "BTCUSDT";
+  };
+
+  const numericText = (txt) => {
+    const t = String(txt || "").trim();
+    if (!t || t.includes("%")) return false;
+    if (/[a-zA-Z]/.test(t)) return false;
+    return /^-?\d{1,3}(,\d{3})*(\.\d+)?$/.test(t) || /^-?\d+(\.\d+)?$/.test(t);
+  };
+
+  const setOwnText = (el, value) => {
+    if (!el) return;
+
+    if (!el.childNodes || el.childNodes.length === 0) {
+      el.textContent = value;
+      return;
+    }
+
+    const textNode = Array.from(el.childNodes).find((n) => n.nodeType === Node.TEXT_NODE && String(n.textContent || "").trim());
+    if (textNode) textNode.textContent = value;
+    else el.textContent = value;
+  };
+
+  const findSymbolRoots = (symbol) => {
+    const roots = new Set();
+
+    const nodes = Array.from(
+      document.querySelectorAll("button, [role='button'], [data-symbol], h1, h2, h3, h4, div, span, section, article")
+    ).filter(isVisible);
+
+    for (const el of nodes) {
+      const text = `${ownText(el)} ${el.dataset?.symbol || ""}`.toUpperCase().trim();
+      if (!text.includes(symbol)) continue;
+
+      const root =
+        el.closest(
+          "[data-detail-room], [data-scanner-detail], .scanner-detail-room, .signal-detail-room, .detail-room, .scanner-card, .scanner-focus-card, .focus-card, .signal-card, .asset-card, .market-card, article, section"
+        ) || el.parentElement;
+
+      if (root && isVisible(root)) roots.add(root);
+    }
+
+    return Array.from(roots);
+  };
+
+  const updateRootPrice = (root, symbol, price) => {
+    if (!root || !isVisible(root)) return;
+
+    const formatted = formatPrice(symbol, price);
+
+    const preferred = Array.from(
+      root.querySelectorAll(
+        "[data-live-price], [data-price], .live-price, .price, .asset-price, .signal-price, .scanner-price"
+      )
+    ).filter((el) => isVisible(el) && !String(el.textContent || "").includes("%"));
+
+    if (preferred.length) {
+      preferred.slice(0, 3).forEach((el) => setOwnText(el, formatted));
+      return;
+    }
+
+    const leaves = Array.from(root.querySelectorAll("*"))
+      .filter((el) => isVisible(el))
+      .filter((el) => {
+        const text = ownText(el);
+        if (!numericText(text)) return false;
+
+        const lower = String(el.parentElement?.textContent || "").toLowerCase();
+        if (/(confidence|risk|status|bias|rsi|timeframe|trend|momentum)/.test(lower) && !lower.includes(symbol.toLowerCase())) {
+          return false;
+        }
+
+        return true;
+      });
+
+    leaves.slice(0, 3).forEach((el) => setOwnText(el, formatted));
+  };
+
+  const sync = async () => {
+    const symbol = detectActiveSymbol();
+
+    try {
+      const price = await fetchPrice(symbol);
+      cache[symbol] = {
+        symbol,
+        price,
+        formatted: formatPrice(symbol, price),
+        updatedAt: Date.now(),
+      };
+
+      window.dispatchEvent(
+        new CustomEvent("aisignal:price", {
+          detail: cache[symbol],
+        })
+      );
+
+      const roots = findSymbolRoots(symbol);
+      roots.forEach((root) => updateRootPrice(root, symbol, price));
+    } catch (err) {
+      console.warn("Single Price Source waiting:", err?.message || err);
+    }
+  };
+
+  window.AiSignalPriceSourceV1 = {
+    cache,
+    fetchPrice,
+    formatPrice,
+    sync,
+    version: "1.0.0",
+  };
+
+  setTimeout(sync, 800);
+  setInterval(sync, 1200);
+  document.addEventListener("click", () => setTimeout(sync, 250), true);
+
+  console.info("AiSignal Single Price Source V1 ready.");
+})();
