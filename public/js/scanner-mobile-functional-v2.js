@@ -611,12 +611,11 @@
 
       <section class="asfx-detail-card">
         <div class="asfx-detail-tabs">
-          <button class="active" data-detail-tab="chart">Chart</button>
-          <button data-detail-tab="signal">Signal</button>
-          <button data-detail-tab="risk">Risk</button>
-          <button data-detail-tab="chat">AI Chat</button>
-          <button data-detail-tab="vip">VIP</button>
-        </div>
+        <button class="active" data-detail-tab="chart">Chart</button>
+        <button data-detail-tab="risk">Risk</button>
+        <button data-detail-tab="chat">AI Insight</button>
+        <button data-detail-tab="signal">Signal</button>
+      </div>
 
         <div class="asfx-detail-panel" data-detail-panel>
           ${detailPanelHTML("chart", data)}
@@ -2725,9 +2724,9 @@
     return `
       <div class="asfx-bridge-wrap" data-asfx-bridge-rendered="chat">
         <div class="asfx-bridge-head">
-          <div class="asfx-bridge-kicker">AI Chat Room</div>
+          <div class="asfx-bridge-kicker">AI Insight</div>
           <div class="asfx-bridge-title">Ask Sentinel · ${d.pair}</div>
-          <div class="asfx-bridge-sub">Nanti AI Chat menjelaskan bias, candle behavior, risk, dan alasan setup dengan bahasa trader yang mudah dipahami.</div>
+          <div class="asfx-bridge-sub">AI Insight menjelaskan bias, candle behavior, risk, dan alasan setup dengan bahasa trader yang mudah dipahami.</div>
         </div>
 
         <div class="asfx-bridge-box">
@@ -2741,13 +2740,13 @@
     return `
       <div class="asfx-bridge-wrap" data-asfx-bridge-rendered="vip">
         <div class="asfx-bridge-head">
-          <div class="asfx-bridge-kicker">VIP Signal Detail</div>
+          <div class="asfx-bridge-kicker">Signal Plan Locked</div>
           <div class="asfx-bridge-title">Unlock Full ${d.pair} Room</div>
-          <div class="asfx-bridge-sub">Public melihat chart live dan preview. VIP membuka signal plan lengkap.</div>
+          <div class="asfx-bridge-sub">Public melihat preview. VIP membuka full signal plan lengkap.</div>
         </div>
 
         <div class="asfx-bridge-lock">
-          VIP membuka: entry, SL, TP, confidence breakdown, SMC zone, risk plan, AI reasoning, dan signal history.
+          Locked detail: entry, SL, TP, confidence breakdown, SMZ zone, risk plan, AI reasoning, dan signal history.
         </div>
       </div>
     `;
@@ -3201,7 +3200,7 @@
     const bodyText = document.body ? document.body.innerText : "";
 
     const isDetailRoom =
-      /Signal Detail|Detail Room|AI Chat|Full Analysis|Trade Plan/i.test(bodyText) &&
+      /Signal Detail|Detail Room|AI Insight|Full Analysis|Trade Plan/i.test(bodyText) &&
       !/Open Detail/i.test(bodyText);
 
     const selectors = [
@@ -3791,3 +3790,5 @@
 })();
 
 /* ASFX_SCANNER_DIRECT_ACCESS_FIX_V1 */
+
+/* ASFX_SIGNAL_ROOM_TABS_FORCE_V2 */
