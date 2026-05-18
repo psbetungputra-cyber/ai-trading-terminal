@@ -3077,3 +3077,381 @@
 
   console.info("AiSignal Logic Brain V1 ready.");
 })();
+
+
+/* AISIGNAL_LOGIC_BRIDGE_V1_1 */
+(() => {
+  if (window.__AISIGNAL_LOGIC_BRIDGE_V1_1__) return;
+  window.__AISIGNAL_LOGIC_BRIDGE_V1_1__ = true;
+
+  const SYMBOLS = [
+    "BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT",
+    "DOGEUSDT", "ADAUSDT", "AVAXUSDT", "LINKUSDT", "TONUSDT"
+  ];
+
+  const tfToBinance = (tf = "M15") => {
+    const key = String(tf).toUpperCase().trim();
+    const map = {
+      M1: "1m",
+      "1M": "1m",
+      M3: "3m",
+      "3M": "3m",
+      M5: "5m",
+      "5M": "5m",
+      M15: "15m",
+      "15M": "15m",
+      M30: "30m",
+      "30M": "30m",
+      H1: "1h",
+      "1H": "1h",
+      H4: "4h",
+      "4H": "4h",
+      D1: "1d",
+      "1D": "1d",
+      W1: "1w",
+      "1W": "1w",
+    };
+    return map[key] || "15m";
+  };
+
+  const detectSymbol = () => {
+    const bodyText = document.body ? document.body.innerText.toUpperCase() : "";
+    const fromText = SYMBOLS.find((s) => bodyText.includes(s));
+    return fromText || "BTCUSDT";
+  };
+
+  const detectTimeframe = () => {
+    const nodes = Array.from(document.querySelectorAll("button, [role='button'], .chip, .tab, [data-timeframe]"));
+    const active = nodes.find((el) => {
+      const cls = String(el.className || "").toLowerCase();
+      const aria = el.getAttribute("aria-pressed");
+      return cls.includes("active") || aria === "true" || el.dataset.active === "true";
+    });
+
+    const text = String(active?.textContent || document.body?.innerText || "").toUpperCase();
+    const match = text.match(/\b(M1|M3|M5|M15|M30|H1|H4|D1|W1)\b/);
+    return match ? match[1] : "M15";
+  };
+
+  const extractCandles = (payload) => {
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.data)) return payload.data;
+    if (Array.isArray(payload?.klines)) return payload.klines;
+    if (Array.isArray(payload?.candles)) return payload.candles;
+    if (Array.isArray(payload?.result)) return payload.result;
+    if (Array.isArray(payload?.data?.klines)) return payload.data.klines;
+    if (Array.isArray(payload?.data?.candles)) return payload.data.candles;
+    return [];
+  };
+
+  const fetchJson = async (url) => {
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  };
+
+  const fetchCandles = async (symbol, interval) => {
+    const urls = [
+      `/api/binance/klines?symbol=${symbol}&interval=${interval}&limit=120`,
+      `/api/binance?type=klines&symbol=${symbol}&interval=${interval}&limit=120`,
+      `/api/binance?endpoint=klines&symbol=${symbol}&interval=${interval}&limit=120`,
+      `/api/binance?path=/api/v3/klines&symbol=${symbol}&interval=${interval}&limit=120`,
+      `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=120`
+    ];
+
+    let lastError = null;
+
+    for (const url of urls) {
+      try {
+        const payload = await fetchJson(url);
+        const candles = extractCandles(payload);
+        if (candles.length) return candles;
+      } catch (err) {
+        lastError = err;
+      }
+    }
+
+    throw lastError || new Error("No candle data");
+  };
+
+  const findDetailRoot = () => {
+    const bodyText = document.body ? document.body.innerText : "";
+
+    const isDetailRoom =
+      /Signal Detail|Detail Room|AI Chat|Full Analysis|Trade Plan/i.test(bodyText) &&
+      !/Open Detail/i.test(bodyText);
+
+    const selectors = [
+      "[data-detail-room]",
+      "[data-scanner-detail]",
+      ".scanner-detail-room",
+      ".signal-detail-room",
+      ".detail-room"
+    ];
+
+    for (const selector of selectors) {
+      const el = document.querySelector(selector);
+      if (el && isDetailRoom) return el;
+    }
+
+    if (isDetailRoom) {
+      return document.querySelector("main") || document.body;
+    }
+
+    const wrongCard = document.getElementById("aisignal-logic-bridge-card");
+    if (wrongCard) wrongCard.remove();
+
+    return null;
+  };
+
+  const ensureStyle = () => {
+    if (document.getElementById("aisignal-logic-bridge-style")) return;
+
+    const style = document.createElement("style");
+    style.id = "aisignal-logic-bridge-style";
+    style.textContent = `
+      .aisignal-logic-bridge-card {
+        width: 100%;
+        max-width: 100%;
+        margin: 12px 0;
+        padding: 14px;
+        border-radius: 20px;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 0.94));
+        color: #e5e7eb;
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+        box-sizing: border-box;
+        overflow: hidden;
+      }
+
+      .aisignal-logic-bridge-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+
+      .aisignal-logic-bridge-title {
+        font-size: 12px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #93c5fd;
+        font-weight: 800;
+      }
+
+      .aisignal-logic-bridge-live {
+        font-size: 10px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #86efac;
+        border: 1px solid rgba(134, 239, 172, 0.28);
+        border-radius: 999px;
+        padding: 5px 8px;
+        white-space: nowrap;
+      }
+
+      .aisignal-logic-bridge-main {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .aisignal-logic-bridge-bias {
+        padding: 12px;
+        border-radius: 16px;
+        background: rgba(15, 23, 42, 0.72);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+      }
+
+      .aisignal-logic-bridge-label {
+        font-size: 10px;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        margin-bottom: 5px;
+      }
+
+      .aisignal-logic-bridge-value {
+        font-size: 18px;
+        font-weight: 900;
+        color: #f8fafc;
+      }
+
+      .aisignal-logic-bridge-mini {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .aisignal-logic-bridge-mini > div {
+        padding: 10px;
+        border-radius: 14px;
+        background: rgba(15, 23, 42, 0.55);
+        border: 1px solid rgba(148, 163, 184, 0.13);
+      }
+
+      .aisignal-logic-bridge-reason {
+        margin-top: 10px;
+        font-size: 12px;
+        line-height: 1.55;
+        color: #cbd5e1;
+      }
+
+      @media (max-width: 768px) {
+        .aisignal-logic-bridge-card {
+          margin: 10px 0;
+          padding: 12px;
+          border-radius: 18px;
+        }
+
+        .aisignal-logic-bridge-main {
+          grid-template-columns: 1fr;
+        }
+
+        .aisignal-logic-bridge-value {
+          font-size: 17px;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+  };
+
+  const ensureCard = () => {
+    const root = findDetailRoot();
+    if (!root) return null;
+
+    let card = document.getElementById("aisignal-logic-bridge-card");
+    if (card) return card;
+
+    ensureStyle();
+
+    card = document.createElement("section");
+    card.id = "aisignal-logic-bridge-card";
+    card.className = "aisignal-logic-bridge-card";
+    card.innerHTML = `
+      <div class="aisignal-logic-bridge-top">
+        <div class="aisignal-logic-bridge-title">AiSignal Brain V1.1</div>
+        <div class="aisignal-logic-bridge-live">Live Analysis</div>
+      </div>
+
+      <div class="aisignal-logic-bridge-main">
+        <div class="aisignal-logic-bridge-bias">
+          <div class="aisignal-logic-bridge-label">Bias</div>
+          <div class="aisignal-logic-bridge-value" data-ai-bias>WAIT</div>
+        </div>
+
+        <div class="aisignal-logic-bridge-bias">
+          <div class="aisignal-logic-bridge-label">Confidence</div>
+          <div class="aisignal-logic-bridge-value" data-ai-confidence>--%</div>
+        </div>
+      </div>
+
+      <div class="aisignal-logic-bridge-mini" style="margin-top:10px">
+        <div>
+          <div class="aisignal-logic-bridge-label">Trend</div>
+          <div class="aisignal-logic-bridge-value" style="font-size:13px" data-ai-trend>Waiting</div>
+        </div>
+        <div>
+          <div class="aisignal-logic-bridge-label">Risk</div>
+          <div class="aisignal-logic-bridge-value" style="font-size:13px" data-ai-risk>--</div>
+        </div>
+        <div>
+          <div class="aisignal-logic-bridge-label">RSI</div>
+          <div class="aisignal-logic-bridge-value" style="font-size:13px" data-ai-rsi>--</div>
+        </div>
+        <div>
+          <div class="aisignal-logic-bridge-label">Timeframe</div>
+          <div class="aisignal-logic-bridge-value" style="font-size:13px" data-ai-tf>--</div>
+        </div>
+      </div>
+
+      <div class="aisignal-logic-bridge-reason" data-ai-reason>
+        Waiting for live candle analysis...
+      </div>
+    `;
+
+    root.appendChild(card);
+    return card;
+  };
+
+  const setText = (card, selector, value) => {
+    const el = card.querySelector(selector);
+    if (el) el.textContent = value;
+  };
+
+  const paint = (analysis) => {
+    const card = ensureCard();
+    if (!card) return;
+
+    setText(card, "[data-ai-bias]", analysis.bias || "WAIT");
+    setText(card, "[data-ai-confidence]", `${analysis.confidence ?? "--"}%`);
+    setText(card, "[data-ai-trend]", analysis.trend || "Mixed");
+    setText(card, "[data-ai-risk]", analysis.risk || "--");
+    setText(card, "[data-ai-rsi]", analysis.rsi ?? "--");
+    setText(card, "[data-ai-tf]", analysis.timeframe || "--");
+    setText(card, "[data-ai-reason]", analysis.reason || "Waiting for clearer confirmation.");
+  };
+
+  const paintError = (message) => {
+    const card = ensureCard();
+    if (!card) return;
+
+    setText(card, "[data-ai-bias]", "WAIT");
+    setText(card, "[data-ai-confidence]", "--%");
+    setText(card, "[data-ai-trend]", "Waiting");
+    setText(card, "[data-ai-risk]", "--");
+    setText(card, "[data-ai-rsi]", "--");
+    setText(card, "[data-ai-tf]", "--");
+    setText(card, "[data-ai-reason]", message);
+  };
+
+  let busy = false;
+
+  const run = async () => {
+    if (busy) return;
+    busy = true;
+
+    try {
+      const card = ensureCard();
+      if (!card) return;
+
+      if (!window.AiSignalLogicV1?.analyze) {
+        paintError("AiSignal Logic Brain V1 is not loaded yet.");
+        return;
+      }
+
+      const symbol = detectSymbol();
+      const timeframe = detectTimeframe();
+      const interval = tfToBinance(timeframe);
+      const candles = await fetchCandles(symbol, interval);
+
+      const analysis = window.AiSignalLogicV1.analyze({
+        symbol,
+        timeframe,
+        candles,
+      });
+
+      paint(analysis);
+    } catch (err) {
+      paintError("Live analysis is waiting for candle data. Scanner remains safe.");
+    } finally {
+      busy = false;
+    }
+  };
+
+  setTimeout(run, 1200);
+  setInterval(run, 8000);
+
+  const observer = new MutationObserver(() => {
+    if (!document.getElementById("aisignal-logic-bridge-card")) {
+      setTimeout(run, 500);
+    }
+  });
+
+  observer.observe(document.body, { childList: true, subtree: true });
+
+  console.info("AiSignal Logic Bridge V1.1 ready.");
+})();
+
+/* AISIGNAL_BRIDGE_PLACEMENT_FIX_V1 */
