@@ -2881,3 +2881,199 @@
 
   document.head.appendChild(style);
 })();
+
+
+/* AISIGNAL_LOGIC_BRAIN_V1 */
+(() => {
+  if (window.AiSignalLogicV1) return;
+
+  const toNum = (v) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  const normalizeCandles = (candles = []) => {
+    return (Array.isArray(candles) ? candles : [])
+      .map((c) => {
+        if (Array.isArray(c)) {
+          return {
+            time: toNum(c[0]),
+            open: toNum(c[1]),
+            high: toNum(c[2]),
+            low: toNum(c[3]),
+            close: toNum(c[4]),
+            volume: toNum(c[5]),
+          };
+        }
+
+        return {
+          time: toNum(c.time ?? c.t ?? c[0]),
+          open: toNum(c.open ?? c.o ?? c[1]),
+          high: toNum(c.high ?? c.h ?? c[2]),
+          low: toNum(c.low ?? c.l ?? c[3]),
+          close: toNum(c.close ?? c.c ?? c[4]),
+          volume: toNum(c.volume ?? c.v ?? c[5]),
+        };
+      })
+      .filter((c) => c.open && c.high && c.low && c.close);
+  };
+
+  const ema = (values, period) => {
+    if (!values.length) return [];
+    const k = 2 / (period + 1);
+    const out = [];
+    let prev = values[0];
+
+    values.forEach((value, index) => {
+      const current = index === 0 ? value : value * k + prev * (1 - k);
+      out.push(current);
+      prev = current;
+    });
+
+    return out;
+  };
+
+  const rsi = (values, period = 14) => {
+    if (values.length <= period) return 50;
+
+    let gains = 0;
+    let losses = 0;
+
+    for (let i = values.length - period; i < values.length; i++) {
+      const diff = values[i] - values[i - 1];
+      if (diff >= 0) gains += diff;
+      else losses += Math.abs(diff);
+    }
+
+    if (losses === 0) return 100;
+    const rs = gains / losses;
+    return 100 - 100 / (1 + rs);
+  };
+
+  const volatilityPct = (candles) => {
+    const recent = candles.slice(-14);
+    if (!recent.length) return 0;
+
+    const avgRange =
+      recent.reduce((sum, c) => sum + Math.max(0, c.high - c.low), 0) /
+      recent.length;
+
+    const lastClose = recent[recent.length - 1].close || 1;
+    return (avgRange / lastClose) * 100;
+  };
+
+  const round = (value, digits = 2) => {
+    const factor = 10 ** digits;
+    return Math.round((Number(value) || 0) * factor) / factor;
+  };
+
+  const analyze = ({ symbol = "BTCUSDT", timeframe = "M15", candles = [], price } = {}) => {
+    const clean = normalizeCandles(candles);
+    const closes = clean.map((c) => c.close);
+    const lastPrice = toNum(price) || closes[closes.length - 1] || 0;
+
+    if (clean.length < 30 || !lastPrice) {
+      return {
+        symbol,
+        timeframe,
+        bias: "WAIT",
+        confidence: 42,
+        trend: "Insufficient data",
+        momentum: "Neutral",
+        risk: "Medium",
+        price: lastPrice,
+        reason:
+          "Market data is still limited. Waiting for more candles before confirming a directional setup.",
+      };
+    }
+
+    const emaFast = ema(closes, 9);
+    const emaSlow = ema(closes, 21);
+
+    const fast = emaFast[emaFast.length - 1];
+    const slow = emaSlow[emaSlow.length - 1];
+    const prevFast = emaFast[emaFast.length - 4] || fast;
+    const prevSlow = emaSlow[emaSlow.length - 4] || slow;
+
+    const currentRsi = rsi(closes, 14);
+    const vol = volatilityPct(clean);
+
+    const trendUp = fast > slow && fast >= prevFast;
+    const trendDown = fast < slow && fast <= prevFast;
+    const momentumUp = currentRsi >= 54 && currentRsi <= 72;
+    const momentumDown = currentRsi <= 46 && currentRsi >= 28;
+    const overbought = currentRsi > 74;
+    const oversold = currentRsi < 26;
+
+    let bias = "WAIT";
+    let confidence = 50;
+    let trend = "Sideways / mixed";
+    let momentum = "Neutral";
+
+    if (trendUp && momentumUp && !overbought) {
+      bias = "BUY";
+      confidence = 68;
+      trend = "Bullish";
+      momentum = "Positive";
+    } else if (trendDown && momentumDown && !oversold) {
+      bias = "SELL";
+      confidence = 68;
+      trend = "Bearish";
+      momentum = "Negative";
+    } else if (trendUp && !overbought) {
+      bias = "BUY";
+      confidence = 58;
+      trend = "Bullish";
+      momentum = currentRsi >= 50 ? "Mild positive" : "Weak";
+    } else if (trendDown && !oversold) {
+      bias = "SELL";
+      confidence = 58;
+      trend = "Bearish";
+      momentum = currentRsi <= 50 ? "Mild negative" : "Weak";
+    }
+
+    if (overbought || oversold) {
+      bias = "WAIT";
+      confidence = 54;
+      momentum = overbought ? "Overbought" : "Oversold";
+    }
+
+    const risk = vol >= 1.4 ? "High" : vol >= 0.7 ? "Medium" : "Low";
+
+    if (risk === "High") confidence = Math.max(45, confidence - 8);
+    if (risk === "Low" && bias !== "WAIT") confidence = Math.min(82, confidence + 4);
+
+    const reasonMap = {
+      BUY:
+        "Fast EMA is holding above slow EMA with supportive momentum. Setup is bullish, but confirmation should still wait for clean price reaction.",
+      SELL:
+        "Fast EMA is holding below slow EMA with bearish momentum. Setup is bearish, but confirmation should still wait for clean price reaction.",
+      WAIT:
+        "Trend and momentum are not fully aligned. Better to wait for clearer structure before taking action.",
+    };
+
+    return {
+      symbol,
+      timeframe,
+      bias,
+      confidence: Math.round(confidence),
+      trend,
+      momentum,
+      risk,
+      price: round(lastPrice, 4),
+      emaFast: round(fast, 4),
+      emaSlow: round(slow, 4),
+      rsi: round(currentRsi, 2),
+      volatility: round(vol, 3),
+      reason: reasonMap[bias],
+    };
+  };
+
+  window.AiSignalLogicV1 = {
+    analyze,
+    normalizeCandles,
+    version: "1.0.0",
+  };
+
+  console.info("AiSignal Logic Brain V1 ready.");
+})();
