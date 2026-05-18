@@ -4287,6 +4287,15 @@
     const liquidity = esc(pick(d.liquidity, "No clear liquidity sweep"));
     const imbalance = esc(pick(d.imbalance, "No clear FVG / imbalance"));
     const phase = esc(pick(d.smzPhase, d.phase, "Observation"));
+    const setupType = esc(pick(d.setupType, "Setup Watch"));
+    const activeZone = esc(pick(d.activeZone, d.entryZone, d.zoneState, d.zone, "Waiting zone"));
+    const distanceToZone = esc(pick(d.distanceToZoneText, d.distanceToZone, "Calculating"));
+    const entryZone = esc(pick(d.entryZone, d.activeZone, "Waiting zone"));
+    const stopLossGuide = esc(pick(d.stopLossGuide, d.slGuide, "Waiting invalidation level"));
+    const tp1Guide = esc(pick(d.tp1Guide, "Waiting target area"));
+    const tp2Guide = esc(pick(d.tp2Guide, "Waiting extended target"));
+    const invalidationLevel = esc(pick(d.invalidationLevel, "Waiting zone invalidation"));
+    const riskNotice = esc(pick(d.riskNotice, "Educational analysis only. Execution remains user responsibility."));
 
     setPanel(
       '[data-asfx-bridge-rendered="risk"]',
@@ -4342,8 +4351,16 @@
         Structure: <b style="color:#fff">${structure}</b><br>
         Zone: <b style="color:#fff">${zone}</b><br>
         <br>
-        <b style="color:#fff">Execution Detail</b><br>
-        Entry, SL, TP, dan final execution masih dikunci sampai validasi candle, risk, dan zona lebih matang.
+        <b style="color:#fff">Execution Plan Guide</b><br>
+        Setup Type: <b style="color:#fff">${setupType}</b><br>
+        Active Zone: <b style="color:#fff">${activeZone}</b><br>
+        Distance to Zone: <b style="color:#fff">${distanceToZone}</b><br>
+        Entry Zone Guide: <b style="color:#fff">${entryZone}</b><br>
+        Stop Loss Guide: <b style="color:#fff">${stopLossGuide}</b><br>
+        TP1 Guide: <b style="color:#fff">${tp1Guide}</b><br>
+        TP2 Guide: <b style="color:#fff">${tp2Guide}</b><br>
+        Invalidation: <b style="color:#fff">${invalidationLevel}</b><br><br>
+        <small>${riskNotice}</small>
       `
     );
 
@@ -4374,4 +4391,231 @@
   observer.observe(document.body, { childList: true, subtree: true });
 
   console.info("ASFX Signal Room Data Hydrator V1 ready.");
+})();
+
+
+/* ASFX_SMZ_ZONE_WATCH_SLTP_PLAN_V1 */
+(() => {
+  if (window.__ASFX_SMZ_ZONE_WATCH_SLTP_PLAN_V1__) return;
+  window.__ASFX_SMZ_ZONE_WATCH_SLTP_PLAN_V1__ = true;
+
+  const round = (value, digits = 2) => {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return 0;
+    const f = 10 ** digits;
+    return Math.round(n * f) / f;
+  };
+
+  const fmt = (value) => {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return "-";
+    return n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  };
+
+  const normalizeCandles = (candles = []) => {
+    return (Array.isArray(candles) ? candles : [])
+      .map((c) => {
+        if (Array.isArray(c)) {
+          return {
+            o: Number(c[1]),
+            h: Number(c[2]),
+            l: Number(c[3]),
+            c: Number(c[4]),
+            v: Number(c[5] || 0)
+          };
+        }
+        return {
+          o: Number(c?.o ?? c?.open),
+          h: Number(c?.h ?? c?.high),
+          l: Number(c?.l ?? c?.low),
+          c: Number(c?.c ?? c?.close),
+          v: Number(c?.v ?? c?.volume ?? 0)
+        };
+      })
+      .filter((c) =>
+        Number.isFinite(c.o) &&
+        Number.isFinite(c.h) &&
+        Number.isFinite(c.l) &&
+        Number.isFinite(c.c)
+      );
+  };
+
+  const parseZone = (text) => {
+    const nums = String(text || "").match(/[\d,.]+/g);
+    if (!nums || nums.length < 2) return null;
+    const values = nums
+      .slice(0, 2)
+      .map((x) => Number(String(x).replace(/,/g, "")))
+      .filter(Number.isFinite);
+    if (values.length < 2) return null;
+    return {
+      low: Math.min(values[0], values[1]),
+      high: Math.max(values[0], values[1])
+    };
+  };
+
+  const zoneText = (z) => {
+    if (!z) return "Waiting zone";
+    return `${fmt(z.low)} - ${fmt(z.high)}`;
+  };
+
+  const distanceToZone = (price, zone) => {
+    if (!Number.isFinite(price) || !zone) {
+      return { value: 0, percent: 0, inside: false, text: "Calculating" };
+    }
+
+    if (price >= zone.low && price <= zone.high) {
+      return { value: 0, percent: 0, inside: true, text: "Inside active zone" };
+    }
+
+    const value = price < zone.low ? zone.low - price : price - zone.high;
+    const percent = price ? Math.abs(value / price) * 100 : 0;
+
+    return {
+      value,
+      percent,
+      inside: false,
+      text: `${round(percent, 2)}% from active zone`
+    };
+  };
+
+  const buildPlan = (payload = {}, base = {}) => {
+    const candles = normalizeCandles(payload.candles || []);
+    const recent = candles.slice(-60);
+    const last = recent[recent.length - 1];
+    const price = Number(base.price ?? payload.price ?? last?.c ?? 0);
+
+    const highs = recent.map((c) => c.h).filter(Number.isFinite);
+    const lows = recent.map((c) => c.l).filter(Number.isFinite);
+    const high = highs.length ? Math.max(...highs) : price;
+    const low = lows.length ? Math.min(...lows) : price;
+    const range = Math.max(high - low, price * 0.002, 1);
+    const buffer = Math.max(range * 0.08, price * 0.001);
+
+    const demandFromBase = parseZone(base.demandZone);
+    const supplyFromBase = parseZone(base.supplyZone);
+
+    const demandZone = demandFromBase || {
+      low,
+      high: low + range * 0.24
+    };
+
+    const supplyZone = supplyFromBase || {
+      low: high - range * 0.24,
+      high
+    };
+
+    const rawBias = String(base.bias || "WAIT").toUpperCase();
+    const demandDistance = distanceToZone(price, demandZone);
+    const supplyDistance = distanceToZone(price, supplyZone);
+
+    let activeSide = "WAIT";
+    if (rawBias === "BUY") activeSide = "DEMAND";
+    else if (rawBias === "SELL") activeSide = "SUPPLY";
+    else activeSide = demandDistance.percent <= supplyDistance.percent ? "DEMAND" : "SUPPLY";
+
+    const activeZone = activeSide === "SUPPLY" ? supplyZone : demandZone;
+    const activeDistance = distanceToZone(price, activeZone);
+
+    let statusFlow = "Setup Watch";
+    if (activeDistance.inside) statusFlow = "Zone Touched";
+    else if (activeDistance.percent <= 0.35) statusFlow = "Approaching Zone";
+    else if (rawBias === "WAIT") statusFlow = "Market Watch";
+
+    const setupType =
+      rawBias === "BUY" ? "BUY Watch" :
+      rawBias === "SELL" ? "SELL Watch" :
+      activeSide === "DEMAND" ? "Demand Watch" : "Supply Watch";
+
+    let stopLossGuide;
+    let tp1Guide;
+    let tp2Guide;
+    let invalidationLevel;
+
+    if (activeSide === "SUPPLY") {
+      const sl = activeZone.high + buffer;
+      const tp1 = Math.max(low, price - range * 0.38);
+      const tp2 = Math.max(low, price - range * 0.68);
+      stopLossGuide = `Above supply invalidation ${fmt(sl)}`;
+      invalidationLevel = `Candle close above ${fmt(sl)}`;
+      tp1Guide = fmt(tp1);
+      tp2Guide = fmt(tp2);
+    } else {
+      const sl = activeZone.low - buffer;
+      const tp1 = Math.min(high, price + range * 0.38);
+      const tp2 = Math.min(high, price + range * 0.68);
+      stopLossGuide = `Below demand invalidation ${fmt(sl)}`;
+      invalidationLevel = `Candle close below ${fmt(sl)}`;
+      tp1Guide = fmt(tp1);
+      tp2Guide = fmt(tp2);
+    }
+
+    const confidenceBase = Number(base.confidence ?? 50);
+    const zoneBonus = activeDistance.inside ? 8 : activeDistance.percent <= 0.35 ? 5 : 0;
+    const confidence = Math.max(35, Math.min(90, Math.round(confidenceBase + zoneBonus)));
+
+    return {
+      currentPrice: price ? fmt(price) : "-",
+      setupType,
+      activeSide,
+      activeZone: zoneText(activeZone),
+      entryZone: zoneText(activeZone),
+      demandZone: zoneText(demandZone),
+      supplyZone: zoneText(supplyZone),
+      distanceToZone: round(activeDistance.percent, 2),
+      distanceToZoneText: activeDistance.text,
+      stopLossGuide,
+      tp1Guide,
+      tp2Guide,
+      invalidationLevel,
+      statusFlow,
+      signalStatus: statusFlow,
+      statusDetail:
+        statusFlow === "Zone Touched"
+          ? "Harga sudah berada di zona aktif. Tunggu candle reaction bersih sebelum eksekusi."
+          : statusFlow === "Approaching Zone"
+            ? "Harga mulai mendekati zona aktif. Siapkan validasi candle dan risk plan."
+            : "Setup sudah terdeteksi lebih awal. Sistem memantau jarak harga ke zona aktif.",
+      confidence,
+      riskNotice: "Educational analysis only. SL/TP adalah panduan sistem; eksekusi tetap tanggung jawab user."
+    };
+  };
+
+  const install = () => {
+    if (!window.AiSignalLogicV1?.analyze) return false;
+    if (window.AiSignalLogicV1.__zoneWatchSltpWrapped) return true;
+
+    const previousAnalyze = window.AiSignalLogicV1.analyze.bind(window.AiSignalLogicV1);
+
+    window.AiSignalLogicV1.analyze = (payload = {}) => {
+      const base = previousAnalyze(payload) || {};
+      const plan = buildPlan(payload, base);
+      const result = {
+        ...base,
+        ...plan,
+        reason: `${base.reason || "Reading market context."} Zone Watch: ${plan.setupType}. Active zone ${plan.activeZone}. Distance ${plan.distanceToZoneText}.`
+      };
+
+      window.__ASFX_LAST_SMZ_ANALYSIS__ = result;
+      return result;
+    };
+
+    window.AiSignalLogicV1.__zoneWatchSltpWrapped = true;
+    window.AiSignalSMZZoneWatchSLTPV1 = {
+      version: "1.0.0",
+      buildPlan,
+      last: () => window.__ASFX_LAST_SMZ_ANALYSIS__ || null
+    };
+
+    console.info("ASFX SMZ Zone Watch SLTP Plan V1 ready.");
+    return true;
+  };
+
+  if (!install()) {
+    let tries = 0;
+    const timer = setInterval(() => {
+      tries += 1;
+      if (install() || tries > 30) clearInterval(timer);
+    }, 300);
+  }
 })();
