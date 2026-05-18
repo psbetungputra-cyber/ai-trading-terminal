@@ -2657,13 +2657,23 @@
     return document.querySelector("[data-detail-tab].active")?.dataset?.detailTab || "chart";
   }
 
+  
+  function readSmz(){
+    return window.__ASFX_LAST_SMZ_ANALYSIS__ || {};
+  }
+
+  function smzText(v, fallback = "Waiting confirmation"){
+    return v || fallback;
+  }
+
   function signalHtml(d){
+    const smz = readSmz();
     return `
       <div class="asfx-bridge-wrap" data-asfx-bridge-rendered="signal">
         <div class="asfx-bridge-head">
           <div class="asfx-bridge-kicker">Final Signal Plan</div>
           <div class="asfx-bridge-title">${d.pair} · ${d.tf}</div>
-          <div class="asfx-bridge-sub">Signal tab menjadi hasil akhir setelah Chart, Risk Guard, dan AI Insight membaca candle live.</div>
+          <div class="asfx-bridge-sub">Final plan membaca Chart, Risk Guard, AI Insight, dan SMZ context sebelum eksekusi.</div>
         </div>
 
         <div class="asfx-bridge-grid">
@@ -2682,11 +2692,19 @@
         </div>
 
         <div class="asfx-bridge-box">
+          <b style="color:#fff">SMZ Context</b><br>
+          Structure: <b style="color:#fff">${smzText(smz.structure)}</b><br>
+          Zone: <b style="color:#fff">${smzText(smz.zoneState)}</b><br>
+          Liquidity: <b style="color:#fff">${smzText(smz.liquidity)}</b><br>
+          Imbalance/FVG: <b style="color:#fff">${smzText(smz.imbalance)}</b>
+        </div>
+
+        <div class="asfx-bridge-box">
           <b style="color:#fff">Current Plan Preview</b><br>
           Pair aktif: <b style="color:#fff">${d.pair}</b> · Timeframe: <b style="color:#fff">${d.tf}</b><br>
           Harga aktif: <b style="color:#fff">${d.price}</b><br>
-          Focus setup: <b style="color:#fff">${d.setup}</b><br><br>
-          Untuk tahap ini sinyal masih preview edukasi. Entry zone, SL, TP, invalidation, dan full reasoning akan dibuka lewat VIP/owner saat SMZ Engine siap.
+          Phase: <b style="color:#fff">${smzText(smz.smzPhase || smz.phase, "Observation")}</b><br><br>
+          ${smz.reason || d.setup || "Menunggu reaksi candle yang lebih jelas sebelum final signal aktif."}
         </div>
 
         <div class="asfx-bridge-lock">
@@ -2697,12 +2715,13 @@
   }
 
   function riskHtml(d){
+    const smz = readSmz();
     return `
       <div class="asfx-bridge-wrap" data-asfx-bridge-rendered="risk">
         <div class="asfx-bridge-head">
           <div class="asfx-bridge-kicker">Risk Guard</div>
           <div class="asfx-bridge-title">${d.risk} Risk · ${d.pair}</div>
-          <div class="asfx-bridge-sub">Risk tab memvalidasi apakah setup aman, terlalu jauh, terlalu volatile, atau masih harus menunggu zona.</div>
+          <div class="asfx-bridge-sub">Risk Guard membaca volatility, posisi harga terhadap zona, struktur, dan validasi setup.</div>
         </div>
 
         <div class="asfx-bridge-grid">
@@ -2711,8 +2730,8 @@
             <b class="${biasClass(d.bias)}">${d.bias}</b>
           </div>
           <div class="asfx-bridge-mini">
-            <small>Timeframe</small>
-            <b>${d.tf}</b>
+            <small>Zone State</small>
+            <b>${smzText(smz.zoneState, "Waiting")}</b>
           </div>
           <div class="asfx-bridge-mini">
             <small>Status</small>
@@ -2721,8 +2740,11 @@
         </div>
 
         <div class="asfx-bridge-box">
-          <b style="color:#fff">Risk Guard sementara</b><br>
-          Sistem membaca bias, momentum, dan harga aktif. Validasi lengkap seperti distance-to-zone, ATR risk, invalidation, dan risk/reward akan masuk di SMZ Engine.
+          <b style="color:#fff">Risk Validation</b><br>
+          Structure: <b style="color:#fff">${smzText(smz.structure)}</b><br>
+          Demand Zone: <b style="color:#fff">${smzText(smz.demandZone, "Calculating")}</b><br>
+          Supply Zone: <b style="color:#fff">${smzText(smz.supplyZone, "Calculating")}</b><br>
+          Liquidity: <b style="color:#fff">${smzText(smz.liquidity)}</b>
         </div>
 
         <div class="asfx-bridge-lock">
@@ -2733,22 +2755,24 @@
   }
 
   function chatHtml(d){
+    const smz = readSmz();
     return `
       <div class="asfx-bridge-wrap" data-asfx-bridge-rendered="chat">
         <div class="asfx-bridge-head">
           <div class="asfx-bridge-kicker">AI Insight</div>
           <div class="asfx-bridge-title">Sentinel Insight · ${d.pair}</div>
-          <div class="asfx-bridge-sub">AI Insight menjelaskan bias, candle behavior, risk, dan hal yang harus ditunggu sebelum entry.</div>
+          <div class="asfx-bridge-sub">AI Insight menerjemahkan hasil SMZ Engine menjadi bahasa trader yang mudah dipahami.</div>
         </div>
 
         <div class="asfx-bridge-box">
           <b style="color:#fff">Ringkasan:</b> ${d.pair} di ${d.tf} sekarang bias <b class="${biasClass(d.bias)}">${d.bias}</b>, confidence <b>${d.confidence}</b>, risk <b>${d.risk}</b>.<br><br>
-          ${d.setup}. Harga aktif berada di <b style="color:#fff">${d.price}</b>. Jangan mengejar harga kalau sudah terlalu jauh dari zona valid.
+          ${smz.reason || d.setup || "Menunggu candle yang lebih jelas."}
         </div>
 
         <div class="asfx-bridge-box">
           <b style="color:#fff">Yang ditunggu:</b><br>
-          Tunggu zona valid, reaksi candle yang bersih, dan konfirmasi struktur sebelum Final Signal Plan aktif.
+          ${smzText(smz.zoneState, "Zona valid")} · ${smzText(smz.structure, "struktur belum jelas")} · ${smzText(smz.liquidity, "liquidity belum jelas")}.<br><br>
+          Tunggu reaksi candle bersih sebelum Final Signal Plan aktif.
         </div>
       </div>
     `;
@@ -3812,3 +3836,204 @@
 /* ASFX_SIGNAL_ROOM_TABS_FORCE_V2 */
 
 /* ASFX_SIGNAL_ROOM_CONTENT_V1 */
+
+
+/* ASFX_SMZ_ENGINE_FOUNDATION_V1 */
+(() => {
+  if (window.__ASFX_SMZ_ENGINE_FOUNDATION_V1__) return;
+  window.__ASFX_SMZ_ENGINE_FOUNDATION_V1__ = true;
+
+  const round = (value, digits = 2) => {
+    const factor = 10 ** digits;
+    return Math.round((Number(value) || 0) * factor) / factor;
+  };
+
+  const normalize = (candles = []) => {
+    return (Array.isArray(candles) ? candles : [])
+      .map((c) => {
+        if (Array.isArray(c)) {
+          return {
+            o: Number(c[1]),
+            h: Number(c[2]),
+            l: Number(c[3]),
+            c: Number(c[4]),
+            v: Number(c[5] || 0),
+          };
+        }
+
+        return {
+          o: Number(c.o ?? c.open),
+          h: Number(c.h ?? c.high),
+          l: Number(c.l ?? c.low),
+          c: Number(c.c ?? c.close),
+          v: Number(c.v ?? c.volume ?? 0),
+        };
+      })
+      .filter((c) =>
+        Number.isFinite(c.o) &&
+        Number.isFinite(c.h) &&
+        Number.isFinite(c.l) &&
+        Number.isFinite(c.c)
+      );
+  };
+
+  const maxOf = (arr, key) => Math.max(...arr.map((x) => Number(x[key]) || 0));
+  const minOf = (arr, key) => Math.min(...arr.map((x) => Number(x[key]) || 0));
+
+  const buildSmzContext = (candles, base) => {
+    const clean = normalize(candles);
+    const recent = clean.slice(-30);
+    const previous = clean.slice(-60, -30);
+    const last = clean[clean.length - 1];
+
+    if (!last || recent.length < 20) {
+      return {
+        bias: base.bias || "WAIT",
+        confidenceBoost: -4,
+        risk: base.risk || "Medium",
+        structure: "Insufficient structure",
+        zone: "Waiting candles",
+        liquidity: "No sweep detected",
+        imbalance: "No clear imbalance",
+        phase: "Waiting",
+        summary: "SMZ Engine masih menunggu candle yang cukup untuk membaca struktur, zona, dan liquidity.",
+      };
+    }
+
+    const high = maxOf(recent, "h");
+    const low = minOf(recent, "l");
+    const prevHigh = previous.length ? maxOf(previous, "h") : high;
+    const prevLow = previous.length ? minOf(previous, "l") : low;
+    const range = Math.max(high - low, 1);
+    const price = Number(base.price || last.c || 0);
+
+    let structure = "Range / mixed";
+    if (high > prevHigh && low > prevLow) structure = "Bullish structure";
+    if (high < prevHigh && low < prevLow) structure = "Bearish structure";
+    if (high > prevHigh && low < prevLow) structure = "Expansion / volatile structure";
+
+    const demandHigh = low + range * 0.24;
+    const supplyLow = high - range * 0.24;
+
+    let zone = "Mid-range / wait zone";
+    if (price <= demandHigh) zone = "Demand reaction zone";
+    if (price >= supplyLow) zone = "Supply reaction zone";
+
+    const prevRecent = recent.slice(0, -1);
+    const pHigh = prevRecent.length ? maxOf(prevRecent, "h") : high;
+    const pLow = prevRecent.length ? minOf(prevRecent, "l") : low;
+
+    let liquidity = "No clear liquidity sweep";
+    if (last.h > pHigh && last.c < pHigh) liquidity = "Buy-side liquidity sweep";
+    if (last.l < pLow && last.c > pLow) liquidity = "Sell-side liquidity sweep";
+
+    const a = clean[clean.length - 3];
+    const b = clean[clean.length - 1];
+
+    let imbalance = "No clear FVG / imbalance";
+    if (a && b && b.l > a.h) imbalance = "Bullish imbalance / FVG";
+    if (a && b && b.h < a.l) imbalance = "Bearish imbalance / FVG";
+
+    let bias = base.bias || "WAIT";
+    let boost = 0;
+    let phase = "Observation";
+
+    if (bias === "BUY" && structure.includes("Bearish")) {
+      bias = "WAIT";
+      boost -= 8;
+      phase = "Structure conflict";
+    } else if (bias === "SELL" && structure.includes("Bullish")) {
+      bias = "WAIT";
+      boost -= 8;
+      phase = "Structure conflict";
+    } else if (bias === "BUY" && zone.includes("Supply")) {
+      bias = "WAIT";
+      boost -= 6;
+      phase = "Price near supply";
+    } else if (bias === "SELL" && zone.includes("Demand")) {
+      bias = "WAIT";
+      boost -= 6;
+      phase = "Price near demand";
+    } else if (bias === "BUY" && structure.includes("Bullish")) {
+      boost += 5;
+      phase = "Bullish continuation watch";
+    } else if (bias === "SELL" && structure.includes("Bearish")) {
+      boost += 5;
+      phase = "Bearish continuation watch";
+    }
+
+    let risk = base.risk || "Medium";
+    if (structure.includes("Expansion")) risk = "High";
+    if (zone.includes("Mid-range") && bias !== "WAIT") risk = risk === "High" ? "High" : "Medium";
+
+    const summary =
+      `${structure}. ${zone}. ${liquidity}. ${imbalance}. ` +
+      `Bias ${bias}, risk ${risk}. Tunggu reaksi candle bersih sebelum Final Signal Plan aktif.`;
+
+    return {
+      bias,
+      confidenceBoost: boost,
+      risk,
+      structure,
+      zone,
+      liquidity,
+      imbalance,
+      phase,
+      demandZone: `${round(low, 2)} - ${round(demandHigh, 2)}`,
+      supplyZone: `${round(supplyLow, 2)} - ${round(high, 2)}`,
+      summary,
+    };
+  };
+
+  const install = () => {
+    if (!window.AiSignalLogicV1?.analyze) return false;
+    if (window.AiSignalLogicV1.__smzWrapped) return true;
+
+    const originalAnalyze = window.AiSignalLogicV1.analyze.bind(window.AiSignalLogicV1);
+
+    window.AiSignalLogicV1.analyze = (payload = {}) => {
+      const base = originalAnalyze(payload) || {};
+      const smz = buildSmzContext(payload.candles || [], base);
+
+      const baseConfidence = Number(base.confidence ?? 50);
+      const confidence = Math.max(42, Math.min(88, Math.round(baseConfidence + smz.confidenceBoost)));
+
+      const result = {
+        ...base,
+        bias: smz.bias || base.bias || "WAIT",
+        confidence,
+        risk: smz.risk || base.risk || "Medium",
+        smzPhase: smz.phase,
+        structure: smz.structure,
+        zoneState: smz.zone,
+        demandZone: smz.demandZone,
+        supplyZone: smz.supplyZone,
+        liquidity: smz.liquidity,
+        imbalance: smz.imbalance,
+        reason: `${base.reason || "Reading candle context."} SMZ Engine: ${smz.summary}`,
+      };
+
+      window.__ASFX_LAST_SMZ_ANALYSIS__ = result;
+      return result;
+    };
+
+    window.AiSignalLogicV1.__smzWrapped = true;
+    window.AiSignalSMZEngineV1 = {
+      version: "1.0.0",
+      last: () => window.__ASFX_LAST_SMZ_ANALYSIS__ || null,
+    };
+
+    console.info("ASFX SMZ Engine Foundation V1 ready.");
+    return true;
+  };
+
+  if (!install()) {
+    let tries = 0;
+    const timer = setInterval(() => {
+      tries += 1;
+      if (install() || tries > 30) clearInterval(timer);
+    }, 300);
+  }
+})();
+
+/* ASFX_SMZ_OUTPUT_BRIDGE_V1 */
