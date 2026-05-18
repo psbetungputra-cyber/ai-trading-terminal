@@ -2120,6 +2120,7 @@
   let candles = [];
   let lastPrice = null;
   let lastLoad = 0;
+  let lastCtxKey = "";
   let busy = false;
   let status = "WAIT";
 
@@ -2217,6 +2218,7 @@
     if (!candles.length) throw new Error("empty candles");
 
     lastLoad = Date.now();
+    lastCtxKey = `${ctx().pair}_${ctx().tf}`;
   }
 
   function yFor(price, min, max, padT, chartH){
@@ -2351,9 +2353,6 @@
     if (!b) return;
 
     b.innerHTML = chartSvg();
-    b.classList.add("asfx-standalone-flash");
-    setTimeout(() => b.classList.remove("asfx-standalone-flash"), 160);
-
     updateStrip();
   }
 
@@ -2364,6 +2363,15 @@
     busy = true;
 
     try {
+      const nowCtx = ctx();
+      const nowKey = `${nowCtx.pair}_${nowCtx.tf}`;
+
+      if (lastCtxKey !== nowKey) {
+        candles = [];
+        lastLoad = 0;
+        lastCtxKey = nowKey;
+      }
+
       if (!candles.length || Date.now() - lastLoad > 12000) {
         await loadKlines();
       }
@@ -2392,17 +2400,69 @@
   function timer(){
     if (!isDetailOpen()) return;
     ensureWorkspace(status);
-
-    const b = box();
-    if (b && candles.length) {
-      render();
-    }
   }
 
   setInterval(timer, 1000);
   setInterval(tick, 1000);
 
-  document.addEventListener("click", () => {
+  function normalizeTfLabel(raw){
+    const value = String(raw || "").trim().toLowerCase();
+    const map = {
+      "5m":"5m",
+      "15m":"15m",
+      "1h":"1h",
+      "4h":"4h",
+      "1d":"1d",
+      "1w":"1w"
+    };
+    return map[value] || "";
+  }
+
+  function displayTf(tf){
+    return String(tf || "15m")
+      .replace("h", "H")
+      .replace("d", "D")
+      .replace("w", "W");
+  }
+
+  function setDetailTimeframe(tf){
+    const title = document.querySelector(".asfx-detail-title h2");
+    const current = ctx();
+
+    if (title) {
+      title.textContent = `${current.pair} · ${displayTf(tf)}`;
+    }
+
+    candles = [];
+    lastLoad = 0;
+    lastCtxKey = "";
+    status = "WAIT";
+
+    document.querySelectorAll(".asfx-detail-room button:not([data-detail-tab])").forEach((btn) => {
+      const btnTf = normalizeTfLabel(btn.textContent);
+      if (btnTf) btn.classList.toggle("active", btnTf === tf);
+    });
+
+    ensureWorkspace("WAIT");
+
+    const b = box();
+    if (b) {
+      b.innerHTML = `<div class="asfx-chart-empty">Loading ${current.pair} ${displayTf(tf)} candles...</div>`;
+    }
+
+    setTimeout(tick, 120);
+  }
+
+  document.addEventListener("click", (event) => {
+    const tfButton = event.target.closest(".asfx-detail-room button:not([data-detail-tab])");
+    const tf = normalizeTfLabel(tfButton ? tfButton.textContent : "");
+
+    if (tf) {
+      event.preventDefault();
+      setDetailTimeframe(tf);
+      return;
+    }
+
     setTimeout(tick, 250);
   }, true);
 
@@ -2416,4 +2476,283 @@
   });
 
   setTimeout(tick, 700);
+})();
+
+
+/* SCANNER_DETAIL_BRIDGE_V1 */
+(function scannerDetailBridgeV1(){
+  if (document.getElementById("asfx-scanner-bridge-v1")) return;
+
+  const style = document.createElement("style");
+  style.id = "asfx-scanner-bridge-v1";
+  style.textContent = `
+    .asfx-bridge-wrap {
+      display: grid;
+      gap: 12px;
+      padding: 2px 0;
+    }
+
+    .asfx-bridge-head {
+      border: 1px solid rgba(96,165,250,.20);
+      background: linear-gradient(135deg, rgba(15,23,42,.92), rgba(37,99,235,.14));
+      border-radius: 20px;
+      padding: 14px;
+    }
+
+    .asfx-bridge-kicker {
+      color: #38bdf8;
+      font-size: 10px;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      font-weight: 900;
+      margin-bottom: 6px;
+    }
+
+    .asfx-bridge-title {
+      color: #fff;
+      font-size: 22px;
+      font-weight: 950;
+      line-height: 1.1;
+    }
+
+    .asfx-bridge-sub {
+      color: #94a3b8;
+      font-size: 12px;
+      margin-top: 5px;
+      line-height: 1.45;
+    }
+
+    .asfx-bridge-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .asfx-bridge-mini {
+      border: 1px solid rgba(148,163,184,.18);
+      background: rgba(15,23,42,.82);
+      border-radius: 16px;
+      padding: 11px;
+      min-height: 78px;
+    }
+
+    .asfx-bridge-mini small {
+      display: block;
+      color: #94a3b8;
+      font-size: 10px;
+      margin-bottom: 5px;
+    }
+
+    .asfx-bridge-mini b {
+      display: block;
+      color: #fff;
+      font-size: 15px;
+      line-height: 1.1;
+      overflow-wrap: anywhere;
+    }
+
+    .asfx-bridge-buy { color: #22c55e !important; }
+    .asfx-bridge-sell { color: #ef4444 !important; }
+    .asfx-bridge-wait { color: #facc15 !important; }
+
+    .asfx-bridge-box {
+      border: 1px solid rgba(96,165,250,.18);
+      background: rgba(2,6,23,.55);
+      border-radius: 18px;
+      padding: 13px;
+      color: #cbd5e1;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .asfx-bridge-lock {
+      border: 1px solid rgba(250,204,21,.22);
+      background: linear-gradient(135deg, rgba(250,204,21,.10), rgba(15,23,42,.78));
+      border-radius: 18px;
+      padding: 13px;
+      color: #e5e7eb;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+  `;
+  document.head.appendChild(style);
+
+  function text(){
+    return document.body ? document.body.innerText || "" : "";
+  }
+
+  function clean(v, fallback){
+    return String(v || fallback || "").replace(/[<>]/g, "").trim();
+  }
+
+  function ctx(){
+    const title = document.querySelector(".asfx-detail-title h2")?.textContent || "BTCUSDT · 15m";
+    const pair = (title.match(/([A-Z0-9]{5,20})/) || [,"BTCUSDT"])[1];
+    const tf = (title.match(/(1m|3m|5m|15m|30m|1h|4h|1d|1w)/i) || [,"15m"])[1];
+
+    return {
+      pair: pair.toUpperCase(),
+      tf: tf.toLowerCase()
+    };
+  }
+
+  function readSignal(){
+    const body = text();
+
+    const biasMatch = body.match(/\b(BUY|SELL|WAIT)\b/i);
+    const confMatch = body.match(/Confidence\s+(\d+%)/i);
+    const riskMatch = body.match(/Risk\s+(Low|Medium|High)/i);
+    const setupMatch = body.match(/Focus Setup\s+([^\n]+)/i);
+
+    const price =
+      document.querySelector(".asfx-chart-info-strip b")?.textContent ||
+      body.match(/BTCUSDT\s+([\d,.]+)/i)?.[1] ||
+      "Live";
+
+    const bias = clean(biasMatch?.[1], "LIVE").toUpperCase();
+
+    return {
+      ...ctx(),
+      price: clean(price, "Live"),
+      bias,
+      confidence: clean(confMatch?.[1], "Live"),
+      risk: clean(riskMatch?.[1], "Medium"),
+      setup: clean(setupMatch?.[1], "Pullback pressure")
+    };
+  }
+
+  function biasClass(bias){
+    if (bias === "BUY") return "asfx-bridge-buy";
+    if (bias === "SELL") return "asfx-bridge-sell";
+    return "asfx-bridge-wait";
+  }
+
+  function panel(){
+    return document.querySelector("[data-detail-panel]");
+  }
+
+  function activeTab(){
+    return document.querySelector("[data-detail-tab].active")?.dataset?.detailTab || "chart";
+  }
+
+  function signalHtml(d){
+    return `
+      <div class="asfx-bridge-wrap" data-asfx-bridge-rendered="signal">
+        <div class="asfx-bridge-head">
+          <div class="asfx-bridge-kicker">Live Signal Bridge</div>
+          <div class="asfx-bridge-title">${d.pair} · ${d.tf}</div>
+          <div class="asfx-bridge-sub">Scanner preview sekarang tersambung ke Detail Room. Chart tetap live, sedangkan signal summary membaca konteks pair aktif.</div>
+        </div>
+
+        <div class="asfx-bridge-grid">
+          <div class="asfx-bridge-mini">
+            <small>Bias</small>
+            <b class="${biasClass(d.bias)}">${d.bias}</b>
+          </div>
+          <div class="asfx-bridge-mini">
+            <small>Confidence</small>
+            <b>${d.confidence}</b>
+          </div>
+          <div class="asfx-bridge-mini">
+            <small>Risk</small>
+            <b>${d.risk}</b>
+          </div>
+        </div>
+
+        <div class="asfx-bridge-box">
+          <b style="color:#fff">Focus Setup: ${d.setup}</b><br>
+          Harga aktif: <b style="color:#fff">${d.price}</b>. Untuk tahap ini sinyal masih preview edukasi; entry, SL, TP, dan full reasoning akan dikunci untuk VIP.
+        </div>
+      </div>
+    `;
+  }
+
+  function riskHtml(d){
+    return `
+      <div class="asfx-bridge-wrap" data-asfx-bridge-rendered="risk">
+        <div class="asfx-bridge-head">
+          <div class="asfx-bridge-kicker">Risk Control</div>
+          <div class="asfx-bridge-title">${d.risk} Risk · ${d.pair}</div>
+          <div class="asfx-bridge-sub">Risk tab disiapkan untuk validasi setup sebelum entry. Detail eksekusi penuh tetap VIP.</div>
+        </div>
+
+        <div class="asfx-bridge-grid">
+          <div class="asfx-bridge-mini">
+            <small>Market Bias</small>
+            <b class="${biasClass(d.bias)}">${d.bias}</b>
+          </div>
+          <div class="asfx-bridge-mini">
+            <small>Timeframe</small>
+            <b>${d.tf}</b>
+          </div>
+          <div class="asfx-bridge-mini">
+            <small>Status</small>
+            <b class="asfx-bridge-wait">Preview</b>
+          </div>
+        </div>
+
+        <div class="asfx-bridge-lock">
+          VIP unlock: entry zone, stop loss, take profit, invalidation rule, position sizing, dan full risk reasoning.
+        </div>
+      </div>
+    `;
+  }
+
+  function chatHtml(d){
+    return `
+      <div class="asfx-bridge-wrap" data-asfx-bridge-rendered="chat">
+        <div class="asfx-bridge-head">
+          <div class="asfx-bridge-kicker">AI Chat Room</div>
+          <div class="asfx-bridge-title">Ask Sentinel · ${d.pair}</div>
+          <div class="asfx-bridge-sub">Nanti AI Chat menjelaskan bias, candle behavior, risk, dan alasan setup dengan bahasa trader yang mudah dipahami.</div>
+        </div>
+
+        <div class="asfx-bridge-box">
+          Contoh prompt: “Jelaskan kenapa ${d.pair} bias ${d.bias} di ${d.tf}, apa invalidasinya, dan apa yang harus ditunggu sebelum entry?”
+        </div>
+      </div>
+    `;
+  }
+
+  function vipHtml(d){
+    return `
+      <div class="asfx-bridge-wrap" data-asfx-bridge-rendered="vip">
+        <div class="asfx-bridge-head">
+          <div class="asfx-bridge-kicker">VIP Signal Detail</div>
+          <div class="asfx-bridge-title">Unlock Full ${d.pair} Room</div>
+          <div class="asfx-bridge-sub">Public melihat chart live dan preview. VIP membuka signal plan lengkap.</div>
+        </div>
+
+        <div class="asfx-bridge-lock">
+          VIP membuka: entry, SL, TP, confidence breakdown, SMC zone, risk plan, AI reasoning, dan signal history.
+        </div>
+      </div>
+    `;
+  }
+
+  function renderBridge(tab){
+    const p = panel();
+    if (!p || tab === "chart") return;
+
+    const d = readSignal();
+
+    if (tab === "signal") p.innerHTML = signalHtml(d);
+    if (tab === "risk") p.innerHTML = riskHtml(d);
+    if (tab === "chat") p.innerHTML = chatHtml(d);
+    if (tab === "vip") p.innerHTML = vipHtml(d);
+  }
+
+  document.addEventListener("click", function(e){
+    const btn = e.target.closest("[data-detail-tab]");
+    if (!btn) return;
+
+    setTimeout(() => {
+      renderBridge(btn.dataset.detailTab);
+    }, 120);
+  }, true);
+
+  setInterval(() => {
+    const tab = activeTab();
+    if (tab !== "chart") renderBridge(tab);
+  }, 1500);
 })();
