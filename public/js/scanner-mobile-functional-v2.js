@@ -2666,8 +2666,68 @@
     return v || fallback;
   }
 
+  
+  function signalPlanReadiness(d, smz){
+    const bias = String(d.bias || "WAIT").toUpperCase();
+    const risk = String(d.risk || smz.risk || "Medium");
+    const status = String(smz.signalStatus || "Waiting Zone");
+    const structure = String(smz.structure || "");
+    const zone = String(smz.zoneState || "");
+    const liquidity = String(smz.liquidity || "");
+    const imbalance = String(smz.imbalance || "");
+
+    let score = 0;
+    if (bias !== "WAIT") score += 20;
+    if (risk !== "High") score += 15;
+    if (/bullish|bearish/i.test(structure)) score += 20;
+    if (/demand|supply/i.test(zone)) score += 20;
+    if (/sweep/i.test(liquidity)) score += 10;
+    if (/imbalance|fvg/i.test(imbalance)) score += 10;
+    if (/conflict|invalid/i.test(status)) score -= 30;
+
+    score = Math.max(0, Math.min(95, score));
+
+    if (/conflict|invalid/i.test(status)) {
+      return { label: "Invalid / Conflict", score, note: "Struktur dan bias belum selaras. Signal plan belum aman." };
+    }
+
+    if (score >= 70) {
+      return { label: "Signal Preview", score, note: "Konteks mulai mendukung. Tetap tunggu candle confirmation sebelum eksekusi." };
+    }
+
+    if (score >= 50) {
+      return { label: "Almost Ready", score, note: "Setup mulai terbentuk, tapi validasi zona dan candle reaction belum lengkap." };
+    }
+
+    if (/demand|supply/i.test(zone)) {
+      return { label: "Zone Touched", score, note: "Harga mendekati zona penting. Tunggu reaksi candle yang bersih." };
+    }
+
+    return { label: "Waiting Zone", score, note: "Belum ada setup final. Tunggu harga masuk zona valid." };
+  }
+
+  function signalChecklistHtml(d, smz){
+    const items = [
+      ["Bias", String(d.bias || "WAIT").toUpperCase() !== "WAIT" ? d.bias : "WAIT"],
+      ["Structure", smzText(smz.structure, "Waiting")],
+      ["Zone", smzText(smz.zoneState, "Waiting Zone")],
+      ["Liquidity", smzText(smz.liquidity, "Waiting")],
+      ["Imbalance/FVG", smzText(smz.imbalance, "Waiting")],
+      ["Risk", d.risk || smz.risk || "Medium"],
+    ];
+
+    return items.map(([label, value]) => `
+      <div class="asfx-bridge-mini">
+        <small>${label}</small>
+        <b>${value}</b>
+      </div>
+    `).join("");
+  }
+
   function signalHtml(d){
     const smz = readSmz();
+    const readiness = signalPlanReadiness(d, smz);
+
     return `
       <div class="asfx-bridge-wrap" data-asfx-bridge-rendered="signal">
         <div class="asfx-bridge-head">
@@ -2682,28 +2742,30 @@
             <b class="${biasClass(d.bias)}">${d.bias}</b>
           </div>
           <div class="asfx-bridge-mini">
-            <small>Confidence</small>
-            <b>${d.confidence}</b>
+            <small>Readiness</small>
+            <b>${readiness.label}</b>
           </div>
           <div class="asfx-bridge-mini">
-            <small>Risk</small>
-            <b>${d.risk}</b>
+            <small>Score</small>
+            <b>${readiness.score}%</b>
           </div>
         </div>
 
         <div class="asfx-bridge-box">
-          <b style="color:#fff">SMZ Context</b><br>
-          Structure: <b style="color:#fff">${smzText(smz.structure)}</b><br>
-          Zone: <b style="color:#fff">${smzText(smz.zoneState)}</b><br>
-          Liquidity: <b style="color:#fff">${smzText(smz.liquidity)}</b><br>
-          Imbalance/FVG: <b style="color:#fff">${smzText(smz.imbalance)}</b>
+          <b style="color:#fff">Signal Readiness</b><br>
+          Status: <b style="color:#fff">${readiness.label}</b><br>
+          Detail: ${readiness.note}
+        </div>
+
+        <div class="asfx-bridge-grid">
+          ${signalChecklistHtml(d, smz)}
         </div>
 
         <div class="asfx-bridge-box">
           <b style="color:#fff">Current Plan Preview</b><br>
           Pair aktif: <b style="color:#fff">${d.pair}</b> · Timeframe: <b style="color:#fff">${d.tf}</b><br>
           Harga aktif: <b style="color:#fff">${d.price}</b><br>
-          Status: <b style="color:#fff">${smzText(smz.signalStatus, "Waiting Zone")}</b><br>
+          Status Flow: <b style="color:#fff">${smzText(smz.signalStatus, "Waiting Zone")}</b><br>
           Phase: <b style="color:#fff">${smzText(smz.smzPhase || smz.phase, "Observation")}</b><br><br>
           ${smz.reason || d.setup || "Menunggu reaksi candle yang lebih jelas sebelum final signal aktif."}
         </div>
@@ -4138,3 +4200,5 @@
     }, 300);
   }
 })();
+
+/* ASFX_SIGNAL_PLAN_READINESS_V1 */
