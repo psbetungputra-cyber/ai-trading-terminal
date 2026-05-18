@@ -2703,6 +2703,7 @@
           <b style="color:#fff">Current Plan Preview</b><br>
           Pair aktif: <b style="color:#fff">${d.pair}</b> · Timeframe: <b style="color:#fff">${d.tf}</b><br>
           Harga aktif: <b style="color:#fff">${d.price}</b><br>
+          Status: <b style="color:#fff">${smzText(smz.signalStatus, "Waiting Zone")}</b><br>
           Phase: <b style="color:#fff">${smzText(smz.smzPhase || smz.phase, "Observation")}</b><br><br>
           ${smz.reason || d.setup || "Menunggu reaksi candle yang lebih jelas sebelum final signal aktif."}
         </div>
@@ -2735,7 +2736,7 @@
           </div>
           <div class="asfx-bridge-mini">
             <small>Status</small>
-            <b class="asfx-bridge-wait">Preview</b>
+            <b class="asfx-bridge-wait">${smzText(smz.signalStatus, "Waiting Zone")}</b>
           </div>
         </div>
 
@@ -2772,7 +2773,7 @@
         <div class="asfx-bridge-box">
           <b style="color:#fff">Yang ditunggu:</b><br>
           ${smzText(smz.zoneState, "Zona valid")} · ${smzText(smz.structure, "struktur belum jelas")} · ${smzText(smz.liquidity, "liquidity belum jelas")}.<br><br>
-          Tunggu reaksi candle bersih sebelum Final Signal Plan aktif.
+          Status: <b style="color:#fff">${smzText(smz.signalStatus, "Waiting Zone")}</b><br>${smzText(smz.statusDetail, "Tunggu reaksi candle bersih sebelum Final Signal Plan aktif.")}
         </div>
       </div>
     `;
@@ -3968,7 +3969,7 @@
 
     const summary =
       `${structure}. ${zone}. ${liquidity}. ${imbalance}. ` +
-      `Bias ${bias}, risk ${risk}. Tunggu reaksi candle bersih sebelum Final Signal Plan aktif.`;
+      `Bias ${bias}, risk ${risk}. Status: <b style="color:#fff">${smzText(smz.signalStatus, "Waiting Zone")}</b><br>${smzText(smz.statusDetail, "Tunggu reaksi candle bersih sebelum Final Signal Plan aktif.")}`;
 
     return {
       bias,
@@ -4037,3 +4038,103 @@
 })();
 
 /* ASFX_SMZ_OUTPUT_BRIDGE_V1 */
+
+
+/* ASFX_SMZ_STATUS_FLOW_V1 */
+(() => {
+  if (window.__ASFX_SMZ_STATUS_FLOW_V1__) return;
+  window.__ASFX_SMZ_STATUS_FLOW_V1__ = true;
+
+  const text = (v) => String(v || "").toLowerCase();
+
+  const getStatus = (a = {}) => {
+    const bias = String(a.bias || "WAIT").toUpperCase();
+    const risk = String(a.risk || "Medium");
+    const structure = text(a.structure);
+    const zone = text(a.zoneState);
+    const liquidity = text(a.liquidity);
+    const imbalance = text(a.imbalance);
+
+    let signalStatus = "Waiting Zone";
+    let statusDetail = "Menunggu harga masuk area yang lebih valid sebelum signal plan aktif.";
+
+    const conflict =
+      (bias === "BUY" && structure.includes("bearish")) ||
+      (bias === "SELL" && structure.includes("bullish"));
+
+    const inZone =
+      zone.includes("demand") ||
+      zone.includes("supply");
+
+    const hasSweep =
+      liquidity.includes("sweep");
+
+    const hasImbalance =
+      imbalance.includes("imbalance") ||
+      imbalance.includes("fvg");
+
+    if (bias === "WAIT") {
+      signalStatus = "Waiting Confirmation";
+      statusDetail = "Bias belum cukup bersih. Tunggu struktur dan candle reaction yang lebih jelas.";
+    }
+
+    if (conflict) {
+      signalStatus = "Invalid / Conflict";
+      statusDetail = "Bias dan struktur sedang konflik. Hindari entry sampai struktur kembali selaras.";
+    } else if (risk === "High") {
+      signalStatus = "Risk Watch";
+      statusDetail = "Volatilitas atau posisi harga berisiko tinggi. Tunggu validasi ulang sebelum entry.";
+    } else if (inZone && bias !== "WAIT") {
+      signalStatus = "Zone Touched";
+      statusDetail = "Harga berada dekat zona penting. Tunggu reaksi candle bersih untuk validasi.";
+    } else if (bias !== "WAIT" && (hasSweep || hasImbalance || structure.includes("bullish") || structure.includes("bearish"))) {
+      signalStatus = "Signal Preview";
+      statusDetail = "Konteks awal mendukung arah, tapi detail entry tetap menunggu validasi zona dan candle.";
+    }
+
+    return {
+      signalStatus,
+      statusDetail,
+    };
+  };
+
+  const install = () => {
+    if (!window.AiSignalLogicV1?.analyze) return false;
+    if (window.AiSignalLogicV1.__smzStatusWrapped) return true;
+
+    const previousAnalyze = window.AiSignalLogicV1.analyze.bind(window.AiSignalLogicV1);
+
+    window.AiSignalLogicV1.analyze = (payload = {}) => {
+      const result = previousAnalyze(payload) || {};
+      const flow = getStatus(result);
+
+      const finalResult = {
+        ...result,
+        signalStatus: flow.signalStatus,
+        statusDetail: flow.statusDetail,
+        reason: `${result.reason || "Reading market context."} Status Flow: ${flow.signalStatus}. ${flow.statusDetail}`,
+      };
+
+      window.__ASFX_LAST_SMZ_ANALYSIS__ = finalResult;
+      return finalResult;
+    };
+
+    window.AiSignalLogicV1.__smzStatusWrapped = true;
+    window.AiSignalSMZStatusFlowV1 = {
+      version: "1.0.0",
+      evaluate: getStatus,
+      last: () => window.__ASFX_LAST_SMZ_ANALYSIS__ || null,
+    };
+
+    console.info("ASFX SMZ Status Flow V1 ready.");
+    return true;
+  };
+
+  if (!install()) {
+    let tries = 0;
+    const timer = setInterval(() => {
+      tries += 1;
+      if (install() || tries > 30) clearInterval(timer);
+    }, 300);
+  }
+})();
