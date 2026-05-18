@@ -816,9 +816,45 @@
   function detailPanelHTML(tab, data) {
     if (tab === "chart") {
       const isCrypto = state.mode === "crypto";
+      const key = `${state.pair}_${state.tf}`;
+      const candles = (state.detailCandles && state.detailCandles[key]) ? state.detailCandles[key] : [];
+      const last = candles.length ? candles[candles.length - 1] : null;
+      const price = last && last.c ? Number(last.c).toLocaleString("en-US", { maximumFractionDigits: 2 }) : "Loading";
+      const high = candles.length ? Math.max(...candles.map(c => Number(c.h || 0))).toLocaleString("en-US", { maximumFractionDigits: 2 }) : "—";
+      const low = candles.length ? Math.min(...candles.map(c => Number(c.l || 0))).toLocaleString("en-US", { maximumFractionDigits: 2 }) : "—";
       return `
-        <div class="asfx-room-chart" data-room-chart>
+        <div class="asfx-room-chart asfx-room-chart-v1" data-room-chart>
           ${isCrypto ? detailChartHTML() : referenceChartHTML(data)}
+        </div>
+
+        <div class="asfx-chart-info-strip">
+          <div>
+            <small>Price</small>
+            <b>${safe(price)}</b>
+            <em>Live feed</em>
+          </div>
+          <div>
+            <small>High</small>
+            <b>${safe(high)}</b>
+          </div>
+          <div>
+            <small>Low</small>
+            <b>${safe(low)}</b>
+          </div>
+          <div>
+            <small>Status</small>
+            <b class="live-dot">● Live</b>
+          </div>
+        </div>
+
+        <div class="asfx-detail-tfbar">
+          <button class="${state.tf === "15m" ? "active" : ""}">15m</button>
+          <button class="${state.tf === "1h" ? "active" : ""}">1H</button>
+          <button class="${state.tf === "4h" ? "active" : ""}">4H</button>
+          <button class="${state.tf === "1d" ? "active" : ""}">1D</button>
+          <button>1W</button>
+          <button class="icon">▥</button>
+          <button class="icon">ƒx</button>
         </div>
       `;
     }
@@ -1660,4 +1696,724 @@
 
   setTimeout(injectDetailRoomPolishV1, 300);
   setTimeout(injectDetailRoomPolishV1, 1200);
+})();
+
+
+/* DETAIL_ROOM_LAYOUT_V1 */
+(function injectDetailRoomLayoutV1(){
+  if (document.getElementById("asfx-detail-room-layout-v1")) return;
+
+  const style = document.createElement("style");
+  style.id = "asfx-detail-room-layout-v1";
+  style.textContent = `
+    html, body {
+      max-width: 100%;
+      overflow-x: hidden !important;
+    }
+
+    .asfx-detail-room {
+      padding: 18px 10px 24px !important;
+      max-width: 100vw !important;
+      overflow-x: hidden !important;
+      background:
+        radial-gradient(circle at 20% 0%, rgba(37,99,235,.24), transparent 34%),
+        linear-gradient(180deg, #020617 0%, #030712 100%) !important;
+    }
+
+    .asfx-detail-brand {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 0 2px 18px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid rgba(148,163,184,.18);
+    }
+
+    .asfx-brand-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .asfx-brand-logo {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-weight: 1000;
+      font-size: 22px;
+      background: linear-gradient(135deg, #38bdf8, #2563eb 55%, #020617);
+      box-shadow: 0 14px 34px rgba(37,99,235,.35);
+    }
+
+    .asfx-brand-name {
+      color: #fff;
+      font-size: 22px;
+      font-weight: 950;
+      letter-spacing: -.03em;
+      white-space: nowrap;
+    }
+
+    .asfx-brand-name span {
+      font-size: 12px;
+      color: #60a5fa;
+      border: 1px solid rgba(96,165,250,.35);
+      background: rgba(37,99,235,.16);
+      border-radius: 9px;
+      padding: 3px 7px;
+      margin-left: 4px;
+      vertical-align: middle;
+    }
+
+    .asfx-brand-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .asfx-brand-actions button {
+      width: 42px;
+      height: 42px;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,.24);
+      background: rgba(15,23,42,.72);
+      color: #e5e7eb;
+      font-size: 21px;
+      font-weight: 800;
+    }
+
+    .asfx-detail-top {
+      gap: 10px !important;
+      margin-bottom: 14px !important;
+    }
+
+    .asfx-detail-back {
+      min-width: 104px !important;
+      height: 58px !important;
+      border-radius: 28px !important;
+      font-size: 16px !important;
+    }
+
+    .asfx-detail-title {
+      flex: 1;
+      min-width: 0;
+      padding: 8px 10px !important;
+      background: linear-gradient(90deg, rgba(2,6,23,0), rgba(37,99,235,.30));
+    }
+
+    .asfx-detail-title small {
+      font-size: 11px !important;
+      letter-spacing: .34em !important;
+      color: #38bdf8 !important;
+    }
+
+    .asfx-detail-title h2 {
+      font-size: clamp(34px, 9vw, 48px) !important;
+      line-height: .95 !important;
+      letter-spacing: -.06em !important;
+      margin-top: 5px !important;
+    }
+
+    .asfx-detail-card {
+      margin: 0 !important;
+      padding: 12px 8px 10px !important;
+      border-radius: 28px !important;
+      border: 1px solid rgba(96,165,250,.25) !important;
+      background: linear-gradient(180deg, rgba(15,23,42,.96), rgba(2,6,23,.98)) !important;
+      overflow: hidden !important;
+    }
+
+    .asfx-detail-tabs {
+      display: flex !important;
+      gap: 9px !important;
+      overflow-x: auto !important;
+      padding: 4px 4px 14px !important;
+      scrollbar-width: none;
+    }
+
+    .asfx-detail-tabs::-webkit-scrollbar {
+      display: none;
+    }
+
+    .asfx-detail-tabs button {
+      min-width: max-content !important;
+      padding: 13px 22px !important;
+      border-radius: 24px !important;
+      font-size: 15px !important;
+      border: 1px solid rgba(148,163,184,.20) !important;
+    }
+
+    .asfx-detail-tabs button.active {
+      background: linear-gradient(135deg, #2563eb, #06b6d4) !important;
+      box-shadow: 0 12px 30px rgba(14,165,233,.24);
+    }
+
+    .asfx-detail-panel {
+      min-height: 0 !important;
+    }
+
+    .asfx-room-chart-v1,
+    .asfx-room-chart {
+      width: 100% !important;
+      height: 560px !important;
+      min-height: 560px !important;
+      margin: 0 !important;
+      border-radius: 24px !important;
+      overflow: hidden !important;
+      border: 1px solid rgba(148,163,184,.30) !important;
+      background:
+        linear-gradient(rgba(148,163,184,.07) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(148,163,184,.07) 1px, transparent 1px),
+        radial-gradient(circle at 50% 18%, rgba(37,99,235,.20), transparent 38%),
+        linear-gradient(180deg, rgba(15,23,42,.95), rgba(2,6,23,.96)) !important;
+      background-size: 100% 70px, 125px 100%, auto, auto !important;
+    }
+
+    .asfx-room-chart::before,
+    .asfx-room-chart::after {
+      display: none !important;
+    }
+
+    .asfx-room-chart-svg {
+      width: 100% !important;
+      height: 100% !important;
+      display: block !important;
+      border-radius: 24px !important;
+    }
+
+    .asfx-chart-info-strip {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0;
+      border: 1px solid rgba(148,163,184,.20);
+      background: rgba(15,23,42,.78);
+      border-radius: 20px;
+      overflow: hidden;
+    }
+
+    .asfx-chart-info-strip div {
+      padding: 12px 9px;
+      min-width: 0;
+      border-right: 1px solid rgba(148,163,184,.16);
+    }
+
+    .asfx-chart-info-strip div:last-child {
+      border-right: 0;
+    }
+
+    .asfx-chart-info-strip small {
+      display: block;
+      color: #94a3b8;
+      font-size: 10px;
+      margin-bottom: 5px;
+    }
+
+    .asfx-chart-info-strip b {
+      display: block;
+      color: #fff;
+      font-size: 13px;
+      line-height: 1.05;
+      overflow-wrap: anywhere;
+    }
+
+    .asfx-chart-info-strip em {
+      display: block;
+      color: #22c55e;
+      font-size: 10px;
+      font-style: normal;
+      margin-top: 5px;
+    }
+
+    .asfx-chart-info-strip .live-dot {
+      color: #22c55e;
+    }
+
+    .asfx-detail-tfbar {
+      margin-top: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px;
+      border-radius: 20px;
+      border: 1px solid rgba(148,163,184,.18);
+      background: rgba(15,23,42,.72);
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .asfx-detail-tfbar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .asfx-detail-tfbar button {
+      border: 0;
+      background: transparent;
+      color: #94a3b8;
+      font-size: 14px;
+      font-weight: 900;
+      padding: 10px 13px;
+      border-radius: 999px;
+      min-width: max-content;
+    }
+
+    .asfx-detail-tfbar button.active {
+      color: #38bdf8;
+      background: rgba(56,189,248,.10);
+    }
+
+    .asfx-detail-tfbar button.icon {
+      margin-left: auto;
+      border: 1px solid rgba(148,163,184,.20);
+      background: rgba(2,6,23,.35);
+      color: #fff;
+    }
+
+    .asfx-detail-tfbar button.icon + button.icon {
+      margin-left: 0;
+    }
+
+    @media (max-width: 520px) {
+      .asfx-detail-room {
+        padding-left: 8px !important;
+        padding-right: 8px !important;
+      }
+
+      .asfx-brand-name {
+        font-size: 20px;
+      }
+
+      .asfx-detail-card {
+        padding-left: 7px !important;
+        padding-right: 7px !important;
+      }
+
+      .asfx-room-chart-v1,
+      .asfx-room-chart {
+        height: 545px !important;
+        min-height: 545px !important;
+      }
+
+      .asfx-chart-info-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .asfx-chart-info-strip div:nth-child(2) {
+        border-right: 0;
+      }
+
+      .asfx-chart-info-strip div:nth-child(1),
+      .asfx-chart-info-strip div:nth-child(2) {
+        border-bottom: 1px solid rgba(148,163,184,.16);
+      }
+    }
+  `;
+
+  document.head.appendChild(style);
+})();
+
+
+/* SCANNER_STANDALONE_LIVE_CHART_V4 */
+(function scannerStandaloneLiveChartV4(){
+  if (document.getElementById("asfx-standalone-live-chart-v4")) return;
+
+  const style = document.createElement("style");
+  style.id = "asfx-standalone-live-chart-v4";
+  style.textContent = `
+    .asfx-room-chart {
+      height: clamp(360px, 46svh, 430px) !important;
+      min-height: 360px !important;
+      max-height: 430px !important;
+      border-radius: 22px !important;
+      overflow: hidden !important;
+      background:
+        radial-gradient(circle at 50% 18%, rgba(37,99,235,.18), transparent 42%),
+        linear-gradient(180deg, rgba(15,23,42,.96), rgba(2,6,23,.98)) !important;
+    }
+
+    .asfx-room-chart-svg {
+      width: 100% !important;
+      height: 100% !important;
+      display: block !important;
+    }
+
+    .asfx-standalone-live { color:#22c55e !important; font-weight:950 !important; }
+    .asfx-standalone-wait { color:#facc15 !important; font-weight:950 !important; }
+
+    .asfx-standalone-dot {
+      display:inline-block;
+      width:7px;
+      height:7px;
+      border-radius:999px;
+      background:#22c55e;
+      margin-right:5px;
+      animation:asfxStandalonePulse 1s infinite;
+    }
+
+    @keyframes asfxStandalonePulse {
+      0%{box-shadow:0 0 0 0 rgba(34,197,94,.55)}
+      70%{box-shadow:0 0 0 7px rgba(34,197,94,0)}
+      100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}
+    }
+
+    .asfx-price-up { color:#22c55e !important; }
+    .asfx-price-down { color:#ef4444 !important; }
+
+    .asfx-room-chart.asfx-standalone-flash {
+      box-shadow:0 0 0 1px rgba(34,197,94,.18),0 0 22px rgba(37,99,235,.16)!important;
+    }
+
+    .asfx-chart-info-strip {
+      margin-top: 8px !important;
+      display: flex !important;
+      gap: 7px !important;
+      overflow-x: auto !important;
+      scrollbar-width: none !important;
+    }
+
+    .asfx-chart-info-strip::-webkit-scrollbar {
+      display: none !important;
+    }
+
+    .asfx-chart-info-strip div {
+      flex: 0 0 106px !important;
+      min-width: 106px !important;
+      padding: 8px 9px !important;
+      border-radius: 14px !important;
+      border: 1px solid rgba(148,163,184,.18) !important;
+      background: rgba(15,23,42,.80) !important;
+    }
+
+    .asfx-chart-info-strip small {
+      display:block !important;
+      color:#94a3b8 !important;
+      font-size:9px !important;
+      margin-bottom:3px !important;
+    }
+
+    .asfx-chart-info-strip b {
+      display:block !important;
+      color:#fff !important;
+      font-size:12px !important;
+      line-height:1.1 !important;
+    }
+
+    .asfx-chart-info-strip em {
+      display:block !important;
+      color:#22c55e !important;
+      font-size:9px !important;
+      font-style:normal !important;
+      margin-top:3px !important;
+    }
+  `;
+  document.head.appendChild(style);
+
+  const BASE = "/api/binance";
+  const TF_MS = {
+    "1m":60000,"3m":180000,"5m":300000,"15m":900000,"30m":1800000,
+    "1h":3600000,"4h":14400000,"1d":86400000,"1w":604800000
+  };
+
+  let candles = [];
+  let lastPrice = null;
+  let lastLoad = 0;
+  let busy = false;
+  let status = "WAIT";
+
+  function safe(v){
+    return String(v ?? "").replace(/[&<>"']/g, c => ({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+    })[c]);
+  }
+
+  function ctx(){
+    const title = document.querySelector(".asfx-detail-title h2")?.textContent || "BTCUSDT · 15m";
+    const pairMatch = title.match(/([A-Z0-9]{5,20})/);
+    const tfMatch = title.match(/(1m|3m|5m|15m|30m|1h|4h|1d|1w)/i);
+
+    return {
+      pair: (pairMatch ? pairMatch[1] : "BTCUSDT").toUpperCase(),
+      tf: (tfMatch ? tfMatch[1] : "15m").toLowerCase()
+    };
+  }
+
+  function box(){
+    return document.querySelector(".asfx-detail-room .asfx-room-chart");
+  }
+
+  function isDetailOpen(){
+    return !!box();
+  }
+
+  function fmt(n){
+    const x = Number(n);
+    if (!Number.isFinite(x)) return "—";
+    return x.toLocaleString("en-US", { maximumFractionDigits: x > 100 ? 2 : 5 });
+  }
+
+  function leftText(){
+    const { tf } = ctx();
+    const dur = TF_MS[tf] || TF_MS["15m"];
+    const now = Date.now();
+    const next = Math.ceil(now / dur) * dur;
+    const total = Math.max(0, Math.floor((next - now) / 1000));
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const s = total % 60;
+
+    if (h > 0) return `${h}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+    return `${m}:${String(s).padStart(2,"0")}`;
+  }
+
+  function ensureWorkspace(nextStatus){
+    if (nextStatus) status = nextStatus;
+
+    const top = document.querySelector(".asfx-detail-top");
+    if (!top) return;
+
+    let bar = document.querySelector(".asfx-workspace-bar");
+    if (!bar) {
+      top.insertAdjacentHTML("afterend", `<div class="asfx-workspace-bar"></div>`);
+      bar = document.querySelector(".asfx-workspace-bar");
+    }
+
+    const ok = status === "LIVE";
+
+    bar.innerHTML = `
+      <b>Workspace</b>
+      <span>
+        <i class="asfx-standalone-dot"></i>
+        Scanner <strong class="${ok ? "asfx-standalone-live" : "asfx-standalone-wait"}">${safe(status)}</strong>
+        · ${safe(ctx().tf)} ${safe(leftText())}
+      </span>
+    `;
+  }
+
+  async function getJson(url){
+    const res = await fetch(url + (url.includes("?") ? "&" : "?") + "_=" + Date.now(), {
+      cache: "no-store"
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  }
+
+  async function loadKlines(){
+    const { pair, tf } = ctx();
+    const raw = await getJson(`${BASE}/klines?symbol=${encodeURIComponent(pair)}&interval=${encodeURIComponent(tf)}&limit=80`);
+
+    candles = raw.map(k => ({
+      t:Number(k[0]),
+      o:Number(k[1]),
+      h:Number(k[2]),
+      l:Number(k[3]),
+      c:Number(k[4]),
+      v:Number(k[5])
+    })).filter(c => Number.isFinite(c.c));
+
+    if (!candles.length) throw new Error("empty candles");
+
+    lastLoad = Date.now();
+  }
+
+  function yFor(price, min, max, padT, chartH){
+    return padT + ((max - price) / Math.max(1e-9, max - min)) * chartH;
+  }
+
+  function chartSvg(){
+    const { pair, tf } = ctx();
+    const visible = candles.slice(-48);
+
+    if (!visible.length) {
+      return `<div class="asfx-chart-empty">Loading ${safe(pair)} candles...</div>`;
+    }
+
+    const w = 760;
+    const h = 420;
+    const padL = 38;
+    const padR = 98;
+    const padT = 42;
+    const padB = 44;
+    const chartW = w - padL - padR;
+    const chartH = h - padT - padB;
+
+    const highs = visible.map(c => Number(c.h));
+    const lows = visible.map(c => Number(c.l));
+    const max = Math.max(...highs);
+    const min = Math.min(...lows);
+    const range = Math.max(1e-9, max - min);
+    const step = chartW / Math.max(visible.length - 1, 1);
+    const bodyW = Math.max(4, Math.min(10, step * .55));
+
+    const grid = [1/6,2/6,3/6,4/6,5/6].map(p => {
+      const y = padT + chartH * p;
+      const price = max - range * p;
+      return `
+        <line x1="${padL}" y1="${y}" x2="${w-padR+8}" y2="${y}" stroke="rgba(148,163,184,.14)"/>
+        <text x="${w-padR+18}" y="${y+5}" fill="#94a3b8" font-size="12" font-weight="800">${fmt(price)}</text>
+      `;
+    }).join("");
+
+    const vgrid = [0,1,2,3,4].map(i => {
+      const x = padL + (chartW/4) * i;
+      return `<line x1="${x}" y1="${padT}" x2="${x}" y2="${padT+chartH}" stroke="rgba(148,163,184,.08)"/>`;
+    }).join("");
+
+    const candleSvg = visible.map((c, i) => {
+      const x = padL + i * step;
+      const up = Number(c.c) >= Number(c.o);
+      const color = up ? "#22c55e" : "#ef4444";
+      const highY = yFor(Number(c.h), min, max, padT, chartH);
+      const lowY = yFor(Number(c.l), min, max, padT, chartH);
+      const openY = yFor(Number(c.o), min, max, padT, chartH);
+      const closeY = yFor(Number(c.c), min, max, padT, chartH);
+      const top = Math.min(openY, closeY);
+      const height = Math.max(3, Math.abs(openY - closeY));
+
+      return `
+        <line x1="${x}" y1="${highY}" x2="${x}" y2="${lowY}" stroke="${color}" stroke-width="2" stroke-linecap="round"/>
+        <rect x="${x-bodyW/2}" y="${top}" width="${bodyW}" height="${height}" rx="2" fill="${color}"/>
+      `;
+    }).join("");
+
+    const last = visible[visible.length - 1];
+    const prev = visible[visible.length - 2] || last;
+    const down = Number(last.c) < Number(prev.c);
+    const lastY = yFor(Number(last.c), min, max, padT, chartH);
+    const tagColor = down ? "#ef4444" : "#2563eb";
+    const lineColor = down ? "rgba(239,68,68,.82)" : "rgba(96,165,250,.86)";
+
+    return `
+      <svg class="asfx-room-chart-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="asfxStandaloneBg" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stop-color="#0f172a" stop-opacity=".96"/>
+            <stop offset="100%" stop-color="#020617" stop-opacity=".98"/>
+          </linearGradient>
+        </defs>
+        <rect x="0" y="0" width="${w}" height="${h}" fill="url(#asfxStandaloneBg)" rx="24"/>
+        ${grid}
+        ${vgrid}
+        <text x="${padL}" y="28" fill="#93c5fd" font-size="13" font-weight="900">${safe(pair)} · ${safe(tf)}</text>
+        <g>${candleSvg}</g>
+        <line x1="${padL}" y1="${lastY}" x2="${w-padR+8}" y2="${lastY}" stroke="${lineColor}" stroke-dasharray="3 5" stroke-width="2"/>
+        <rect x="${w-padR+8}" y="${lastY-25}" width="${padR-12}" height="50" rx="8" fill="${tagColor}" opacity=".98"/>
+        <text x="${w-padR+16}" y="${lastY-5}" fill="#fff" font-size="12" font-weight="950">${fmt(last.c)}</text>
+        <text x="${w-padR+16}" y="${lastY+14}" fill="rgba(255,255,255,.86)" font-size="12" font-weight="800">${leftText()}</text>
+      </svg>
+    `;
+  }
+
+  function updateStrip(){
+    const b = box();
+    if (!b || !candles.length) return;
+
+    let strip = document.querySelector(".asfx-chart-info-strip");
+    if (!strip) {
+      b.insertAdjacentHTML("afterend", `<div class="asfx-chart-info-strip"></div>`);
+      strip = document.querySelector(".asfx-chart-info-strip");
+    }
+
+    const recent = candles.slice(-80);
+    const last = recent[recent.length - 1];
+    const high = Math.max(...recent.map(c => Number(c.h || 0)));
+    const low = Math.min(...recent.map(c => Number(c.l || last.l)));
+    const p = Number(last.c);
+    const cls = lastPrice === null || p >= lastPrice ? "asfx-price-up" : "asfx-price-down";
+    lastPrice = p;
+
+    strip.innerHTML = `
+      <div>
+        <small>Price</small>
+        <b class="${cls}">${fmt(p)}</b>
+        <em>${leftText()}</em>
+      </div>
+      <div>
+        <small>High</small>
+        <b>${fmt(high)}</b>
+      </div>
+      <div>
+        <small>Low</small>
+        <b>${fmt(low)}</b>
+      </div>
+      <div>
+        <small>Status</small>
+        <b class="asfx-price-up">● Live</b>
+      </div>
+    `;
+  }
+
+  function render(){
+    const b = box();
+    if (!b) return;
+
+    b.innerHTML = chartSvg();
+    b.classList.add("asfx-standalone-flash");
+    setTimeout(() => b.classList.remove("asfx-standalone-flash"), 160);
+
+    updateStrip();
+  }
+
+  async function tick(){
+    if (!isDetailOpen()) return;
+    if (busy) return;
+
+    busy = true;
+
+    try {
+      if (!candles.length || Date.now() - lastLoad > 12000) {
+        await loadKlines();
+      }
+
+      const { pair } = ctx();
+      const priceJson = await getJson(`${BASE}/ticker/price?symbol=${encodeURIComponent(pair)}`);
+      const live = Number(priceJson.price);
+
+      if (!Number.isFinite(live)) throw new Error("bad price");
+
+      const last = candles[candles.length - 1];
+      last.c = live;
+      last.h = Math.max(Number(last.h || live), live);
+      last.l = Math.min(Number(last.l || live), live);
+
+      render();
+      ensureWorkspace("LIVE");
+    } catch(e) {
+      console.warn("Standalone scanner live wait:", e.message);
+      ensureWorkspace("WAIT");
+    } finally {
+      busy = false;
+    }
+  }
+
+  function timer(){
+    if (!isDetailOpen()) return;
+    ensureWorkspace(status);
+
+    const b = box();
+    if (b && candles.length) {
+      render();
+    }
+  }
+
+  setInterval(timer, 1000);
+  setInterval(tick, 1000);
+
+  document.addEventListener("click", () => {
+    setTimeout(tick, 250);
+  }, true);
+
+  const observer = new MutationObserver(() => {
+    setTimeout(tick, 250);
+  });
+
+  observer.observe(document.documentElement, {
+    childList: true,
+    subtree: true
+  });
+
+  setTimeout(tick, 700);
 })();
