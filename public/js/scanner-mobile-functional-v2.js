@@ -2756,3 +2756,128 @@
     if (tab !== "chart") renderBridge(tab);
   }, 1500);
 })();
+
+
+/* SCANNER_DETAIL_ROOM_SAFE_POLISH_V1 */
+(() => {
+  if (window.__SCANNER_DETAIL_ROOM_SAFE_POLISH_V1__) return;
+  window.__SCANNER_DETAIL_ROOM_SAFE_POLISH_V1__ = true;
+
+  const style = document.createElement("style");
+  style.setAttribute("data-patch", "scanner-detail-room-safe-polish-v1");
+  style.textContent = `
+    html,
+    body {
+      max-width: 100%;
+      overflow-x: hidden !important;
+    }
+
+    #app,
+    main,
+    .app-shell,
+    .mobile-shell,
+    .scanner-shell,
+    .scanner-page,
+    .scanner-detail-room,
+    .signal-detail-room,
+    .detail-room,
+    [data-detail-room],
+    [data-scanner-detail] {
+      max-width: 100vw !important;
+      overflow-x: hidden !important;
+      box-sizing: border-box !important;
+    }
+
+    .scanner-detail-room *,
+    .signal-detail-room *,
+    .detail-room *,
+    [data-detail-room] *,
+    [data-scanner-detail] * {
+      box-sizing: border-box !important;
+    }
+
+    .scanner-detail-room canvas,
+    .signal-detail-room canvas,
+    .detail-room canvas,
+    [data-detail-room] canvas,
+    [data-scanner-detail] canvas,
+    .scanner-detail-room svg,
+    .signal-detail-room svg,
+    .detail-room svg,
+    [data-detail-room] svg,
+    [data-scanner-detail] svg {
+      max-width: 100% !important;
+    }
+
+    .scanner-detail-room .chart,
+    .signal-detail-room .chart,
+    .detail-room .chart,
+    .scanner-detail-room .chart-box,
+    .signal-detail-room .chart-box,
+    .detail-room .chart-box,
+    .scanner-detail-room .chart-panel,
+    .signal-detail-room .chart-panel,
+    .detail-room .chart-panel,
+    .scanner-detail-room .live-chart,
+    .signal-detail-room .live-chart,
+    .detail-room .live-chart,
+    .scanner-detail-room .scanner-live-chart,
+    .signal-detail-room .scanner-live-chart,
+    .detail-room .scanner-live-chart,
+    .scanner-detail-room .detail-chart,
+    .signal-detail-room .detail-chart,
+    .detail-room .detail-chart {
+      width: 100% !important;
+      max-width: 100% !important;
+      min-width: 0 !important;
+      overflow: hidden !important;
+    }
+
+    @media (max-width: 768px) {
+      .scanner-detail-room .chart,
+      .signal-detail-room .chart,
+      .detail-room .chart,
+      .scanner-detail-room .chart-box,
+      .signal-detail-room .chart-box,
+      .detail-room .chart-box,
+      .scanner-detail-room .chart-panel,
+      .signal-detail-room .chart-panel,
+      .detail-room .chart-panel,
+      .scanner-detail-room .live-chart,
+      .signal-detail-room .live-chart,
+      .detail-room .live-chart,
+      .scanner-detail-room .scanner-live-chart,
+      .signal-detail-room .scanner-live-chart,
+      .detail-room .scanner-live-chart,
+      .scanner-detail-room .detail-chart,
+      .signal-detail-room .detail-chart,
+      .detail-room .detail-chart {
+        min-height: 320px !important;
+      }
+
+      .scanner-detail-room .stat-card,
+      .signal-detail-room .stat-card,
+      .detail-room .stat-card,
+      .scanner-detail-room .metric-card,
+      .signal-detail-room .metric-card,
+      .detail-room .metric-card,
+      .scanner-detail-room .price-card,
+      .signal-detail-room .price-card,
+      .detail-room .price-card {
+        padding: 10px 12px !important;
+        border-radius: 16px !important;
+      }
+
+      .scanner-detail-room .chat-box,
+      .signal-detail-room .chat-box,
+      .detail-room .chat-box,
+      .scanner-detail-room textarea,
+      .signal-detail-room textarea,
+      .detail-room textarea {
+        max-height: 170px !important;
+      }
+    }
+  `;
+
+  document.head.appendChild(style);
+})();
