@@ -2453,3 +2453,79 @@ window.saveLearningModule = saveLearningModule;
 
   console.info("ASFX Access Role Persist Fix V1 ready.");
 })();
+
+
+/* ASFX_HIDE_BOTTOM_NAV_LOGIN_ONLY_V1 */
+(() => {
+  if (window.__ASFX_HIDE_BOTTOM_NAV_LOGIN_ONLY_V1__) return;
+  window.__ASFX_HIDE_BOTTOM_NAV_LOGIN_ONLY_V1__ = true;
+
+  const isLoginScreen = () => {
+    const t = document.body ? String(document.body.innerText || "") : "";
+
+    const authText =
+      /OPEN TERMINAL|Register Preview|Username or Email|Password/i.test(t);
+
+    const alreadyInsideTerminal =
+      /Command Center|BTCUSDT Active Signal|Market Scanner|Scanner LIVE|Admin Control|Sentinel Community|Profile Settings/i.test(t);
+
+    return window.innerWidth <= 900 && authText && !alreadyInsideTerminal;
+  };
+
+  const isBottomNav = (el) => {
+    if (!el) return false;
+
+    const t = String(el.textContent || "").toLowerCase();
+    const cls = String(el.className || "").toLowerCase();
+
+    return (
+      cls.includes("v4-bottom-nav") ||
+      cls.includes("asfx-detected-bottom-nav") ||
+      (
+        t.includes("home") &&
+        t.includes("scanner") &&
+        t.includes("community") &&
+        t.includes("profile")
+      )
+    );
+  };
+
+  const findNavs = () => {
+    return Array.from(document.querySelectorAll(".v4-bottom-nav, .asfx-detected-bottom-nav, nav, footer, div"))
+      .filter(isBottomNav);
+  };
+
+  const hideNav = (nav) => {
+    nav.style.setProperty("display", "none", "important");
+    nav.style.setProperty("opacity", "0", "important");
+    nav.style.setProperty("pointer-events", "none", "important");
+    nav.setAttribute("data-asfx-login-hidden", "true");
+  };
+
+  const showNav = (nav) => {
+    if (nav.getAttribute("data-asfx-login-hidden") !== "true") return;
+
+    nav.style.removeProperty("display");
+    nav.style.removeProperty("opacity");
+    nav.style.removeProperty("pointer-events");
+    nav.removeAttribute("data-asfx-login-hidden");
+  };
+
+  const sync = () => {
+    const hide = isLoginScreen();
+    findNavs().forEach((nav) => {
+      if (hide) hideNav(nav);
+      else showNav(nav);
+    });
+  };
+
+  setInterval(sync, 300);
+  document.addEventListener("click", () => setTimeout(sync, 100), true);
+  window.addEventListener("resize", sync);
+
+  setTimeout(sync, 100);
+  setTimeout(sync, 600);
+  setTimeout(sync, 1400);
+
+  console.info("ASFX Hide Bottom Nav Login Only V1 ready.");
+})();

@@ -4903,3 +4903,39 @@ body.v31-chart-mode .chart-terminal-compact-top {
     color: #3b82f6;
   }
 }
+
+/* ASFX MOBILE BOTTOM NAV SAFE SPACE COMPACT V2 */
+@media (max-width: 900px) {
+  body {
+    padding-bottom: 72px !important;
+  }
+
+  #app,
+  main,
+  .page,
+  .v4-shell,
+  .v4-shell-page,
+  .app-shell,
+  .dashboard,
+  .scanner-page,
+  .community-page,
+  .profile-page,
+  .admin-page,
+  .settings-page,
+  .asfx-detail-room {
+    padding-bottom: 82px !important;
+    box-sizing: border-box !important;
+  }
+
+  .admin-panel,
+  .admin-list,
+  .profile-panel,
+  .community-feed,
+  .scanner-grid,
+  .v4-module-grid,
+  .v4-lab,
+  .v4-community,
+  .v4-profile {
+    margin-bottom: 82px !important;
+  }
+}
