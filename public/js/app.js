@@ -2171,3 +2171,260 @@ window.saveLearningModule = saveLearningModule;
     setTimeout(renderCommunityV2, 1500);
   });
 })();
+
+
+/* ASFX_FIREBASE_ACCESS_GUARD_V1 */
+(() => {
+  if (window.__ASFX_FIREBASE_ACCESS_GUARD_V1__) return;
+  window.__ASFX_FIREBASE_ACCESS_GUARD_V1__ = true;
+
+  const OWNER_EMAILS = new Set([
+    "psbetungputra@gmail.com"
+  ]);
+
+  const OWNER_KEYS = new Set([
+    "psbetung",
+    "psbetungputra",
+    "romadon saputra",
+    "romadon"
+  ]);
+
+  const CACHE_KEY_SAFE = "aisignalfx:firebase_user";
+
+  const clean = (v) => String(v || "").trim().toLowerCase();
+
+  const queryAccess = () => {
+    const q = new URLSearchParams(window.location.search);
+    return (
+      q.get("owner") === "1" ||
+      q.get("admin") === "1" ||
+      clean(q.get("access")) === "owner"
+    );
+  };
+
+  const readCachedUser = () => {
+    try {
+      return JSON.parse(localStorage.getItem(CACHE_KEY_SAFE) || "null");
+    } catch (err) {
+      return null;
+    }
+  };
+
+  const getActiveUser = () => {
+    try {
+      if (typeof currentUser !== "undefined" && currentUser) return currentUser;
+    } catch (err) {}
+
+    if (window.currentUser) return window.currentUser;
+
+    return readCachedUser();
+  };
+
+  const emailOf = (profile) => clean(
+    profile?.email ||
+    profile?.user?.email ||
+    profile?.firebaseUser?.email ||
+    ""
+  );
+
+  const nameKeyOf = (profile) => clean(
+    profile?.username ||
+    profile?.handle ||
+    profile?.name ||
+    profile?.displayName ||
+    ""
+  );
+
+  const ownerMatch = (profile) => {
+    if (queryAccess()) return true;
+
+    const email = emailOf(profile);
+    const key = nameKeyOf(profile);
+    const role = clean(profile?.role);
+    const level = clean(profile?.level);
+
+    return (
+      OWNER_EMAILS.has(email) ||
+      OWNER_KEYS.has(key) ||
+      role === "owner" ||
+      role === "founder" ||
+      level === "owner"
+    );
+  };
+
+  const normalizeProfile = (profile) => {
+    if (!profile) return profile;
+
+    const isOwner = ownerMatch(profile);
+    const role = clean(profile.role);
+    const level = clean(profile.level);
+
+    if (isOwner) {
+      profile.role = "owner";
+      profile.level = "admin";
+      profile.vipText = "Owner Access";
+      profile.vipAccess = true;
+      profile.isOwner = true;
+      profile.isAdmin = true;
+      profile.isVip = true;
+      profile.status = "owner";
+    } else if (role === "admin" || level === "admin") {
+      profile.role = profile.role || "admin";
+      profile.level = "admin";
+      profile.vipAccess = true;
+      profile.isAdmin = true;
+      profile.isVip = true;
+    } else if (role === "vip" || level === "vip") {
+      profile.role = profile.role || "vip";
+      profile.level = "vip";
+      profile.vipAccess = true;
+      profile.isVip = true;
+    }
+
+    try {
+      if (typeof currentUser !== "undefined") currentUser = profile;
+    } catch (err) {}
+
+    window.currentUser = profile;
+
+    try {
+      localStorage.setItem(CACHE_KEY_SAFE, JSON.stringify(profile));
+    } catch (err) {}
+
+    return profile;
+  };
+
+  const getAccess = () => {
+    const profile = normalizeProfile(getActiveUser() || {});
+    const role = clean(profile.role);
+    const level = clean(profile.level);
+    const owner = ownerMatch(profile);
+    const admin = owner || role === "admin" || level === "admin";
+    const vip = admin || role === "vip" || level === "vip" || profile.vipAccess === true;
+
+    return {
+      profile,
+      role: owner ? "owner" : admin ? "admin" : vip ? "vip" : "free",
+      owner,
+      admin,
+      vip,
+      canOpenAdmin: owner || admin,
+      canOpenSignalRoom: owner || admin || vip,
+      canUseVip: owner || admin || vip
+    };
+  };
+
+  const applyAccessDom = () => {
+    const access = getAccess();
+    document.documentElement.dataset.asfxRole = access.role;
+    document.body?.setAttribute("data-asfx-role", access.role);
+
+    if (access.canUseVip) {
+      document.querySelectorAll(".vip-lock, [data-vip-lock], .scanner-lock").forEach((el) => {
+        el.classList.add("hidden");
+        el.setAttribute("data-asfx-unlocked", "true");
+      });
+
+      document.querySelectorAll("[data-vip-content], .vip-content").forEach((el) => {
+        el.classList.remove("hidden");
+      });
+    }
+  };
+
+  const syncOwnerRole = async () => {
+    try {
+      const access = getAccess();
+      const profile = access.profile;
+
+      if (!access.owner || !profile?.uid || !window.AiSignalFirebase?.upsertDoc) return;
+
+      await window.AiSignalFirebase.upsertDoc("users", profile.uid, {
+        email: emailOf(profile),
+        name: profile.name || profile.displayName || "Owner",
+        role: "owner",
+        level: "admin",
+        vipAccess: true,
+        updatedAt: Date.now()
+      });
+    } catch (err) {
+      console.warn("Owner role sync waiting:", err?.message || err);
+    }
+  };
+
+  window.ASFXAccessGuard = {
+    getActiveUser,
+    normalizeProfile,
+    getAccess,
+    isOwner: () => getAccess().owner,
+    isAdmin: () => getAccess().admin,
+    isVip: () => getAccess().vip,
+    canOpenSignalRoom: () => getAccess().canOpenSignalRoom,
+    canOpenAdmin: () => getAccess().canOpenAdmin,
+    applyAccessDom,
+    syncOwnerRole
+  };
+
+  try {
+    const originalIsVipOrAdmin = typeof isVipOrAdmin === "function" ? isVipOrAdmin : null;
+    isVipOrAdmin = function () {
+      return window.ASFXAccessGuard.canOpenSignalRoom() || !!originalIsVipOrAdmin?.();
+    };
+    window.isVipOrAdmin = isVipOrAdmin;
+  } catch (err) {}
+
+  try {
+    const originalCanOpenSignalDetail = typeof canOpenSignalDetail === "function" ? canOpenSignalDetail : null;
+    canOpenSignalDetail = function () {
+      return window.ASFXAccessGuard.canOpenSignalRoom() || !!originalCanOpenSignalDetail?.();
+    };
+    window.canOpenSignalDetail = canOpenSignalDetail;
+  } catch (err) {}
+
+  try {
+    const originalApplyUserAccess = typeof applyUserAccess === "function" ? applyUserAccess : window.applyUserAccess;
+    const guardedApplyUserAccess = function () {
+      normalizeProfile(getActiveUser());
+      try {
+        originalApplyUserAccess?.apply(this, arguments);
+      } catch (err) {}
+      applyAccessDom();
+    };
+
+    window.applyUserAccess = guardedApplyUserAccess;
+    applyUserAccess = guardedApplyUserAccess;
+  } catch (err) {}
+
+  try {
+    const originalLoginFirebaseUser = window.loginFirebaseUser;
+    if (typeof originalLoginFirebaseUser === "function" && !originalLoginFirebaseUser.__asfxGuarded) {
+      const guardedLogin = async function () {
+        const result = await originalLoginFirebaseUser.apply(this, arguments);
+        normalizeProfile(getActiveUser());
+        window.applyUserAccess?.();
+        syncOwnerRole();
+        return result;
+      };
+
+      guardedLogin.__asfxGuarded = true;
+      window.loginFirebaseUser = guardedLogin;
+
+      try {
+        loginFirebaseUser = guardedLogin;
+      } catch (err) {}
+    }
+  } catch (err) {}
+
+  const boot = () => {
+    normalizeProfile(getActiveUser());
+    window.applyUserAccess?.();
+    applyAccessDom();
+    syncOwnerRole();
+  };
+
+  setTimeout(boot, 500);
+  setTimeout(boot, 1600);
+  document.addEventListener("DOMContentLoaded", () => setTimeout(boot, 500));
+  window.addEventListener("storage", () => setTimeout(boot, 300));
+
+  console.info("ASFX Firebase Access Guard V1 ready.");
+})();

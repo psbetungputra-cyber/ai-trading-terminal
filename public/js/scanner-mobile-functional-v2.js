@@ -3697,3 +3697,72 @@
 
   console.info("AiSignal Single Price Source V1 ready.");
 })();
+
+
+/* ASFX_SCANNER_ACCESS_GUARD_BRIDGE_V1 */
+(() => {
+  if (window.__ASFX_SCANNER_ACCESS_GUARD_BRIDGE_V1__) return;
+  window.__ASFX_SCANNER_ACCESS_GUARD_BRIDGE_V1__ = true;
+
+  const emergencyAccess = () => {
+    const q = new URLSearchParams(window.location.search);
+    return q.get("owner") === "1" || q.get("admin") === "1";
+  };
+
+  const canAccessSignalRoom = () => {
+    return (
+      emergencyAccess() ||
+      window.ASFXAccessGuard?.canOpenSignalRoom?.() === true
+    );
+  };
+
+  try {
+    const originalCanOpenSignalDetail =
+      typeof canOpenSignalDetail === "function" ? canOpenSignalDetail : null;
+
+    canOpenSignalDetail = function () {
+      return canAccessSignalRoom() || !!originalCanOpenSignalDetail?.();
+    };
+
+    window.canOpenSignalDetail = canOpenSignalDetail;
+  } catch (err) {}
+
+  try {
+    const originalShowVipGate =
+      typeof showVipGate === "function" ? showVipGate : null;
+
+    showVipGate = function () {
+      if (canAccessSignalRoom() && typeof showSignalDetailRoom === "function") {
+        return showSignalDetailRoom();
+      }
+
+      return originalShowVipGate?.apply(this, arguments);
+    };
+
+    window.showVipGate = showVipGate;
+  } catch (err) {}
+
+  document.addEventListener("click", (event) => {
+    const btn = event.target?.closest?.("button, [role='button'], a");
+    if (!btn) return;
+
+    const text = String(btn.textContent || "").toLowerCase();
+    const action = String(btn.dataset?.action || "").toLowerCase();
+
+    const isDetailAction =
+      action === "detail" ||
+      text.includes("vip detail") ||
+      text.includes("open detail") ||
+      text.includes("signal room");
+
+    if (!isDetailAction) return;
+    if (!canAccessSignalRoom()) return;
+    if (typeof showSignalDetailRoom !== "function") return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    showSignalDetailRoom();
+  }, true);
+
+  console.info("ASFX Scanner Access Guard Bridge V1 ready.");
+})();
