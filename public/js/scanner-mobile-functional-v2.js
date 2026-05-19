@@ -2752,124 +2752,130 @@
     `).join("");
   }
 
-  function signalHtml(d){
-    const smz = readSmz();
-    const readiness = signalPlanReadiness(d, smz);
+  /* ASFX_COMPACT_SIGNAL_ROOM_PANEL_V2 */
+function signalHtml(d){
+  const smz = readSmz();
+  const readiness = signalPlanReadiness(d, smz);
 
-    return `
-      <div class="asfx-bridge-wrap" data-asfx-bridge-rendered="signal">
-        <div class="asfx-bridge-head">
-          <div class="asfx-bridge-kicker">Final Signal Plan</div>
-          <div class="asfx-bridge-title">${d.pair} · ${d.tf}</div>
-          <div class="asfx-bridge-sub">Final plan membaca Chart, Risk Guard, AI Insight, dan SMZ context sebelum eksekusi.</div>
-        </div>
+  const bias = smzText(d.bias || smz.bias, "WAIT");
+  const risk = smzText(d.risk || smz.risk, "Medium");
+  const confidence = String(smzText(d.confidence || smz.confidence || readiness.score, "0")).replace(/%/g, "");
+  const status = smzText(smz.signalStatus || readiness.label, "Waiting Zone");
+  const activeZone = smzText(smz.activeZone || smz.zoneState || smz.zone, "Waiting valid zone");
+  const sl = smzText(smz.stopLossGuide, "Waiting invalidation level");
+  const tp1 = smzText(smz.tp1Guide, "Waiting target area");
+  const tp2 = smzText(smz.tp2Guide, "Waiting extended target");
+  const insight = smzText(smz.statusDetail || smz.reason || d.setup, "Tunggu reaksi candle bersih sebelum validasi entry.");
 
-        <div class="asfx-bridge-grid">
-          <div class="asfx-bridge-mini">
-            <small>Bias</small>
-            <b class="${biasClass(d.bias)}">${d.bias}</b>
-          </div>
-          <div class="asfx-bridge-mini">
-            <small>Readiness</small>
-            <b>${readiness.label}</b>
-          </div>
-          <div class="asfx-bridge-mini">
-            <small>Score</small>
-            <b>${readiness.score}%</b>
-          </div>
-        </div>
-
-        <div class="asfx-bridge-box">
-          <b style="color:#fff">Signal Readiness</b><br>
-          Status: <b style="color:#fff">${readiness.label}</b><br>
-          Detail: ${readiness.note}
-        </div>
-
-        <div class="asfx-bridge-grid">
-          ${signalChecklistHtml(d, smz)}
-        </div>
-
-        <div class="asfx-bridge-box">
-          <b style="color:#fff">Current Plan Preview</b><br>
-          Pair aktif: <b style="color:#fff">${d.pair}</b> · Timeframe: <b style="color:#fff">${d.tf}</b><br>
-          Harga aktif: <b style="color:#fff">${d.price}</b><br>
-          Status Flow: <b style="color:#fff">${smzText(smz.signalStatus, "Waiting Zone")}</b><br>
-          Phase: <b style="color:#fff">${smzText(smz.smzPhase || smz.phase, "Observation")}</b><br><br>
-          ${smz.reason || d.setup || "Menunggu reaksi candle yang lebih jelas sebelum final signal aktif."}
-        </div>
-
-        <div class="asfx-bridge-lock">
-          Locked execution detail: entry zone, stop loss, take profit, invalidation rule, position sizing, confidence breakdown, dan signal history.
-        </div>
+  return `
+    <div class="asfx-bridge-wrap" data-asfx-bridge-rendered="signal">
+      <div class="asfx-bridge-head">
+        <div class="asfx-bridge-kicker">Final Signal Plan</div>
+        <div class="asfx-bridge-title">${status}</div>
+        <div class="asfx-bridge-sub">${d.pair} · ${d.tf} · ${bias} · ${risk} Risk · ${confidence}%</div>
       </div>
-    `;
-  }
 
-  function riskHtml(d){
-    const smz = readSmz();
-    return `
-      <div class="asfx-bridge-wrap" data-asfx-bridge-rendered="risk">
-        <div class="asfx-bridge-head">
-          <div class="asfx-bridge-kicker">Risk Guard</div>
-          <div class="asfx-bridge-title">${d.risk} Risk · ${d.pair}</div>
-          <div class="asfx-bridge-sub">Risk Guard membaca volatility, posisi harga terhadap zona, struktur, dan validasi setup.</div>
-        </div>
-
-        <div class="asfx-bridge-grid">
-          <div class="asfx-bridge-mini">
-            <small>Market Bias</small>
-            <b class="${biasClass(d.bias)}">${d.bias}</b>
-          </div>
-          <div class="asfx-bridge-mini">
-            <small>Zone State</small>
-            <b>${smzText(smz.zoneState, "Waiting")}</b>
-          </div>
-          <div class="asfx-bridge-mini">
-            <small>Status</small>
-            <b class="asfx-bridge-wait">${smzText(smz.signalStatus, "Waiting Zone")}</b>
-          </div>
-        </div>
-
-        <div class="asfx-bridge-box">
-          <b style="color:#fff">Risk Validation</b><br>
-          Structure: <b style="color:#fff">${smzText(smz.structure)}</b><br>
-          Demand Zone: <b style="color:#fff">${smzText(smz.demandZone, "Calculating")}</b><br>
-          Supply Zone: <b style="color:#fff">${smzText(smz.supplyZone, "Calculating")}</b><br>
-          Liquidity: <b style="color:#fff">${smzText(smz.liquidity)}</b>
-        </div>
-
-        <div class="asfx-bridge-lock">
-          VIP/owner unlock: exact entry zone, stop loss, take profit, invalidation rule, position sizing, dan full risk reasoning.
-        </div>
+      <div class="asfx-bridge-grid">
+        <div class="asfx-bridge-mini"><small>Bias</small><b class="${biasClass(bias)}">${bias}</b></div>
+        <div class="asfx-bridge-mini"><small>Status</small><b>${status}</b></div>
+        <div class="asfx-bridge-mini"><small>Score</small><b>${confidence}%</b></div>
       </div>
-    `;
-  }
 
-  function chatHtml(d){
-    const smz = readSmz();
-    return `
-      <div class="asfx-bridge-wrap" data-asfx-bridge-rendered="chat">
-        <div class="asfx-bridge-head">
-          <div class="asfx-bridge-kicker">AI Insight</div>
-          <div class="asfx-bridge-title">Sentinel Insight · ${d.pair}</div>
-          <div class="asfx-bridge-sub">AI Insight menerjemahkan hasil SMZ Engine menjadi bahasa trader yang mudah dipahami.</div>
-        </div>
-
-        <div class="asfx-bridge-box">
-          <b style="color:#fff">Ringkasan:</b> ${d.pair} di ${d.tf} sekarang bias <b class="${biasClass(d.bias)}">${d.bias}</b>, confidence <b>${d.confidence}</b>, risk <b>${d.risk}</b>.<br><br>
-          ${smz.reason || d.setup || "Menunggu candle yang lebih jelas."}
-        </div>
-
-        <div class="asfx-bridge-box">
-          <b style="color:#fff">Yang ditunggu:</b><br>
-          ${smzText(smz.zoneState, "Zona valid")} · ${smzText(smz.structure, "struktur belum jelas")} · ${smzText(smz.liquidity, "liquidity belum jelas")}.<br><br>
-          Status: <b style="color:#fff">${smzText(smz.signalStatus, "Waiting Zone")}</b><br>${smzText(smz.statusDetail, "Tunggu reaksi candle bersih sebelum Final Signal Plan aktif.")}
-        </div>
+      <div class="asfx-bridge-box">
+        <b style="color:#fff;">Active Zone</b><br>
+        ${activeZone}
       </div>
-    `;
-  }
 
-  function vipHtml(d){
+      <div class="asfx-bridge-box">
+        <b style="color:#fff;">Execution Guide</b><br>
+        SL: <b style="color:#fff;">${sl}</b><br>
+        TP1: <b style="color:#fff;">${tp1}</b><br>
+        TP2: <b style="color:#fff;">${tp2}</b>
+      </div>
+
+      <div class="asfx-bridge-box">
+        <b style="color:#fff;">Insight</b><br>
+        ${insight}
+      </div>
+
+      <details class="asfx-bridge-box">
+        <summary style="cursor:pointer;color:#fff;font-weight:900;">Lihat Full Analysis</summary>
+        <br>
+        Structure: <b style="color:#fff;">${smzText(smz.structure, "Reading")}</b><br>
+        Demand: <b style="color:#fff;">${smzText(smz.demandZone, "Calculating")}</b><br>
+        Supply: <b style="color:#fff;">${smzText(smz.supplyZone, "Calculating")}</b><br>
+        Liquidity: <b style="color:#fff;">${smzText(smz.liquidity, "Waiting")}</b><br>
+        FVG: <b style="color:#fff;">${smzText(smz.imbalance, "Waiting")}</b>
+      </details>
+
+      <div class="asfx-bridge-lock">Educational analysis only. Execution remains user responsibility.</div>
+    </div>
+  `;
+}
+
+function riskHtml(d){
+  const smz = readSmz();
+
+  const bias = smzText(d.bias || smz.bias, "WAIT");
+  const risk = smzText(d.risk || smz.risk, "Medium");
+  const confidence = String(smzText(d.confidence || smz.confidence, "0")).replace(/%/g, "");
+  const zone = smzText(smz.zoneState || smz.zone || smz.activeZone, "Waiting Zone");
+
+  return `
+    <div class="asfx-bridge-wrap" data-asfx-bridge-rendered="risk">
+      <div class="asfx-bridge-head">
+        <div class="asfx-bridge-kicker">Risk Guard</div>
+        <div class="asfx-bridge-title">${risk} Risk · ${d.pair}</div>
+        <div class="asfx-bridge-sub">Validasi volatilitas, struktur, dan posisi harga terhadap zona.</div>
+      </div>
+
+      <div class="asfx-bridge-grid">
+        <div class="asfx-bridge-mini"><small>Bias</small><b class="${biasClass(bias)}">${bias}</b></div>
+        <div class="asfx-bridge-mini"><small>Confidence</small><b>${confidence}%</b></div>
+        <div class="asfx-bridge-mini"><small>Status</small><b>${zone}</b></div>
+      </div>
+
+      <div class="asfx-bridge-box">
+        <b style="color:#fff;">Risk Validation</b><br>
+        Structure: <b style="color:#fff;">${smzText(smz.structure, "Reading")}</b><br>
+        Demand: <b style="color:#fff;">${smzText(smz.demandZone, "Calculating")}</b><br>
+        Supply: <b style="color:#fff;">${smzText(smz.supplyZone, "Calculating")}</b>
+      </div>
+    </div>
+  `;
+}
+
+function chatHtml(d){
+  const smz = readSmz();
+
+  const bias = smzText(d.bias || smz.bias, "WAIT");
+  const risk = smzText(d.risk || smz.risk, "Medium");
+  const confidence = String(smzText(d.confidence || smz.confidence, "0")).replace(/%/g, "");
+  const status = smzText(smz.signalStatus || smz.zoneState, "Waiting Zone");
+  const insight = smzText(smz.statusDetail || smz.reason || d.setup, "Tunggu candle yang lebih jelas sebelum validasi entry.");
+
+  return `
+    <div class="asfx-bridge-wrap" data-asfx-bridge-rendered="chat">
+      <div class="asfx-bridge-head">
+        <div class="asfx-bridge-kicker">AI Insight</div>
+        <div class="asfx-bridge-title">${status}</div>
+        <div class="asfx-bridge-sub">Ringkasan bahasa trader dari hasil SMZ Engine.</div>
+      </div>
+
+      <div class="asfx-bridge-box">
+        <b style="color:#fff;">Ringkasan</b><br>
+        ${d.pair} · ${d.tf} bias <b class="${biasClass(bias)}">${bias}</b>, risk <b style="color:#fff;">${risk}</b>, confidence <b style="color:#fff;">${confidence}%</b>.
+      </div>
+
+      <div class="asfx-bridge-box">
+        <b style="color:#fff;">Insight</b><br>
+        ${insight}
+      </div>
+    </div>
+  `;
+}
+
+function vipHtml(d){
     return `
       <div class="asfx-bridge-wrap" data-asfx-bridge-rendered="vip">
         <div class="asfx-bridge-head">
@@ -2886,18 +2892,46 @@
   }
 
   function renderBridge(tab){
-    const p = panel();
-    if (!p || tab === "chart") return;
+  const p = panel();
+  if (!p || tab === "chart") return;
 
-    const d = readSignal();
+  const d = readSignal();
+  const smz = readSmz();
 
-    if (tab === "signal") p.innerHTML = signalHtml(d);
-    if (tab === "risk") p.innerHTML = riskHtml(d);
-    if (tab === "chat") p.innerHTML = chatHtml(d);
-    if (tab === "vip") p.innerHTML = vipHtml(d);
-  }
+  let html = "";
+  if (tab === "signal") html = signalHtml(d);
+  if (tab === "risk") html = riskHtml(d);
+  if (tab === "chat") html = chatHtml(d);
+  if (tab === "vip") html = vipHtml(d);
+  if (!html) return;
 
-  document.addEventListener("click", function(e){
+  const stableKey = [
+    tab,
+    d.pair,
+    d.tf,
+    d.bias || smz.bias,
+    d.risk || smz.risk,
+    d.confidence || smz.confidence,
+    smz.signalStatus,
+    smz.zoneState,
+    smz.activeZone,
+    smz.demandZone,
+    smz.supplyZone,
+    smz.structure,
+    smz.stopLossGuide,
+    smz.tp1Guide,
+    smz.tp2Guide
+  ].join("|");
+
+  if (p.dataset.asfxCompactPanelKey === stableKey) return;
+  p.dataset.asfxCompactPanelKey = stableKey;
+  p.innerHTML = html;
+}
+
+
+document.addEventListener
+
+document.addEventListener("click", function(e){
     const btn = e.target.closest("[data-detail-tab]");
     if (!btn) return;
 
@@ -4294,7 +4328,7 @@
     document.querySelectorAll(selector).forEach((el) => {
       if (!el || el.dataset.asfxHydratorKey === key) return;
       el.dataset.asfxHydratorKey = key;
-      el.innerHTML = html;
+      /* ASFX_DISABLE_LEGACY_HYDRATOR_UI_V1: legacy panel writer disabled; compact stable renderer owns panel. */
     });
   };
 
@@ -4411,9 +4445,9 @@
     latest
   };
 
-  setTimeout(hydrate, 800);
-  setTimeout(hydrate, 1800);
-  setInterval(hydrate, 3000);
+  /* ASFX_DISABLE_LEGACY_HYDRATOR_UI_V1: setTimeout(hydrate, 800) disabled */
+  /* ASFX_DISABLE_LEGACY_HYDRATOR_UI_V1: setTimeout(hydrate, 1800) disabled */
+  /* ASFX_DISABLE_LEGACY_HYDRATOR_UI_V1: setInterval(hydrate, 3000) disabled */
 
   const observer = new MutationObserver(schedule);
   observer.observe(document.body, { childList: true, subtree: true });
