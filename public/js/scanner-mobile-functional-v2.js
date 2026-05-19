@@ -5405,3 +5405,157 @@ document.addEventListener("click", function(e){
   console.info("ASFX SMZ Direct Packet V1 ready.");
 })();
 
+
+/* ASFX_SIGNAL_ROOM_STABLE_POLISH_V3 */
+(function(){
+  if (window.__ASFX_SIGNAL_ROOM_STABLE_POLISH_V3__) return;
+  window.__ASFX_SIGNAL_ROOM_STABLE_POLISH_V3__ = true;
+
+  function inject(){
+    if (document.getElementById("asfx-signal-room-stable-polish-v3")) return;
+
+    const style = document.createElement("style");
+    style.id = "asfx-signal-room-stable-polish-v3";
+    style.textContent = `
+      @media (max-width: 720px) {
+        .asfx-bridge-wrap {
+          padding: 18px !important;
+          border-radius: 24px !important;
+          gap: 14px !important;
+        }
+
+        .asfx-bridge-head {
+          padding: 18px !important;
+          border-radius: 22px !important;
+          margin-bottom: 14px !important;
+        }
+
+        .asfx-bridge-kicker {
+          font-size: 11px !important;
+          letter-spacing: 4px !important;
+          margin-bottom: 8px !important;
+        }
+
+        .asfx-bridge-title {
+          font-size: clamp(30px, 9vw, 42px) !important;
+          line-height: 1.04 !important;
+          margin-bottom: 8px !important;
+        }
+
+        .asfx-bridge-sub {
+          font-size: 15px !important;
+          line-height: 1.45 !important;
+          opacity: .78 !important;
+        }
+
+        .asfx-bridge-grid {
+          display: grid !important;
+          grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+          gap: 10px !important;
+          margin: 12px 0 !important;
+        }
+
+        .asfx-bridge-mini {
+          min-height: 96px !important;
+          padding: 14px !important;
+          border-radius: 18px !important;
+        }
+
+        .asfx-bridge-mini small {
+          display: block !important;
+          font-size: 12px !important;
+          line-height: 1.2 !important;
+          margin-bottom: 8px !important;
+          opacity: .7 !important;
+        }
+
+        .asfx-bridge-mini b {
+          font-size: clamp(20px, 6vw, 28px) !important;
+          line-height: 1.08 !important;
+          word-break: normal !important;
+        }
+
+        .asfx-bridge-box {
+          padding: 16px !important;
+          border-radius: 20px !important;
+          margin-top: 10px !important;
+          font-size: 15.5px !important;
+          line-height: 1.55 !important;
+        }
+
+        .asfx-bridge-box b {
+          font-size: 16px !important;
+        }
+
+        .asfx-bridge-lock {
+          padding: 16px !important;
+          border-radius: 20px !important;
+          margin-top: 10px !important;
+          font-size: 14.5px !important;
+          line-height: 1.45 !important;
+        }
+
+        .asfx-bridge-box summary {
+          list-style-position: inside !important;
+          font-size: 16px !important;
+          line-height: 1.4 !important;
+        }
+
+        [data-detail-tab] {
+          min-height: 46px !important;
+          padding: 0 18px !important;
+          border-radius: 999px !important;
+          font-size: 14px !important;
+          white-space: nowrap !important;
+        }
+
+        .asfx-detail-room,
+        .signal-detail-room,
+        [data-signal-detail-room] {
+          padding-bottom: 110px !important;
+        }
+      }
+
+      @media (max-width: 390px) {
+        .asfx-bridge-wrap {
+          padding: 15px !important;
+        }
+
+        .asfx-bridge-grid {
+          gap: 8px !important;
+        }
+
+        .asfx-bridge-mini {
+          padding: 12px !important;
+          min-height: 88px !important;
+        }
+
+        .asfx-bridge-mini b {
+          font-size: 21px !important;
+        }
+
+        .asfx-bridge-box {
+          padding: 14px !important;
+          font-size: 14.5px !important;
+        }
+
+        [data-detail-tab] {
+          padding: 0 14px !important;
+          font-size: 13px !important;
+        }
+      }
+    `;
+
+    document.head.appendChild(style);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", inject);
+  } else {
+    inject();
+  }
+
+  setTimeout(inject, 800);
+  console.info("ASFX Signal Room Stable Polish V3 ready.");
+})();
+
