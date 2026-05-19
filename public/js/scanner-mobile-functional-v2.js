@@ -7005,3 +7005,626 @@ document.addEventListener("click", function(e){
   console.info("ASFX Save Click Gate V1 ready.");
 })();
 
+
+/* ASFX_FIREBASE_SIGNAL_SNAPSHOT_HYDRATOR_V1 */
+(function(){
+  if (window.__ASFX_FIREBASE_SIGNAL_SNAPSHOT_HYDRATOR_V1_READY__) return;
+  window.__ASFX_FIREBASE_SIGNAL_SNAPSHOT_HYDRATOR_V1_READY__ = true;
+
+  const LAST_KEY = "aisignalfx:last_hydrated_signal_snapshot_key";
+  const HOLD_MS = 25000;
+
+  function clean(v, fallback = "-"){
+    if (v === undefined || v === null || v === "") return fallback;
+    return String(v).trim();
+  }
+
+  function bodyText(){
+    return clean(document.body?.innerText || "", "");
+  }
+
+  function pick(pattern, fallback = ""){
+    const m = bodyText().match(pattern);
+    return m && m[1] ? clean(m[1]).replace(/\s+/g, " ") : fallback;
+  }
+
+  function num(v, fallback = 0){
+    const n = Number(String(v ?? "").replace(/[,%]/g, ""));
+    return Number.isFinite(n) ? n : fallback;
+  }
+
+  function getProfile(){
+    try {
+      return JSON.parse(localStorage.getItem("aisignalfx:firebase_user") || "{}") || {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  function packetRaw(){
+    return Object.assign(
+      {},
+      window.__ASFX_LAST_SMZ_ANALYSIS__ || {},
+      window.__ASFX_LAST_SIGNAL_ANALYSIS__ || {},
+      window.__ASFX_STABLE_SIGNAL_PACKET_V1__ || {},
+      window.__ASFX_LAST_SIGNAL_PACKET_V1__ || {}
+    );
+  }
+
+  function domSignal(){
+    const text = bodyText();
+
+    const pair =
+      pick(/\b([A-Z]{3,12}USDT)\b/i, "") ||
+      pick(/\b(EURUSD|GBPUSD|USDJPY|XAUUSD|NAS100|US30)\b/i, "");
+
+    const timeframe =
+      pick(/\b(5m|15m|1H|4H|1D|1W)\b/i, "");
+
+    const confidence =
+      pick(/Confidence\s+(\d{1,3})\s*%/i, "") ||
+      pick(/confidence\s+(\d{1,3})\s*%/i, "");
+
+    const risk =
+      pick(/Risk\s+(Low|Medium|High)/i, "");
+
+    const price =
+      pick(/Price\s+([\d,]+(?:\.\d+)?)/i, "") ||
+      pick(/\bBTCUSDT\s+([\d,]+(?:\.\d+)?)/i, "");
+
+    const demand =
+      pick(/Demand\s*:\s*([\d,]+(?:\.\d+)?\s*[–-]\s*[\d,]+(?:\.\d+)?)/i, "") ||
+      pick(/Active Zone\s+Demand\s+([\d,]+(?:\.\d+)?\s*[–-]\s*[\d,]+(?:\.\d+)?)/i, "");
+
+    const supply =
+      pick(/Supply\s*:\s*([\d,]+(?:\.\d+)?\s*[–-]\s*[\d,]+(?:\.\d+)?)/i, "") ||
+      pick(/Active Zone\s+Supply\s+([\d,]+(?:\.\d+)?\s*[–-]\s*[\d,]+(?:\.\d+)?)/i, "");
+
+    const activeZone =
+      pick(/Active Zone\s+((?:Demand|Supply)\s+[\d,]+(?:\.\d+)?\s*[–-]\s*[\d,]+(?:\.\d+)?)/i, "");
+
+    const structure =
+      pick(/Structure\s*:\s*([^\n]+)/i, "");
+
+    const liquidity =
+      pick(/Liquidity\s*:\s*([^\n]+)/i, "");
+
+    const imbalance =
+      pick(/FVG\s*:\s*([^\n]+)/i, "") ||
+      pick(/Imbalance\/FVG\s*:\s*([^\n]+)/i, "");
+
+    const sl =
+      pick(/SL\s*:\s*([^\n]+)/i, "");
+
+    const tp1 =
+      pick(/TP1\s*:\s*([^\n]+)/i, "");
+
+    const tp2 =
+      pick(/TP2\s*:\s*([^\n]+)/i, "");
+
+    const headline =
+      pick(/FINAL SIGNAL PLAN\s+([A-Za-z][A-Za-z ]{2,40})\s+[A-Z]{3,12}/i, "") ||
+      pick(/AI INSIGHT\s+([A-Za-z][A-Za-z ]{2,40})\s+Ringkasan/i, "") ||
+      pick(/Status\s+([A-Za-z][A-Za-z ]{2,40})(?:\n|$)/i, "");
+
+    const insight =
+      pick(/Insight\s+([^\n]+(?:\n[^\n]+)?)/i, "").replace(/\s+/g, " ");
+
+    return {
+      pair,
+      timeframe,
+      confidence,
+      risk,
+      price,
+      demand,
+      supply,
+      activeZone,
+      structure,
+      liquidity,
+      imbalance,
+      sl,
+      tp1,
+      tp2,
+      headline,
+      insight,
+      text
+    };
+  }
+
+  function canSave(){
+    try {
+      if (window.ASFX_ACCESS_UI_GATE_V1?.canAccessScannerDetail?.()) return true;
+    } catch (_) {}
+
+    try {
+      const q = new URLSearchParams(window.location.search || "");
+      if (["owner", "admin", "vip"].some(k => ["1", "true", "yes"].includes(String(q.get(k)).toLowerCase()))) return true;
+    } catch (_) {}
+
+    const profile = getProfile();
+    const role = clean(profile.role || profile.level, "").toLowerCase();
+    return role.includes("owner") || role.includes("admin") || role.includes("vip");
+  }
+
+  function toast(message, type = "ok"){
+    const old = document.getElementById("asfx-snapshot-toast-v1");
+    if (old) old.remove();
+
+    const el = document.createElement("div");
+    el.id = "asfx-snapshot-toast-v1";
+    el.textContent = message;
+    el.style.cssText = `
+      position: fixed;
+      left: 50%;
+      bottom: 92px;
+      transform: translateX(-50%);
+      z-index: 999999;
+      max-width: min(92vw, 440px);
+      padding: 13px 16px;
+      border-radius: 999px;
+      color: #fff;
+      font-weight: 900;
+      font-size: 13px;
+      background: ${type === "error" ? "rgba(127,29,29,.96)" : "rgba(15,23,42,.96)"};
+      border: 1px solid ${type === "error" ? "rgba(248,113,113,.45)" : "rgba(56,189,248,.45)"};
+      box-shadow: 0 18px 50px rgba(0,0,0,.38);
+    `;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 2600);
+  }
+
+  function buildHydratedSnapshot(){
+    const p = packetRaw();
+    const d = domSignal();
+    const profile = getProfile();
+
+    const pair = clean(d.pair || p.pair || p.symbol, "BTCUSDT").toUpperCase();
+    const timeframe = clean(d.timeframe || p.timeframe || p.tf, "15m");
+
+    const bias = clean(p.bias, "WAIT").toUpperCase().includes("BUY")
+      ? "BUY"
+      : clean(p.bias, "WAIT").toUpperCase().includes("SELL")
+        ? "SELL"
+        : "WAIT";
+
+    const status = clean(
+      d.headline ||
+      p.actionStatus ||
+      p.signalStatusLabel ||
+      p.signalStatus,
+      "Observation"
+    );
+
+    const confidence = num(d.confidence || p.confidence || p.score, 0);
+    const risk = clean(d.risk || p.risk, "Medium");
+
+    const demandZone = clean(d.demand || p.demandZone, "Calculating");
+    const supplyZone = clean(d.supply || p.supplyZone, "Calculating");
+
+    const snapshot = {
+      type: "scanner_signal_snapshot",
+      source: "Signal Scanner",
+      market: pair.endsWith("USDT") ? "crypto" : "reference",
+      mode: pair.endsWith("USDT") ? "crypto_live_binance" : "reference_mode",
+
+      pair,
+      symbol: pair,
+      timeframe,
+
+      bias,
+      risk,
+      confidence,
+
+      status,
+      signalStatus: status,
+
+      demandZone,
+      supplyZone,
+      activeZone: clean(d.activeZone || p.activeZone || p.zoneState, status),
+
+      structure: clean(d.structure || p.structure, "Structure reading"),
+      liquidity: clean(d.liquidity || p.liquidity, "Waiting confirmation"),
+      imbalance: clean(d.imbalance || p.imbalance, "Waiting"),
+
+      slGuide: clean(d.sl || p.slGuide || p.stopLossGuide, "Waiting invalidation level"),
+      tp1Guide: clean(d.tp1 || p.tp1Guide, "Waiting target area"),
+      tp2Guide: clean(d.tp2 || p.tp2Guide, "Waiting extended target"),
+
+      reason: clean(p.reason || p.statusDetail || p.executionNote || d.insight, "Reading market context."),
+      insight: clean(d.insight || p.executionNote || p.statusDetail || p.reason, "Reading market context."),
+
+      price: clean(d.price || p.price || p.currentPrice || p.livePrice, "-"),
+
+      access: canSave() ? "vip_or_owner" : "public",
+      uid: clean(profile.uid, "local"),
+      userEmail: clean(profile.email, ""),
+      userRole: clean(profile.role || profile.level, ""),
+
+      hydrator: "ASFX_FIREBASE_SIGNAL_SNAPSHOT_HYDRATOR_V1",
+      createdAtClient: new Date().toISOString()
+    };
+
+    snapshot.snapshotKey = [
+      snapshot.pair,
+      snapshot.timeframe,
+      snapshot.bias,
+      snapshot.status,
+      snapshot.confidence,
+      snapshot.demandZone,
+      snapshot.supplyZone
+    ].join("|");
+
+    return snapshot;
+  }
+
+  async function saveHydratedSnapshot(){
+    if (!canSave()) {
+      toast("Signal snapshot khusus VIP/owner.", "error");
+      return null;
+    }
+
+    const fb = window.AiSignalFirebase;
+    if (!fb || typeof fb.addCollectionDoc !== "function") {
+      toast("Firebase belum siap. Refresh halaman dulu.", "error");
+      throw new Error("AiSignalFirebase.addCollectionDoc not ready");
+    }
+
+    const snapshot = buildHydratedSnapshot();
+
+    try {
+      const last = JSON.parse(localStorage.getItem(LAST_KEY) || "{}");
+      if (last.key === snapshot.snapshotKey && Date.now() - Number(last.time || 0) < HOLD_MS) {
+        toast("Snapshot sudah tersimpan. Tunggu perubahan signal baru.");
+        return snapshot;
+      }
+    } catch (_) {}
+
+    const res = await fb.addCollectionDoc("signalSnapshots", snapshot);
+
+    localStorage.setItem(LAST_KEY, JSON.stringify({
+      key: snapshot.snapshotKey,
+      time: Date.now()
+    }));
+
+    toast(`Snapshot tersimpan: ${snapshot.pair} ${snapshot.timeframe} ${snapshot.confidence}%`);
+    return res || snapshot;
+  }
+
+  window.ASFX_FIREBASE_SIGNAL_SNAPSHOT_V1 = Object.assign(
+    {},
+    window.ASFX_FIREBASE_SIGNAL_SNAPSHOT_V1 || {},
+    {
+      build: buildHydratedSnapshot,
+      save: saveHydratedSnapshot,
+      hydrator: "v1"
+    }
+  );
+
+  console.info("ASFX Firebase Signal Snapshot Hydrator V1 ready.");
+})();
+
+
+/* ASFX_FIREBASE_SIGNAL_SNAPSHOT_HYDRATOR_V1_1 */
+(function(){
+  if (window.__ASFX_FIREBASE_SIGNAL_SNAPSHOT_HYDRATOR_V1_1_READY__) return;
+  window.__ASFX_FIREBASE_SIGNAL_SNAPSHOT_HYDRATOR_V1_1_READY__ = true;
+
+  const LAST_KEY = "aisignalfx:last_hydrated_signal_snapshot_key_v11";
+  const HOLD_MS = 25000;
+
+  function clean(v, fallback = "-"){
+    if (v === undefined || v === null || v === "") return fallback;
+    return String(v).trim();
+  }
+
+  function bodyText(){
+    return clean(document.body?.innerText || "", "");
+  }
+
+  function normalizeTf(v){
+    return clean(v, "15m")
+      .replace(/\s+/g, "")
+      .toLowerCase()
+      .replace(/^m(\d+)$/, "$1m")
+      .replace(/^h(\d+)$/, "$1h")
+      .replace(/^d(\d+)$/, "$1d")
+      .replace(/^w(\d+)$/, "$1w");
+  }
+
+  function displayTf(v){
+    const t = normalizeTf(v);
+    if (t === "1h") return "1H";
+    if (t === "4h") return "4H";
+    if (t === "1d") return "1D";
+    if (t === "1w") return "1W";
+    return t || "15m";
+  }
+
+  function pick(pattern, fallback = ""){
+    const m = bodyText().match(pattern);
+    return m && m[1] ? clean(m[1]).replace(/\s+/g, " ") : fallback;
+  }
+
+  function num(v, fallback = 0){
+    const n = Number(String(v ?? "").replace(/[,%]/g, ""));
+    return Number.isFinite(n) ? n : fallback;
+  }
+
+  function getProfile(){
+    try {
+      return JSON.parse(localStorage.getItem("aisignalfx:firebase_user") || "{}") || {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  function packetRaw(){
+    return Object.assign(
+      {},
+      window.__ASFX_LAST_SMZ_ANALYSIS__ || {},
+      window.__ASFX_LAST_SIGNAL_ANALYSIS__ || {},
+      window.__ASFX_STABLE_SIGNAL_PACKET_V1__ || {},
+      window.__ASFX_LAST_SIGNAL_PACKET_V1__ || {}
+    );
+  }
+
+  function readDetailHeader(){
+    const text = bodyText();
+
+    // Prefer header: SIGNAL DETAIL ROOM BTCUSDT · 15m
+    let m = text.match(/SIGNAL DETAIL ROOM\s+([A-Z0-9]{5,14})\s*[·\-.]\s*(5m|15m|1H|4H|1D|1W)/i);
+    if (m) return { pair: m[1].toUpperCase(), timeframe: displayTf(m[2]) };
+
+    // Fallback: BTCUSDT · 15m anywhere in detail room.
+    m = text.match(/\b([A-Z0-9]{5,14})\s*[·\-.]\s*(5m|15m|1H|4H|1D|1W)\b/i);
+    if (m) return { pair: m[1].toUpperCase(), timeframe: displayTf(m[2]) };
+
+    return {};
+  }
+
+  function activeButtonTf(){
+    try {
+      const buttons = [...document.querySelectorAll("button, [role='button']")];
+      const active = buttons.find((b) => {
+        const t = clean(b.textContent);
+        const cls = clean(b.className);
+        return /^(5m|15m|1H|4H|1D|1W)$/i.test(t) && /active|selected/i.test(cls);
+      });
+      return active ? displayTf(active.textContent) : "";
+    } catch (_) {
+      return "";
+    }
+  }
+
+  function domSignal(){
+    const text = bodyText();
+    const header = readDetailHeader();
+
+    const confidence =
+      pick(/Confidence\s+(\d{1,3})\s*%/i, "") ||
+      pick(/confidence\s+(\d{1,3})\s*%/i, "");
+
+    const risk = pick(/Risk\s+(Low|Medium|High)/i, "");
+
+    const price =
+      pick(/Price\s+([\d,]+(?:\.\d+)?)/i, "") ||
+      pick(/\bBTCUSDT\s+([\d,]+(?:\.\d+)?)/i, "");
+
+    const demand =
+      pick(/Demand\s*:\s*([\d,]+(?:\.\d+)?\s*[–-]\s*[\d,]+(?:\.\d+)?)/i, "") ||
+      pick(/Active Zone\s+Demand\s+([\d,]+(?:\.\d+)?\s*[–-]\s*[\d,]+(?:\.\d+)?)/i, "");
+
+    const supply =
+      pick(/Supply\s*:\s*([\d,]+(?:\.\d+)?\s*[–-]\s*[\d,]+(?:\.\d+)?)/i, "") ||
+      pick(/Active Zone\s+Supply\s+([\d,]+(?:\.\d+)?\s*[–-]\s*[\d,]+(?:\.\d+)?)/i, "");
+
+    const activeZone =
+      pick(/Active Zone\s+((?:Demand|Supply)\s+[\d,]+(?:\.\d+)?\s*[–-]\s*[\d,]+(?:\.\d+)?)/i, "");
+
+    const structure = pick(/Structure\s*:\s*([^\n]+)/i, "");
+    const liquidity = pick(/Liquidity\s*:\s*([^\n]+)/i, "");
+    const imbalance = pick(/FVG\s*:\s*([^\n]+)/i, "") || pick(/Imbalance\/FVG\s*:\s*([^\n]+)/i, "");
+
+    const sl = pick(/SL\s*:\s*([^\n]+)/i, "");
+    const tp1 = pick(/TP1\s*:\s*([^\n]+)/i, "");
+    const tp2 = pick(/TP2\s*:\s*([^\n]+)/i, "");
+
+    const headline =
+      pick(/FINAL SIGNAL PLAN\s+([A-Za-z][A-Za-z ]{2,40})\s+[A-Z0-9]{5,14}/i, "") ||
+      pick(/AI INSIGHT\s+([A-Za-z][A-Za-z ]{2,40})\s+Ringkasan/i, "") ||
+      pick(/Status\s+([A-Za-z][A-Za-z ]{2,40})(?:\n|$)/i, "");
+
+    const insight = pick(/Insight\s+([^\n]+(?:\n[^\n]+)?)/i, "").replace(/\s+/g, " ");
+
+    return {
+      pair: header.pair,
+      timeframe: header.timeframe || activeButtonTf(),
+      confidence,
+      risk,
+      price,
+      demand,
+      supply,
+      activeZone,
+      structure,
+      liquidity,
+      imbalance,
+      sl,
+      tp1,
+      tp2,
+      headline,
+      insight,
+      text
+    };
+  }
+
+  function canSave(){
+    try {
+      if (window.ASFX_ACCESS_UI_GATE_V1?.canAccessScannerDetail?.()) return true;
+    } catch (_) {}
+
+    try {
+      const q = new URLSearchParams(window.location.search || "");
+      if (["owner", "admin", "vip"].some(k => ["1", "true", "yes"].includes(String(q.get(k)).toLowerCase()))) return true;
+    } catch (_) {}
+
+    const profile = getProfile();
+    const role = clean(profile.role || profile.level, "").toLowerCase();
+    return role.includes("owner") || role.includes("admin") || role.includes("vip");
+  }
+
+  function toast(message, type = "ok"){
+    const old = document.getElementById("asfx-snapshot-toast-v1");
+    if (old) old.remove();
+
+    const el = document.createElement("div");
+    el.id = "asfx-snapshot-toast-v1";
+    el.textContent = message;
+    el.style.cssText = `
+      position: fixed;
+      left: 50%;
+      bottom: 92px;
+      transform: translateX(-50%);
+      z-index: 999999;
+      max-width: min(92vw, 440px);
+      padding: 13px 16px;
+      border-radius: 999px;
+      color: #fff;
+      font-weight: 900;
+      font-size: 13px;
+      background: ${type === "error" ? "rgba(127,29,29,.96)" : "rgba(15,23,42,.96)"};
+      border: 1px solid ${type === "error" ? "rgba(248,113,113,.45)" : "rgba(56,189,248,.45)"};
+      box-shadow: 0 18px 50px rgba(0,0,0,.38);
+    `;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 2600);
+  }
+
+  function buildHydratedSnapshot(){
+    const p = packetRaw();
+    const d = domSignal();
+    const profile = getProfile();
+
+    const pair = clean(d.pair || p.pair || p.symbol, "BTCUSDT").toUpperCase();
+
+    // V1.1 fix: do NOT read first timeframe text from body.
+    // Prefer detail header / packet / active button only.
+    const timeframe = displayTf(
+      d.timeframe ||
+      p.timeframe ||
+      p.tf ||
+      "15m"
+    );
+
+    const rawBias = clean(p.bias, "WAIT").toUpperCase();
+    const bias = rawBias.includes("BUY") ? "BUY" : rawBias.includes("SELL") ? "SELL" : "WAIT";
+
+    const status = clean(
+      d.headline ||
+      p.actionStatus ||
+      p.signalStatusLabel ||
+      p.signalStatus,
+      "Observation"
+    );
+
+    const snapshot = {
+      type: "scanner_signal_snapshot",
+      source: "Signal Scanner",
+      market: pair.endsWith("USDT") ? "crypto" : "reference",
+      mode: pair.endsWith("USDT") ? "crypto_live_binance" : "reference_mode",
+
+      pair,
+      symbol: pair,
+      timeframe,
+
+      bias,
+      risk: clean(d.risk || p.risk, "Medium"),
+      confidence: num(d.confidence || p.confidence || p.score, 0),
+
+      status,
+      signalStatus: status,
+
+      demandZone: clean(d.demand || p.demandZone, "Calculating"),
+      supplyZone: clean(d.supply || p.supplyZone, "Calculating"),
+      activeZone: clean(d.activeZone || p.activeZone || p.zoneState, status),
+
+      structure: clean(d.structure || p.structure, "Structure reading"),
+      liquidity: clean(d.liquidity || p.liquidity, "Waiting confirmation"),
+      imbalance: clean(d.imbalance || p.imbalance, "Waiting"),
+
+      slGuide: clean(d.sl || p.slGuide || p.stopLossGuide, "Waiting invalidation level"),
+      tp1Guide: clean(d.tp1 || p.tp1Guide, "Waiting target area"),
+      tp2Guide: clean(d.tp2 || p.tp2Guide, "Waiting extended target"),
+
+      reason: clean(p.reason || p.statusDetail || p.executionNote || d.insight, "Reading market context."),
+      insight: clean(d.insight || p.executionNote || p.statusDetail || p.reason, "Reading market context."),
+
+      price: clean(d.price || p.price || p.currentPrice || p.livePrice, "-"),
+
+      access: canSave() ? "vip_or_owner" : "public",
+      uid: clean(profile.uid, "local"),
+      userEmail: clean(profile.email, ""),
+      userRole: clean(profile.role || profile.level, ""),
+
+      hydrator: "ASFX_FIREBASE_SIGNAL_SNAPSHOT_HYDRATOR_V1_1",
+      createdAtClient: new Date().toISOString()
+    };
+
+    snapshot.snapshotKey = [
+      snapshot.pair,
+      snapshot.timeframe,
+      snapshot.bias,
+      snapshot.status,
+      snapshot.confidence,
+      snapshot.demandZone,
+      snapshot.supplyZone
+    ].join("|");
+
+    return snapshot;
+  }
+
+  async function saveHydratedSnapshot(){
+    if (!canSave()) {
+      toast("Signal snapshot khusus VIP/owner.", "error");
+      return null;
+    }
+
+    const fb = window.AiSignalFirebase;
+    if (!fb || typeof fb.addCollectionDoc !== "function") {
+      toast("Firebase belum siap. Refresh halaman dulu.", "error");
+      throw new Error("AiSignalFirebase.addCollectionDoc not ready");
+    }
+
+    const snapshot = buildHydratedSnapshot();
+
+    try {
+      const last = JSON.parse(localStorage.getItem(LAST_KEY) || "{}");
+      if (last.key === snapshot.snapshotKey && Date.now() - Number(last.time || 0) < HOLD_MS) {
+        toast("Snapshot sudah tersimpan. Tunggu perubahan signal baru.");
+        return snapshot;
+      }
+    } catch (_) {}
+
+    const res = await fb.addCollectionDoc("signalSnapshots", snapshot);
+
+    localStorage.setItem(LAST_KEY, JSON.stringify({
+      key: snapshot.snapshotKey,
+      time: Date.now()
+    }));
+
+    toast(`Snapshot tersimpan: ${snapshot.pair} ${snapshot.timeframe} ${snapshot.confidence}%`);
+    return res || snapshot;
+  }
+
+  window.ASFX_FIREBASE_SIGNAL_SNAPSHOT_V1 = Object.assign(
+    {},
+    window.ASFX_FIREBASE_SIGNAL_SNAPSHOT_V1 || {},
+    {
+      build: buildHydratedSnapshot,
+      save: saveHydratedSnapshot,
+      hydrator: "v1.1"
+    }
+  );
+
+  console.info("ASFX Snapshot Hydrator V1.1 ready.");
+})();
+
