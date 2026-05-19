@@ -6400,3 +6400,338 @@ document.addEventListener("click", function(e){
   console.info("ASFX Access UI Gate V1 ready.");
 })();
 
+
+/* ASFX_SIGNAL_PACKET_QUALITY_GUARD_V1 */
+(function(){
+  if (window.__ASFX_SIGNAL_PACKET_QUALITY_GUARD_V1_READY__) return;
+  window.__ASFX_SIGNAL_PACKET_QUALITY_GUARD_V1_READY__ = true;
+
+  const HOLD_MS = 8000;
+
+  function clean(v, fallback = "-"){
+    if (v === undefined || v === null || v === "") return fallback;
+    return String(v);
+  }
+
+  function normalizeTf(v){
+    return clean(v, "15m")
+      .toLowerCase()
+      .replace(/^m(\d+)$/, "$1m")
+      .replace(/^h(\d+)$/, "$1h")
+      .replace(/^d(\d+)$/, "$1d");
+  }
+
+  function normalizeBias(v){
+    const x = clean(v, "WAIT").toUpperCase();
+    if (x.includes("BUY")) return "BUY";
+    if (x.includes("SELL")) return "SELL";
+    return "WAIT";
+  }
+
+  function normalizeRisk(v){
+    const x = clean(v, "Medium").toLowerCase();
+    if (x.includes("low")) return "Low";
+    if (x.includes("high")) return "High";
+    return "Medium";
+  }
+
+  function confidence(v){
+    const n = Number(String(v ?? 0).replace("%", ""));
+    if (!Number.isFinite(n)) return 0;
+    return Math.max(0, Math.min(100, Math.round(n)));
+  }
+
+  function priority(status){
+    const s = clean(status, "").toLowerCase();
+    if (s.includes("invalid")) return 5;
+    if (s.includes("active")) return 4;
+    if (s.includes("risk")) return 3;
+    if (s.includes("touched")) return 2;
+    if (s.includes("watch")) return 1;
+    return 0;
+  }
+
+  const stableFields = [
+    "bias",
+    "risk",
+    "signalStatus",
+    "signalStatusLabel",
+    "actionStatus",
+    "setupType",
+    "zoneState",
+    "phase",
+    "smzPhase",
+    "structure",
+    "demandZone",
+    "supplyZone",
+    "activeZone",
+    "liquidity",
+    "imbalance",
+    "slGuide",
+    "stopLossGuide",
+    "tp1Guide",
+    "tp2Guide",
+    "reason",
+    "statusDetail",
+    "executionNote"
+  ];
+
+  function sameMarket(a = {}, b = {}){
+    const ap = clean(a.pair || a.symbol, "").toUpperCase();
+    const bp = clean(b.pair || b.symbol, "").toUpperCase();
+    const at = normalizeTf(a.tf || a.timeframe);
+    const bt = normalizeTf(b.tf || b.timeframe);
+    return ap && bp && ap === bp && at === bt;
+  }
+
+  function stabilize(raw = {}){
+    const now = Date.now();
+    const prev = window.__ASFX_STABLE_SIGNAL_PACKET_V1__ || null;
+
+    let next = Object.assign({}, raw);
+
+    next.pair = clean(next.pair || next.symbol, "BTCUSDT").toUpperCase();
+    next.symbol = next.pair;
+    next.timeframe = normalizeTf(next.timeframe || next.tf || "15m");
+    next.tf = next.timeframe;
+    next.bias = normalizeBias(next.bias);
+    next.risk = normalizeRisk(next.risk);
+    next.confidence = confidence(next.confidence ?? next.score);
+    next.score = next.confidence;
+
+    // Harga tetap live, jangan ditahan.
+    next.price = next.price || next.currentPrice || next.livePrice || "-";
+    next.currentPrice = next.currentPrice || next.price || "-";
+    next.livePrice = next.livePrice || next.currentPrice || next.price || "-";
+
+    if (prev && sameMarket(prev, next)) {
+      const prevStatus = prev.actionStatus || prev.signalStatus || "";
+      const nextStatus = next.actionStatus || next.signalStatus || "";
+      const priorityJump = Math.abs(priority(nextStatus) - priority(prevStatus)) >= 2;
+      const strongEvent = /active|invalid|risk/i.test(nextStatus);
+      const young = now - Number(prev.__asfxGuardChangedAt || 0) < HOLD_MS;
+
+      if (young && !priorityJump && !strongEvent) {
+        stableFields.forEach((field) => {
+          const oldVal = prev[field];
+          const newVal = next[field];
+
+          if (
+            oldVal !== undefined &&
+            oldVal !== null &&
+            oldVal !== "" &&
+            newVal !== undefined &&
+            newVal !== null &&
+            newVal !== "" &&
+            String(oldVal) !== String(newVal)
+          ) {
+            next[field] = oldVal;
+          }
+        });
+      } else {
+        next.__asfxGuardChangedAt = now;
+      }
+
+      const diff = Math.abs(Number(next.confidence || 0) - Number(prev.confidence || 0));
+      if (diff > 0 && diff <= 4) {
+        next.confidence = Number(prev.confidence || next.confidence);
+        next.score = next.confidence;
+      }
+    } else {
+      next.__asfxGuardChangedAt = now;
+    }
+
+    next.__asfxGuardUpdatedAt = now;
+    next.lastUpdated = new Date().toISOString();
+
+    window.__ASFX_STABLE_SIGNAL_PACKET_V1__ = next;
+    window.__ASFX_LAST_SIGNAL_PACKET_V1__ = next;
+    window.__ASFX_LAST_SMZ_ANALYSIS__ = Object.assign({}, window.__ASFX_LAST_SMZ_ANALYSIS__ || {}, next);
+    window.__ASFX_LAST_SIGNAL_ANALYSIS__ = Object.assign({}, window.__ASFX_LAST_SIGNAL_ANALYSIS__ || {}, next);
+
+    return next;
+  }
+
+  window.ASFX_SIGNAL_PACKET_QUALITY_GUARD_V1 = {
+    stabilize,
+    get: () => window.__ASFX_STABLE_SIGNAL_PACKET_V1__ || window.__ASFX_LAST_SIGNAL_PACKET_V1__ || {}
+  };
+
+  function wrapPublisher(){
+    const pub = window.ASFX_PUBLISH_SIGNAL_PACKET_V1;
+    if (typeof pub !== "function") return false;
+    if (pub.__asfxQualityGuardWrapped) return true;
+
+    const wrapped = function(raw = {}){
+      const packet = pub(raw);
+      return stabilize(packet || raw || {});
+    };
+
+    wrapped.__asfxQualityGuardWrapped = true;
+    window.ASFX_PUBLISH_SIGNAL_PACKET_V1 = wrapped;
+    return true;
+  }
+
+  if (!wrapPublisher()) setTimeout(wrapPublisher, 800);
+
+  setTimeout(() => {
+    stabilize(
+      window.__ASFX_LAST_SIGNAL_PACKET_V1__ ||
+      window.__ASFX_LAST_SMZ_ANALYSIS__ ||
+      window.__ASFX_LAST_SIGNAL_ANALYSIS__ ||
+      {}
+    );
+  }, 1500);
+
+  console.info("ASFX Signal Packet Quality Guard V1 ready.");
+})();
+
+
+/* ASFX_SIGNAL_STATUS_WORDING_V1 */
+(function(){
+  if (window.__ASFX_SIGNAL_STATUS_WORDING_V1_READY__) return;
+  window.__ASFX_SIGNAL_STATUS_WORDING_V1_READY__ = true;
+
+  function txt(v, fallback = ""){
+    if (v === undefined || v === null || v === "") return fallback;
+    return String(v);
+  }
+
+  function bias(v){
+    const x = txt(v, "WAIT").toUpperCase();
+    if (x.includes("BUY")) return "BUY";
+    if (x.includes("SELL")) return "SELL";
+    return "WAIT";
+  }
+
+  function risk(v){
+    const x = txt(v, "Medium").toLowerCase();
+    if (x.includes("low")) return "Low";
+    if (x.includes("high")) return "High";
+    return "Medium";
+  }
+
+  function normalizeZone(status, activeZone, zoneState){
+    const raw = `${status} ${activeZone} ${zoneState}`.toLowerCase();
+
+    if (raw.includes("invalid")) return "Invalid";
+    if (raw.includes("active")) return "Signal Active";
+    if (raw.includes("touched")) {
+      if (raw.includes("supply")) return "Supply Zone Touched";
+      if (raw.includes("demand")) return "Demand Zone Touched";
+      return "Zone Touched";
+    }
+    if (raw.includes("watch")) {
+      if (raw.includes("supply")) return "Supply Zone Watch";
+      if (raw.includes("demand")) return "Demand Zone Watch";
+      return "Zone Watch";
+    }
+    if (raw.includes("supply")) return "Supply Observation";
+    if (raw.includes("demand")) return "Demand Observation";
+
+    return "Observation";
+  }
+
+  function noteFor(packet = {}){
+    const b = bias(packet.bias);
+    const r = risk(packet.risk);
+    const status = txt(packet.signalStatusLabel || packet.actionStatus || packet.signalStatus, "Observation");
+
+    if (r === "High") {
+      return "Risk tinggi. Sistem tidak menyarankan entry agresif. Tunggu struktur lebih jelas atau candle confirmation yang kuat.";
+    }
+
+    if (/Signal Active/i.test(status)) {
+      return "Setup aktif secara sistem. Tetap gunakan risk management, validasi candle terakhir, dan jangan over-leverage.";
+    }
+
+    if (/Touched/i.test(status)) {
+      return "Harga sudah menyentuh zona penting. Tunggu rejection atau confirmation candle sebelum mengambil keputusan.";
+    }
+
+    if (/Watch/i.test(status)) {
+      return "Harga mendekati active zone. Sistem menunggu reaksi candle bersih sebelum setup dianggap aktif.";
+    }
+
+    if (b === "WAIT") {
+      return "Belum ada arah final. Sistem masih membaca struktur, zona, dan konfirmasi market.";
+    }
+
+    return "Market context terbaca, tetapi setup masih dalam fase observasi. Tunggu validasi tambahan sebelum eksekusi.";
+  }
+
+  function applyWording(packet = {}){
+    const b = bias(packet.bias);
+    const r = risk(packet.risk);
+
+    const cleanStatus = normalizeZone(
+      packet.signalStatus || packet.actionStatus || packet.setupType,
+      packet.activeZone,
+      packet.zoneState
+    );
+
+    let actionStatus = cleanStatus;
+
+    if (r === "High") actionStatus = "Risk Alert";
+    if (b === "WAIT" && /Observation/i.test(cleanStatus)) actionStatus = "No Trade";
+
+    const note = noteFor(Object.assign({}, packet, {
+      bias: b,
+      risk: r,
+      signalStatus: cleanStatus,
+      actionStatus
+    }));
+
+    const next = Object.assign({}, packet, {
+      bias: b,
+      risk: r,
+      signalStatus: cleanStatus,
+      signalStatusLabel: cleanStatus,
+      actionStatus,
+      executionNote: note,
+      statusDetail: note,
+      displayHeadline: `${cleanStatus} · ${b} · ${r} Risk`,
+      publicSummary: `${packet.pair || packet.symbol || "BTCUSDT"} · ${packet.timeframe || packet.tf || "15m"} · ${b} · ${cleanStatus}`,
+      vipSummary: `${b} setup · ${r} Risk · ${cleanStatus}`
+    });
+
+    window.__ASFX_LAST_SIGNAL_PACKET_V1__ = next;
+    window.__ASFX_LAST_SMZ_ANALYSIS__ = Object.assign({}, window.__ASFX_LAST_SMZ_ANALYSIS__ || {}, next);
+    window.__ASFX_LAST_SIGNAL_ANALYSIS__ = Object.assign({}, window.__ASFX_LAST_SIGNAL_ANALYSIS__ || {}, next);
+
+    return next;
+  }
+
+  window.ASFX_SIGNAL_STATUS_WORDING_V1 = {
+    apply: applyWording
+  };
+
+  function wrapPublisher(){
+    const pub = window.ASFX_PUBLISH_SIGNAL_PACKET_V1;
+    if (typeof pub !== "function") return false;
+    if (pub.__asfxWordingWrapped) return true;
+
+    const wrapped = function(raw = {}){
+      const packet = pub(raw);
+      return applyWording(packet || raw || {});
+    };
+
+    wrapped.__asfxWordingWrapped = true;
+    window.ASFX_PUBLISH_SIGNAL_PACKET_V1 = wrapped;
+    return true;
+  }
+
+  if (!wrapPublisher()) setTimeout(wrapPublisher, 800);
+
+  setTimeout(() => {
+    applyWording(
+      window.__ASFX_LAST_SIGNAL_PACKET_V1__ ||
+      window.__ASFX_LAST_SMZ_ANALYSIS__ ||
+      window.__ASFX_LAST_SIGNAL_ANALYSIS__ ||
+      {}
+    );
+  }, 1500);
+
+  console.info("ASFX Signal Status Wording V1 ready.");
+})();
+
