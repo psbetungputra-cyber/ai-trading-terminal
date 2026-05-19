@@ -696,6 +696,16 @@
         })).filter(c => Number.isFinite(c.o) && Number.isFinite(c.c));
 
         state.detailCandles[key] = candles;
+        try {
+          window.__ASFX_SINGLE_CANDLE_SOURCE_V1__?.({
+            pair: state.pair,
+            symbol: state.pair,
+            timeframe: state.timeframe || state.tf || state.interval || "15m",
+            tf: state.timeframe || state.tf || state.interval || "15m",
+            candles,
+            price: candles && candles.length ? (candles[candles.length - 1].c || candles[candles.length - 1].close) : undefined
+          });
+        } catch (_) {}
         state.detailLoading = false;
         refreshDetailChart();
         return;
@@ -724,6 +734,15 @@
   function detailChartHTML() {
     const key = `${state.pair}_${state.tf}`;
     const candles = state.detailCandles[key] || [];
+    try {
+      window.__ASFX_SMZ_ACCEPT_DETAIL_CANDLES__?.({
+        pair: state.pair,
+        symbol: state.pair,
+        timeframe: state.timeframe || state.tf || state.interval || "15m",
+        tf: state.timeframe || state.tf || state.interval || "15m",
+        candles
+      });
+    } catch (_) {}
 
     if (state.detailLoading && !candles.length) {
       return `<div class="asfx-chart-empty">Loading ${safe(state.pair)} candles...</div>`;
@@ -840,6 +859,15 @@
       const isCrypto = state.mode === "crypto";
       const key = `${state.pair}_${state.tf}`;
       const candles = (state.detailCandles && state.detailCandles[key]) ? state.detailCandles[key] : [];
+    try {
+      window.__ASFX_SMZ_ACCEPT_DETAIL_CANDLES__?.({
+        pair: state.pair,
+        symbol: state.pair,
+        timeframe: state.timeframe || state.tf || state.interval || "15m",
+        tf: state.timeframe || state.tf || state.interval || "15m",
+        candles
+      });
+    } catch (_) {}
       const last = candles.length ? candles[candles.length - 1] : null;
       const price = last && last.c ? Number(last.c).toLocaleString("en-US", { maximumFractionDigits: 2 }) : "Loading";
       const high = candles.length ? Math.max(...candles.map(c => Number(c.h || 0))).toLocaleString("en-US", { maximumFractionDigits: 2 }) : "—";
@@ -4619,3 +4647,727 @@
     }, 300);
   }
 })();
+
+
+/* ASFX_SMZ_CANDLE_READER_V1 */
+(function(){
+  if (window.__ASFX_SMZ_CANDLE_READER_V1__) return;
+  window.__ASFX_SMZ_CANDLE_READER_V1__ = true;
+
+  const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+  const num = (v, fallback = 0) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : fallback;
+  };
+  const fmt = (v) => {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return "-";
+    return n.toLocaleString("en-US", { maximumFractionDigits: n > 100 ? 1 : 4 });
+  };
+  const rangeText = (z) => z ? `${fmt(z.low)} - ${fmt(z.high)}` : "Calculating";
+
+  function pickCandles(payload){
+    if (!payload) return [];
+    if (Array.isArray(payload.candles)) return payload.candles;
+    if (Array.isArray(payload.klines)) return payload.klines;
+    if (Array.isArray(payload.data?.candles)) return payload.data.candles;
+    if (Array.isArray(payload.data?.klines)) return payload.data.klines;
+    return [];
+  }
+
+  function normalizeCandles(input){
+    return (Array.isArray(input) ? input : []).map((x, i) => {
+      if (Array.isArray(x)) {
+        return {
+          t: x[0] || i,
+          o: num(x[1]),
+          h: num(x[2]),
+          l: num(x[3]),
+          c: num(x[4]),
+          v: num(x[5])
+        };
+      }
+      return {
+        t: x.t || x.time || x.openTime || i,
+        o: num(x.o ?? x.open),
+        h: num(x.h ?? x.high),
+        l: num(x.l ?? x.low),
+        c: num(x.c ?? x.close),
+        v: num(x.v ?? x.volume)
+      };
+    }).filter(c => c.o && c.h && c.l && c.c && c.h >= c.l);
+  }
+
+  function calcAtr(candles, period = 14){
+    if (candles.length < period + 2) return 0;
+    const recent = candles.slice(-period - 1);
+    const trs = [];
+    for (let i = 1; i < recent.length; i += 1) {
+      const c = recent[i];
+      const p = recent[i - 1];
+      trs.push(Math.max(c.h - c.l, Math.abs(c.h - p.c), Math.abs(c.l - p.c)));
+    }
+    return trs.reduce((a,b) => a + b, 0) / Math.max(1, trs.length);
+  }
+
+  function findSwings(candles){
+    const swings = [];
+    for (let i = 2; i < candles.length - 2; i += 1) {
+      const c = candles[i];
+      if (c.h > candles[i-1].h && c.h > candles[i-2].h && c.h >= candles[i+1].h && c.h >= candles[i+2].h) {
+        swings.push({ type: "high", index: i, price: c.h });
+      }
+      if (c.l < candles[i-1].l && c.l < candles[i-2].l && c.l <= candles[i+1].l && c.l <= candles[i+2].l) {
+        swings.push({ type: "low", index: i, price: c.l });
+      }
+    }
+    return swings;
+  }
+
+  function makeZone(price, width){
+    if (!price) return null;
+    const w = Math.max(width || price * 0.0015, price * 0.0008);
+    return { low: price - w, high: price + w };
+  }
+
+  function detectFvg(candles){
+    for (let i = candles.length - 1; i >= 2; i -= 1) {
+      const a = candles[i - 2];
+      const b = candles[i];
+      if (b.l > a.h) return `Bullish FVG ${fmt(a.h)} - ${fmt(b.l)}`;
+      if (b.h < a.l) return `Bearish FVG ${fmt(b.h)} - ${fmt(a.l)}`;
+    }
+    return "No clean imbalance";
+  }
+
+  function zoneDistance(price, zone, bias, atr){
+    if (!zone || !price) return { state: "Waiting Zone", text: "Waiting valid zone", pct: null };
+    if (price >= zone.low && price <= zone.high) {
+      return { state: "Zone Touched", text: "Price inside active zone", pct: 0 };
+    }
+    const target = bias === "SELL" ? zone.low : zone.high;
+    const dist = Math.abs(price - target);
+    const pct = price ? (dist / price) * 100 : 99;
+    const nearPct = Math.max(0.22, Math.min(0.55, ((atr || 0) / price) * 100 * 1.2));
+    const relation = bias === "SELL"
+      ? (price < zone.low ? "below supply" : "above supply")
+      : (price > zone.high ? "above demand" : "below demand");
+    return {
+      state: pct <= nearPct ? "Zone Watch" : "Waiting Zone",
+      text: `${pct.toFixed(2)}% ${relation} (${fmt(price)} → ${fmt(target)})`,
+      pct
+    };
+  }
+
+  function buildCandleReader(payload, base){
+    const candles = normalizeCandles(pickCandles(payload));
+    if (candles.length < 25) {
+      return {
+        structure: base.structure || "Waiting confirmation",
+        demandZone: base.demandZone || "Calculating",
+        supplyZone: base.supplyZone || "Calculating",
+        liquidity: base.liquidity || "Waiting confirmation",
+        imbalance: base.imbalance || "Waiting",
+        signalStatus: base.signalStatus || "Waiting Zone",
+        statusDetail: base.statusDetail || "Market data masih terbatas. Menunggu candle history lebih banyak.",
+        reason: `${base.reason || "Reading market context."} Candle Reader menunggu minimal candle history.`
+      };
+    }
+
+    const recent = candles.slice(-80);
+    const last = recent[recent.length - 1];
+    const price = num(payload?.price, last.c);
+    const atr = calcAtr(recent, 14);
+    const atrPct = price ? (atr / price) * 100 : 0;
+    const swings = findSwings(recent);
+    const highs = swings.filter(s => s.type === "high").slice(-3);
+    const lows = swings.filter(s => s.type === "low").slice(-3);
+
+    const firstClose = recent[0].c;
+    const candleBias = price >= firstClose ? "BUY" : "SELL";
+    const baseBias = String(base.bias || candleBias || "WAIT").toUpperCase();
+    const bias = baseBias === "WAIT" ? candleBias : baseBias;
+
+    let structure = "Structure forming";
+    if (highs.length >= 2 && lows.length >= 2) {
+      const h1 = highs[highs.length - 2].price;
+      const h2 = highs[highs.length - 1].price;
+      const l1 = lows[lows.length - 2].price;
+      const l2 = lows[lows.length - 1].price;
+      const hh = h2 > h1;
+      const hl = l2 > l1;
+      const lh = h2 < h1;
+      const ll = l2 < l1;
+      if (hh && hl) structure = "Bullish HH/HL structure";
+      else if (lh && ll) structure = "Bearish LH/LL structure";
+      else if (hh && ll) structure = "Expansion / volatile structure";
+      else structure = "Mixed structure";
+    }
+
+    const swingHigh = highs.length ? highs[highs.length - 1].price : Math.max(...recent.slice(-30).map(c => c.h));
+    const swingLow = lows.length ? lows[lows.length - 1].price : Math.min(...recent.slice(-30).map(c => c.l));
+    const width = Math.max(atr * 0.55, price * 0.0012);
+    const supply = makeZone(swingHigh, width);
+    const demand = makeZone(swingLow, width);
+    const activeZone = bias === "SELL" ? supply : demand;
+    const activeName = bias === "SELL" ? "Supply" : "Demand";
+    const dist = zoneDistance(price, activeZone, bias, atr);
+
+    const liquidity = bias === "SELL"
+      ? `Buy-side liquidity near ${fmt(swingHigh)}; sell-side target near ${fmt(swingLow)}`
+      : `Sell-side liquidity near ${fmt(swingLow)}; buy-side target near ${fmt(swingHigh)}`;
+
+    const imbalance = detectFvg(recent);
+
+    let risk = "Medium";
+    if (atrPct > 1.8) risk = "High";
+    else if (atrPct < 0.55) risk = "Low";
+
+    const structureAligned =
+      (bias === "SELL" && /Bearish|Mixed|Expansion/i.test(structure)) ||
+      (bias === "BUY" && /Bullish|Mixed|Expansion/i.test(structure));
+
+    let confidence = num(base.confidence ?? base.score, 50);
+    confidence += structureAligned ? 8 : -4;
+    confidence += dist.state === "Zone Touched" ? 10 : dist.state === "Zone Watch" ? 6 : 0;
+    confidence += /FVG/i.test(imbalance) ? 4 : 0;
+    confidence += risk === "Low" ? 3 : risk === "High" ? -7 : 0;
+    confidence = Math.round(clamp(confidence, 35, 88));
+
+    const phase = dist.state === "Zone Touched" ? "Confirmation" : dist.state === "Zone Watch" ? "Zone Watch" : "Observation";
+    const signalStatus = dist.state === "Zone Touched" ? "Zone Touched" : dist.state;
+    const statusDetail = dist.state === "Zone Touched"
+      ? "Harga sudah menyentuh active zone. Tunggu rejection/confirmation candle sebelum eksekusi."
+      : dist.state === "Zone Watch"
+        ? `Harga mendekati ${activeName.toLowerCase()} zone. Tunggu reaksi candle bersih.`
+        : `Belum masuk active zone. ${dist.text}.`;
+
+    const pad = Math.max(atr * 0.35, price * 0.0009);
+    let stopLossGuide = "Waiting invalidation level";
+    let tp1Guide = "Waiting target area";
+    let tp2Guide = "Waiting extended target";
+    if (bias === "SELL") {
+      stopLossGuide = `Above supply invalidation ${fmt(supply.high + pad)}`;
+      tp1Guide = `First target near ${fmt(Math.max(demand.high, price - atr * 1.25))}`;
+      tp2Guide = `Extended target near ${fmt(Math.min(demand.low, price - atr * 2.2))}`;
+    } else {
+      stopLossGuide = `Below demand invalidation ${fmt(demand.low - pad)}`;
+      tp1Guide = `First target near ${fmt(Math.min(supply.low, price + atr * 1.25))}`;
+      tp2Guide = `Extended target near ${fmt(Math.max(supply.high, price + atr * 2.2))}`;
+    }
+
+    return {
+      bias,
+      risk,
+      confidence,
+      score: confidence,
+      currentPrice: fmt(price),
+      smzPhase: phase,
+      phase,
+      structure,
+      zoneState: `${activeName} ${dist.state}`,
+      activeZone: `${activeName} ${rangeText(activeZone)}`,
+      demandZone: rangeText(demand),
+      supplyZone: rangeText(supply),
+      liquidity,
+      imbalance,
+      distanceToZoneText: dist.text,
+      signalStatus,
+      statusDetail,
+      setupType: signalStatus,
+      stopLossGuide,
+      tp1Guide,
+      tp2Guide,
+      reason: `${base.reason || "Reading market context."} Candle Reader: ${structure}. ${activeName} zone ${rangeText(activeZone)}. ${dist.text}.`
+    };
+  }
+
+  function install(){
+    if (!window.AiSignalLogicV1 || typeof window.AiSignalLogicV1.analyze !== "function") return false;
+    if (window.AiSignalLogicV1.__smzCandleReaderWrapped) return true;
+
+    const previousAnalyze = window.AiSignalLogicV1.analyze.bind(window.AiSignalLogicV1);
+
+    window.AiSignalLogicV1.analyze = (payload = {}) => {
+      const base = previousAnalyze(payload) || {};
+      try {
+        const extra = buildCandleReader(payload, base);
+        const result = Object.assign({}, base, extra);
+        window.__ASFX_LAST_SMZ_ANALYSIS__ = result;
+        window.AiSignalSMZCandleReaderV1 = {
+          last: () => window.__ASFX_LAST_SMZ_ANALYSIS__ || result
+        };
+        if (window.AiSignalSMZEngineV1) {
+          window.AiSignalSMZEngineV1.last = () => window.__ASFX_LAST_SMZ_ANALYSIS__ || result;
+        }
+        return result;
+      } catch (err) {
+        console.warn("ASFX SMZ Candle Reader V1 fallback:", err);
+        return base;
+      }
+    };
+
+    window.AiSignalLogicV1.__smzCandleReaderWrapped = true;
+    return true;
+  }
+
+  if (!install()) setTimeout(install, 800);
+  console.info("ASFX SMZ Candle Reader V1 ready.");
+})();
+
+
+/* ASFX_SMZ_DETAIL_CANDLE_BRIDGE_V1 */
+(function(){
+  if (window.__ASFX_SMZ_DETAIL_CANDLE_BRIDGE_V1__) return;
+  window.__ASFX_SMZ_DETAIL_CANDLE_BRIDGE_V1__ = true;
+
+  const num = (v, fallback = 0) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : fallback;
+  };
+
+  const fmt = (v) => {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return "-";
+    return n.toLocaleString("en-US", { maximumFractionDigits: n > 100 ? 1 : 4 });
+  };
+
+  function normalize(input){
+    return (Array.isArray(input) ? input : []).map((x, i) => {
+      if (Array.isArray(x)) {
+        return {
+          t: x[0] || i,
+          o: num(x[1]),
+          h: num(x[2]),
+          l: num(x[3]),
+          c: num(x[4]),
+          v: num(x[5])
+        };
+      }
+
+      return {
+        t: x.t || x.time || x.openTime || i,
+        o: num(x.o ?? x.open),
+        h: num(x.h ?? x.high),
+        l: num(x.l ?? x.low),
+        c: num(x.c ?? x.close),
+        v: num(x.v ?? x.volume)
+      };
+    }).filter(c => c.o && c.h && c.l && c.c && c.h >= c.l);
+  }
+
+  window.__ASFX_SMZ_ACCEPT_DETAIL_CANDLES__ = function(payload = {}){
+    try {
+      const candles = normalize(payload.candles || []);
+      if (!candles.length || candles.length < 20) return null;
+
+      const last = candles[candles.length - 1];
+      const pair = payload.pair || payload.symbol || "BTCUSDT";
+      const timeframe = payload.timeframe || payload.tf || "15m";
+      const price = num(payload.price, last.c);
+
+      if (!window.AiSignalLogicV1 || typeof window.AiSignalLogicV1.analyze !== "function") {
+        return null;
+      }
+
+      const result = window.AiSignalLogicV1.analyze({
+        symbol: pair,
+        pair,
+        timeframe,
+        tf: timeframe,
+        candles,
+        price,
+        source: "detail-chart-candle-bridge"
+      }) || {};
+
+      const merged = Object.assign({}, result, {
+        pair,
+        symbol: pair,
+        timeframe,
+        tf: timeframe,
+        currentPrice: result.currentPrice || fmt(price),
+        candleCount: candles.length,
+        source: "detail-chart-candle-bridge"
+      });
+
+      window.__ASFX_LAST_SMZ_ANALYSIS__ = merged;
+      window.__ASFX_LAST_SIGNAL_ANALYSIS__ = Object.assign(
+        {},
+        window.__ASFX_LAST_SIGNAL_ANALYSIS__ || {},
+        merged
+      );
+
+      window.AiSignalSMZDetailCandleBridgeV1 = {
+        last: () => window.__ASFX_LAST_SMZ_ANALYSIS__ || merged
+      };
+
+      return merged;
+    } catch (err) {
+      console.warn("ASFX Detail Candle Bridge V1 fallback:", err);
+      return null;
+    }
+  };
+
+  console.info("ASFX SMZ Detail Candle Bridge V1 ready.");
+})();
+
+
+/* ASFX_SINGLE_CANDLE_SOURCE_V1 */
+(function(){
+  if (window.__ASFX_SINGLE_CANDLE_SOURCE_V1_READY__) return;
+  window.__ASFX_SINGLE_CANDLE_SOURCE_V1_READY__ = true;
+
+  const num = (v, fallback = 0) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : fallback;
+  };
+
+  const fmt = (v) => {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return "-";
+    return n.toLocaleString("en-US", { maximumFractionDigits: n > 100 ? 1 : 4 });
+  };
+
+  function normalize(candles){
+    return (Array.isArray(candles) ? candles : []).map((x, i) => {
+      if (Array.isArray(x)) {
+        return {
+          t: x[0] || i,
+          o: num(x[1]),
+          h: num(x[2]),
+          l: num(x[3]),
+          c: num(x[4]),
+          v: num(x[5])
+        };
+      }
+
+      return {
+        t: x.t || x.time || x.openTime || i,
+        o: num(x.o ?? x.open),
+        h: num(x.h ?? x.high),
+        l: num(x.l ?? x.low),
+        c: num(x.c ?? x.close),
+        v: num(x.v ?? x.volume)
+      };
+    }).filter(c => c.o && c.h && c.l && c.c && c.h >= c.l);
+  }
+
+  window.__ASFX_SINGLE_CANDLE_SOURCE_V1__ = function(payload = {}){
+    try {
+      const candles = normalize(payload.candles || []);
+      if (!candles.length || candles.length < 20) return null;
+
+      const last = candles[candles.length - 1];
+      const pair = payload.pair || payload.symbol || "BTCUSDT";
+      const timeframe = payload.timeframe || payload.tf || "15m";
+      const price = num(payload.price, last.c);
+
+      if (!window.AiSignalLogicV1 || typeof window.AiSignalLogicV1.analyze !== "function") {
+        return null;
+      }
+
+      const result = window.AiSignalLogicV1.analyze({
+        symbol: pair,
+        pair,
+        timeframe,
+        tf: timeframe,
+        candles,
+        price,
+        source: "single-candle-source-v1"
+      }) || {};
+
+      const merged = Object.assign({}, result, {
+        pair,
+        symbol: pair,
+        timeframe,
+        tf: timeframe,
+        currentPrice: result.currentPrice || fmt(price),
+        candleCount: candles.length,
+        source: "single-candle-source-v1"
+      });
+
+      window.__ASFX_LAST_SMZ_ANALYSIS__ = merged;
+      window.__ASFX_LAST_SIGNAL_ANALYSIS__ = Object.assign(
+        {},
+        window.__ASFX_LAST_SIGNAL_ANALYSIS__ || {},
+        merged
+      );
+
+      window.ASFX_SINGLE_CANDLE_SOURCE_V1_LAST = merged;
+
+      if (window.AiSignalSMZEngineV1) {
+        window.AiSignalSMZEngineV1.last = () => window.__ASFX_LAST_SMZ_ANALYSIS__ || merged;
+      }
+
+      window.dispatchEvent?.(new CustomEvent("asfx:smz:update", { detail: merged }));
+
+      return merged;
+    } catch (err) {
+      console.warn("ASFX Single Candle Source V1 fallback:", err);
+      return null;
+    }
+  };
+
+  console.info("ASFX Single Candle Source V1 ready.");
+})();
+
+
+/* ASFX_SMZ_DIRECT_PACKET_V1 */
+(function(){
+  if (window.__ASFX_SMZ_DIRECT_PACKET_V1__) return;
+  window.__ASFX_SMZ_DIRECT_PACKET_V1__ = true;
+
+  const num = (v, f = 0) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : f;
+  };
+
+  const fmt = (v) => {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return "-";
+    return n.toLocaleString("en-US", { maximumFractionDigits: n > 100 ? 1 : 4 });
+  };
+
+  const avg = (arr) => arr.length ? arr.reduce((a,b) => a + b, 0) / arr.length : 0;
+
+  function normalize(input){
+    return (Array.isArray(input) ? input : []).map((x, i) => {
+      if (Array.isArray(x)) {
+        return { t:x[0]||i, o:num(x[1]), h:num(x[2]), l:num(x[3]), c:num(x[4]), v:num(x[5]) };
+      }
+      return {
+        t: x.t || x.time || x.openTime || i,
+        o: num(x.o ?? x.open),
+        h: num(x.h ?? x.high),
+        l: num(x.l ?? x.low),
+        c: num(x.c ?? x.close),
+        v: num(x.v ?? x.volume)
+      };
+    }).filter(c => c.o && c.h && c.l && c.c && c.h >= c.l);
+  }
+
+  function atr(candles, period = 14){
+    if (candles.length < period + 2) return 0;
+    const r = candles.slice(-period - 1);
+    const out = [];
+    for (let i = 1; i < r.length; i++) {
+      const c = r[i], p = r[i - 1];
+      out.push(Math.max(c.h - c.l, Math.abs(c.h - p.c), Math.abs(c.l - p.c)));
+    }
+    return avg(out);
+  }
+
+  function swings(candles){
+    const out = [];
+    for (let i = 2; i < candles.length - 2; i++) {
+      const c = candles[i];
+      if (c.h > candles[i-1].h && c.h > candles[i-2].h && c.h >= candles[i+1].h && c.h >= candles[i+2].h) {
+        out.push({ type:"high", index:i, price:c.h });
+      }
+      if (c.l < candles[i-1].l && c.l < candles[i-2].l && c.l <= candles[i+1].l && c.l <= candles[i+2].l) {
+        out.push({ type:"low", index:i, price:c.l });
+      }
+    }
+    return out;
+  }
+
+  function fvg(candles){
+    for (let i = candles.length - 1; i >= 2; i--) {
+      const a = candles[i - 2];
+      const b = candles[i];
+      if (b.l > a.h) return `Bullish FVG ${fmt(a.h)} - ${fmt(b.l)}`;
+      if (b.h < a.l) return `Bearish FVG ${fmt(b.h)} - ${fmt(a.l)}`;
+    }
+    return "No clean imbalance";
+  }
+
+  function zoneAround(price, width){
+    return { low: price - width, high: price + width };
+  }
+
+  function zoneText(z){
+    return z ? `${fmt(z.low)} - ${fmt(z.high)}` : "Calculating";
+  }
+
+  function distance(price, zone){
+    if (!zone || !price) return { inside:false, pct:99, text:"Waiting valid zone" };
+    if (price >= zone.low && price <= zone.high) return { inside:true, pct:0, text:"Price inside active zone" };
+    const target = price > zone.high ? zone.high : zone.low;
+    const pct = Math.abs(price - target) / price * 100;
+    return { inside:false, pct, text:`${pct.toFixed(2)}% from active zone (${fmt(price)} → ${fmt(target)})` };
+  }
+
+  function buildPacket(payload = {}){
+    const candles = normalize(payload.candles || []);
+    const pair = payload.pair || payload.symbol || "BTCUSDT";
+    const timeframe = payload.timeframe || payload.tf || "15m";
+
+    if (candles.length < 25) {
+      return {
+        pair, symbol: pair, timeframe, tf: timeframe,
+        bias: "WAIT",
+        risk: "Medium",
+        confidence: 15,
+        score: 15,
+        structure: "Waiting confirmation",
+        zoneState: "Waiting Zone",
+        demandZone: "Calculating",
+        supplyZone: "Calculating",
+        liquidity: "Waiting confirmation",
+        imbalance: "Waiting",
+        signalStatus: "Waiting Zone",
+        statusDetail: "Menunggu candle history lebih lengkap.",
+        reason: "SMZ menunggu candle history lebih lengkap.",
+        source: "smz-direct-packet-v1"
+      };
+    }
+
+    const recent = candles.slice(-80);
+    const last = recent[recent.length - 1];
+    const price = num(payload.price, last.c);
+    const a = atr(recent);
+    const atrPct = price ? a / price * 100 : 0;
+
+    const fast = avg(recent.slice(-9).map(c => c.c));
+    const slow = avg(recent.slice(-21).map(c => c.c));
+
+    let bias = "WAIT";
+    if (fast > slow * 1.0004) bias = "BUY";
+    if (fast < slow * 0.9996) bias = "SELL";
+
+    const sw = swings(recent);
+    const highs = sw.filter(s => s.type === "high").slice(-3);
+    const lows = sw.filter(s => s.type === "low").slice(-3);
+
+    const swingHigh = highs.length ? highs[highs.length - 1].price : Math.max(...recent.slice(-30).map(c => c.h));
+    const swingLow = lows.length ? lows[lows.length - 1].price : Math.min(...recent.slice(-30).map(c => c.l));
+
+    let structure = "Range / mixed structure";
+    if (highs.length >= 2 && lows.length >= 2) {
+      const h1 = highs[highs.length - 2].price;
+      const h2 = highs[highs.length - 1].price;
+      const l1 = lows[lows.length - 2].price;
+      const l2 = lows[lows.length - 1].price;
+
+      if (h2 > h1 && l2 > l1) structure = "Bullish HH/HL structure";
+      else if (h2 < h1 && l2 < l1) structure = "Bearish LH/LL structure";
+      else if (h2 > h1 && l2 < l1) structure = "Expansion / volatile structure";
+      else structure = "Corrective / mixed structure";
+    }
+
+    if (bias === "WAIT") {
+      if (/Bullish/i.test(structure)) bias = "BUY";
+      else if (/Bearish/i.test(structure)) bias = "SELL";
+    }
+
+    const width = Math.max(a * 0.55, price * 0.0012);
+    const demand = zoneAround(swingLow, width);
+    const supply = zoneAround(swingHigh, width);
+
+    const activeZone = bias === "SELL" ? supply : demand;
+    const activeName = bias === "SELL" ? "Supply" : "Demand";
+    const dist = distance(price, activeZone);
+
+    let signalStatus = "Waiting Zone";
+    if (dist.inside) signalStatus = "Zone Touched";
+    else if (dist.pct <= 0.45) signalStatus = "Zone Watch";
+
+    let risk = "Medium";
+    if (atrPct > 1.8) risk = "High";
+    if (atrPct < 0.55) risk = "Low";
+
+    const imbalance = fvg(recent);
+
+    const aligned =
+      (bias === "BUY" && /Bullish|mixed|Expansion/i.test(structure)) ||
+      (bias === "SELL" && /Bearish|mixed|Expansion/i.test(structure));
+
+    let confidence = 52;
+    confidence += aligned ? 10 : -6;
+    confidence += signalStatus === "Zone Touched" ? 12 : signalStatus === "Zone Watch" ? 7 : 0;
+    confidence += /FVG/i.test(imbalance) ? 4 : 0;
+    confidence += risk === "Low" ? 4 : risk === "High" ? -8 : 0;
+    confidence = Math.max(35, Math.min(88, Math.round(confidence)));
+
+    let stopLossGuide = "Waiting invalidation level";
+    let tp1Guide = "Waiting target area";
+    let tp2Guide = "Waiting extended target";
+
+    if (bias === "SELL") {
+      stopLossGuide = `Above supply invalidation ${fmt(supply.high + a * 0.35)}`;
+      tp1Guide = `First target near demand ${fmt(demand.high)}`;
+      tp2Guide = `Extended target near ${fmt(demand.low)}`;
+    } else if (bias === "BUY") {
+      stopLossGuide = `Below demand invalidation ${fmt(demand.low - a * 0.35)}`;
+      tp1Guide = `First target near supply ${fmt(supply.low)}`;
+      tp2Guide = `Extended target near ${fmt(supply.high)}`;
+    }
+
+    const liquidity = `Buy-side liquidity near ${fmt(swingHigh)} · Sell-side liquidity near ${fmt(swingLow)}`;
+
+    const statusDetail =
+      signalStatus === "Zone Touched"
+        ? "Harga sudah menyentuh active zone. Tunggu rejection / confirmation candle sebelum eksekusi."
+        : signalStatus === "Zone Watch"
+          ? `Harga mendekati ${activeName.toLowerCase()} zone. Tunggu reaksi candle bersih.`
+          : `Harga belum masuk active zone. ${dist.text}.`;
+
+    return {
+      pair,
+      symbol: pair,
+      timeframe,
+      tf: timeframe,
+      bias,
+      risk,
+      confidence,
+      score: confidence,
+      currentPrice: fmt(price),
+      structure,
+      zoneState: `${activeName} ${signalStatus}`,
+      zone: `${activeName} ${signalStatus}`,
+      activeZone: `${activeName} ${zoneText(activeZone)}`,
+      demandZone: zoneText(demand),
+      supplyZone: zoneText(supply),
+      liquidity,
+      imbalance,
+      smzPhase: signalStatus === "Zone Touched" ? "Confirmation" : signalStatus === "Zone Watch" ? "Zone Watch" : "Observation",
+      phase: signalStatus === "Zone Touched" ? "Confirmation" : signalStatus === "Zone Watch" ? "Zone Watch" : "Observation",
+      signalStatus,
+      statusDetail,
+      distanceToZoneText: dist.text,
+      setupType: signalStatus,
+      stopLossGuide,
+      tp1Guide,
+      tp2Guide,
+      reason: `Direct SMZ membaca ${candles.length} candle. ${structure}. ${activeName} zone ${zoneText(activeZone)}. ${dist.text}.`,
+      candleCount: candles.length,
+      source: "smz-direct-packet-v1"
+    };
+  }
+
+  window.__ASFX_SINGLE_CANDLE_SOURCE_V1__ = function(payload = {}){
+    try {
+      const packet = buildPacket(payload);
+      window.__ASFX_LAST_SMZ_ANALYSIS__ = packet;
+      window.__ASFX_LAST_SIGNAL_ANALYSIS__ = Object.assign(
+        {},
+        window.__ASFX_LAST_SIGNAL_ANALYSIS__ || {},
+        packet
+      );
+      window.ASFX_SMZ_DIRECT_PACKET_V1_LAST = packet;
+
+      if (window.AiSignalSMZEngineV1) {
+        window.AiSignalSMZEngineV1.last = () => window.__ASFX_LAST_SMZ_ANALYSIS__ || packet;
+      }
+
+      window.dispatchEvent && window.dispatchEvent(new CustomEvent("asfx:smz:update", { detail: packet }));
+      return packet;
+    } catch (err) {
+      console.warn("ASFX SMZ Direct Packet V1 fallback:", err);
+      return null;
+    }
+  };
+
+  console.info("ASFX SMZ Direct Packet V1 ready.");
+})();
+
