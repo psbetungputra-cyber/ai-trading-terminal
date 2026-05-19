@@ -6956,3 +6956,52 @@ document.addEventListener("click", function(e){
   console.info("ASFX Firebase Signal Snapshot V1 ready.");
 })();
 
+
+/* ASFX_SAVE_CLICK_GATE_V1 */
+(function(){
+  if (window.__ASFX_SAVE_CLICK_GATE_V1_READY__) return;
+  window.__ASFX_SAVE_CLICK_GATE_V1_READY__ = true;
+
+  function clean(v){ return String(v || "").trim(); }
+
+  function isScannerSaveButton(btn){
+    const label = clean(btn.textContent).toLowerCase();
+    if (label !== "save" && !label.includes("save signal")) return false;
+
+    const body = clean(document.body?.innerText || "");
+    return /Scanner|Signal Detail Room|BTCUSDT|ETHUSDT|BNBUSDT|SOLUSDT/i.test(body);
+  }
+
+  function removeLegacySaveToast(){
+    try {
+      [...document.querySelectorAll("div,span,p")].forEach((el) => {
+        const t = clean(el.textContent);
+        if (t.includes("Action saved locally") || t.includes("Real community sync will use Firestore")) {
+          el.remove();
+        }
+      });
+    } catch (_) {}
+  }
+
+  window.addEventListener("click", function(e){
+    const btn = e.target.closest("button, a, [role='button']");
+    if (!btn || !isScannerSaveButton(btn)) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+
+    const now = Date.now();
+    if (window.__ASFX_SAVE_CLICK_LOCK__ && now - window.__ASFX_SAVE_CLICK_LOCK__ < 1200) return;
+    window.__ASFX_SAVE_CLICK_LOCK__ = now;
+
+    if (window.ASFX_FIREBASE_SIGNAL_SNAPSHOT_V1?.save) {
+      window.ASFX_FIREBASE_SIGNAL_SNAPSHOT_V1.save()
+        .then(() => setTimeout(removeLegacySaveToast, 80))
+        .catch((err) => console.warn("ASFX save gate failed:", err));
+    }
+  }, true);
+
+  console.info("ASFX Save Click Gate V1 ready.");
+})();
+
