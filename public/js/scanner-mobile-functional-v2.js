@@ -5559,3 +5559,299 @@ document.addEventListener("click", function(e){
   console.info("ASFX Signal Room Stable Polish V3 ready.");
 })();
 
+
+/* ASFX_SIGNAL_ROOM_STABLE_POLISH_V3_1 */
+(function(){
+  if (window.__ASFX_SIGNAL_ROOM_STABLE_POLISH_V3_1__) return;
+  window.__ASFX_SIGNAL_ROOM_STABLE_POLISH_V3_1__ = true;
+
+  function inject(){
+    if (document.getElementById("asfx-signal-room-stable-polish-v3-1")) return;
+
+    const style = document.createElement("style");
+    style.id = "asfx-signal-room-stable-polish-v3-1";
+    style.textContent = `
+      @media (max-width: 720px) {
+        .asfx-bridge-wrap {
+          padding: 13px !important;
+          border-radius: 20px !important;
+        }
+
+        .asfx-bridge-head {
+          padding: 13px 14px !important;
+          border-radius: 18px !important;
+          margin-bottom: 10px !important;
+        }
+
+        .asfx-bridge-kicker {
+          font-size: 9px !important;
+          letter-spacing: 2.6px !important;
+          margin-bottom: 6px !important;
+        }
+
+        .asfx-bridge-title {
+          font-size: clamp(23px, 6.4vw, 30px) !important;
+          line-height: 1.05 !important;
+          margin-bottom: 6px !important;
+        }
+
+        .asfx-bridge-sub {
+          font-size: 12.5px !important;
+          line-height: 1.35 !important;
+        }
+
+        .asfx-bridge-grid {
+          gap: 7px !important;
+          margin: 9px 0 !important;
+        }
+
+        .asfx-bridge-mini {
+          min-height: 70px !important;
+          padding: 10px !important;
+          border-radius: 16px !important;
+        }
+
+        .asfx-bridge-mini small {
+          font-size: 10px !important;
+          margin-bottom: 6px !important;
+        }
+
+        .asfx-bridge-mini b {
+          font-size: clamp(15px, 4.3vw, 19px) !important;
+          line-height: 1.08 !important;
+          word-break: normal !important;
+          overflow-wrap: normal !important;
+        }
+
+        .asfx-bridge-mini:nth-child(3) b {
+          font-size: clamp(14px, 3.9vw, 17px) !important;
+          line-height: 1.12 !important;
+        }
+
+        .asfx-bridge-box {
+          padding: 12px 13px !important;
+          border-radius: 17px !important;
+          margin-top: 8px !important;
+          font-size: 13px !important;
+          line-height: 1.42 !important;
+        }
+
+        .asfx-bridge-box b {
+          font-size: 13.5px !important;
+          line-height: 1.35 !important;
+        }
+
+        .asfx-bridge-lock {
+          padding: 12px 13px !important;
+          border-radius: 17px !important;
+          margin-top: 8px !important;
+          font-size: 12.5px !important;
+          line-height: 1.35 !important;
+        }
+
+        .asfx-bridge-box summary {
+          font-size: 13.5px !important;
+        }
+
+        [data-detail-tab] {
+          min-height: 39px !important;
+          padding: 0 13px !important;
+          font-size: 12.5px !important;
+        }
+      }
+
+      @media (max-width: 390px) {
+        .asfx-bridge-title {
+          font-size: 25px !important;
+        }
+
+        .asfx-bridge-mini {
+          min-height: 66px !important;
+          padding: 9px !important;
+        }
+
+        .asfx-bridge-mini b {
+          font-size: 16px !important;
+        }
+
+        .asfx-bridge-mini:nth-child(3) b {
+          font-size: 14.5px !important;
+        }
+
+        .asfx-bridge-box {
+          font-size: 12.5px !important;
+          padding: 11px 12px !important;
+        }
+
+        .asfx-bridge-box b {
+          font-size: 13px !important;
+        }
+      }
+    `;
+
+    document.head.appendChild(style);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", inject);
+  } else {
+    inject();
+  }
+
+  setTimeout(inject, 500);
+  console.info("ASFX Signal Room Stable Polish V3.1 ready.");
+})();
+
+
+/* ASFX_SIGNAL_ROOM_STABLE_POLISH_V3_2 */
+(function(){
+  if (window.__ASFX_SIGNAL_ROOM_STABLE_POLISH_V3_2__) return;
+  window.__ASFX_SIGNAL_ROOM_STABLE_POLISH_V3_2__ = true;
+
+  function inject(){
+    if (document.getElementById("asfx-signal-room-stable-polish-v3-2")) return;
+
+    const style = document.createElement("style");
+    style.id = "asfx-signal-room-stable-polish-v3-2";
+    style.textContent = `
+      @media (max-width: 720px) {
+        .asfx-bridge-wrap {
+          padding: 11px !important;
+          border-radius: 18px !important;
+        }
+
+        .asfx-bridge-head {
+          padding: 12px !important;
+          border-radius: 16px !important;
+          margin-bottom: 8px !important;
+        }
+
+        .asfx-bridge-kicker {
+          font-size: 8.5px !important;
+          letter-spacing: 2.2px !important;
+          margin-bottom: 5px !important;
+        }
+
+        .asfx-bridge-title {
+          font-size: 24px !important;
+          line-height: 1.06 !important;
+          margin-bottom: 5px !important;
+        }
+
+        .asfx-bridge-sub {
+          font-size: 11.5px !important;
+          line-height: 1.3 !important;
+        }
+
+        .asfx-bridge-grid {
+          grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+          gap: 7px !important;
+          margin: 8px 0 !important;
+        }
+
+        .asfx-bridge-mini {
+          min-height: 62px !important;
+          padding: 8px !important;
+          border-radius: 14px !important;
+        }
+
+        .asfx-bridge-mini small {
+          font-size: 9.5px !important;
+          line-height: 1.1 !important;
+          margin-bottom: 5px !important;
+        }
+
+        .asfx-bridge-mini b {
+          font-size: 15px !important;
+          line-height: 1.12 !important;
+          word-break: keep-all !important;
+          overflow-wrap: normal !important;
+          hyphens: none !important;
+        }
+
+        .asfx-bridge-mini:nth-child(2) b,
+        .asfx-bridge-mini:nth-child(3) b {
+          font-size: 13.5px !important;
+          line-height: 1.12 !important;
+        }
+
+        .asfx-bridge-box {
+          padding: 10px 11px !important;
+          border-radius: 15px !important;
+          margin-top: 7px !important;
+          font-size: 12px !important;
+          line-height: 1.38 !important;
+        }
+
+        .asfx-bridge-box b {
+          font-size: 12.5px !important;
+          line-height: 1.3 !important;
+        }
+
+        .asfx-bridge-lock {
+          padding: 10px 11px !important;
+          border-radius: 15px !important;
+          margin-top: 7px !important;
+          font-size: 11.5px !important;
+          line-height: 1.32 !important;
+        }
+
+        .asfx-bridge-box summary {
+          font-size: 12.5px !important;
+          line-height: 1.3 !important;
+        }
+
+        [data-detail-tab] {
+          min-height: 37px !important;
+          padding: 0 12px !important;
+          font-size: 12px !important;
+        }
+      }
+
+      @media (max-width: 390px) {
+        .asfx-bridge-title {
+          font-size: 22px !important;
+        }
+
+        .asfx-bridge-sub {
+          font-size: 11px !important;
+        }
+
+        .asfx-bridge-mini {
+          min-height: 58px !important;
+          padding: 7px !important;
+        }
+
+        .asfx-bridge-mini b {
+          font-size: 14px !important;
+        }
+
+        .asfx-bridge-mini:nth-child(2) b,
+        .asfx-bridge-mini:nth-child(3) b {
+          font-size: 12.5px !important;
+        }
+
+        .asfx-bridge-box {
+          font-size: 11.5px !important;
+          padding: 9px 10px !important;
+        }
+
+        .asfx-bridge-box b {
+          font-size: 12px !important;
+        }
+      }
+    `;
+
+    document.head.appendChild(style);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", inject);
+  } else {
+    inject();
+  }
+
+  setTimeout(inject, 500);
+  console.info("ASFX Signal Room Stable Polish V3.2 ready.");
+})();
+
