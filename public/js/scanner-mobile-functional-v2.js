@@ -6735,3 +6735,224 @@ document.addEventListener("click", function(e){
   console.info("ASFX Signal Status Wording V1 ready.");
 })();
 
+
+/* ASFX_FIREBASE_SIGNAL_SNAPSHOT_V1 */
+(function(){
+  if (window.__ASFX_FIREBASE_SIGNAL_SNAPSHOT_V1_READY__) return;
+  window.__ASFX_FIREBASE_SIGNAL_SNAPSHOT_V1_READY__ = true;
+
+  const LAST_KEY = "aisignalfx:last_signal_snapshot_key";
+  const HOLD_MS = 30000;
+
+  function clean(v, fallback = "-"){
+    if (v === undefined || v === null || v === "") return fallback;
+    return String(v);
+  }
+
+  function getProfile(){
+    try {
+      return JSON.parse(localStorage.getItem("aisignalfx:firebase_user") || "{}") || {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  function getPacket(){
+    return (
+      window.ASFX_SIGNAL_PACKET_QUALITY_GUARD_V1?.get?.() ||
+      window.__ASFX_STABLE_SIGNAL_PACKET_V1__ ||
+      window.__ASFX_LAST_SIGNAL_PACKET_V1__ ||
+      window.__ASFX_LAST_SMZ_ANALYSIS__ ||
+      window.__ASFX_LAST_SIGNAL_ANALYSIS__ ||
+      {}
+    );
+  }
+
+  function canSaveSnapshot(){
+    try {
+      if (window.ASFX_ACCESS_UI_GATE_V1?.canAccessScannerDetail?.()) return true;
+    } catch (_) {}
+
+    try {
+      const q = new URLSearchParams(window.location.search || "");
+      if (["owner", "admin", "vip"].some(k => ["1", "true", "yes"].includes(String(q.get(k)).toLowerCase()))) return true;
+    } catch (_) {}
+
+    try {
+      if (localStorage.getItem("asfx_owner") === "1" || localStorage.getItem("asfx_vip") === "1") return true;
+    } catch (_) {}
+
+    return false;
+  }
+
+  function toast(message, type = "ok"){
+    const old = document.getElementById("asfx-snapshot-toast-v1");
+    if (old) old.remove();
+
+    const el = document.createElement("div");
+    el.id = "asfx-snapshot-toast-v1";
+    el.textContent = message;
+    el.style.cssText = `
+      position: fixed;
+      left: 50%;
+      bottom: 92px;
+      transform: translateX(-50%);
+      z-index: 999999;
+      max-width: min(92vw, 420px);
+      padding: 13px 16px;
+      border-radius: 999px;
+      color: #fff;
+      font-weight: 900;
+      font-size: 13px;
+      letter-spacing: .2px;
+      background: ${type === "error" ? "rgba(127,29,29,.96)" : "rgba(15,23,42,.96)"};
+      border: 1px solid ${type === "error" ? "rgba(248,113,113,.45)" : "rgba(56,189,248,.45)"};
+      box-shadow: 0 18px 50px rgba(0,0,0,.38);
+    `;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 2600);
+  }
+
+  function buildSnapshot(){
+    const packet = getPacket();
+    const profile = getProfile();
+
+    const pair = clean(packet.pair || packet.symbol, "BTCUSDT").toUpperCase();
+    const timeframe = clean(packet.timeframe || packet.tf, "15m");
+
+    const snapshot = {
+      type: "scanner_signal_snapshot",
+      source: "Signal Scanner",
+      market: pair.endsWith("USDT") ? "crypto" : "reference",
+      mode: pair.endsWith("USDT") ? "crypto_live_binance" : "reference_mode",
+
+      pair,
+      symbol: pair,
+      timeframe,
+
+      bias: clean(packet.bias, "WAIT"),
+      risk: clean(packet.risk, "Medium"),
+      confidence: Number(String(packet.confidence || packet.score || 0).replace("%", "")) || 0,
+
+      status: clean(packet.actionStatus || packet.signalStatusLabel || packet.signalStatus, "Observation"),
+      signalStatus: clean(packet.signalStatusLabel || packet.signalStatus || packet.actionStatus, "Observation"),
+
+      demandZone: clean(packet.demandZone, "Calculating"),
+      supplyZone: clean(packet.supplyZone, "Calculating"),
+      activeZone: clean(packet.activeZone || packet.zoneState, "Waiting zone"),
+
+      structure: clean(packet.structure, "Waiting structure"),
+      liquidity: clean(packet.liquidity, "Waiting liquidity"),
+      imbalance: clean(packet.imbalance, "Waiting imbalance/FVG"),
+
+      slGuide: clean(packet.slGuide || packet.stopLossGuide, "Waiting invalidation level"),
+      tp1Guide: clean(packet.tp1Guide, "Waiting target area"),
+      tp2Guide: clean(packet.tp2Guide, "Waiting extended target"),
+
+      reason: clean(packet.reason || packet.statusDetail || packet.executionNote, "Market context snapshot."),
+      insight: clean(packet.executionNote || packet.statusDetail || packet.reason, "Signal snapshot saved."),
+
+      price: clean(packet.price || packet.currentPrice || packet.livePrice, "-"),
+
+      access: canSaveSnapshot() ? "vip_or_owner" : "public",
+      uid: clean(profile.uid, "local"),
+      userEmail: clean(profile.email, ""),
+      userRole: clean(profile.role || profile.level, ""),
+
+      createdAtClient: new Date().toISOString()
+    };
+
+    snapshot.snapshotKey = [
+      snapshot.pair,
+      snapshot.timeframe,
+      snapshot.bias,
+      snapshot.status,
+      snapshot.demandZone,
+      snapshot.supplyZone
+    ].join("|");
+
+    return snapshot;
+  }
+
+  async function saveSnapshot(){
+    if (!canSaveSnapshot()) {
+      try {
+        window.ASFX_ACCESS_UI_GATE_V1?.showGate?.();
+      } catch (_) {}
+      toast("Signal snapshot khusus VIP/owner.", "error");
+      return null;
+    }
+
+    const fb = window.AiSignalFirebase;
+    if (!fb) {
+      toast("Firebase belum siap. Refresh halaman dulu.", "error");
+      throw new Error("AiSignalFirebase not ready");
+    }
+
+    const snapshot = buildSnapshot();
+
+    try {
+      const last = JSON.parse(localStorage.getItem(LAST_KEY) || "{}");
+      if (
+        last.key === snapshot.snapshotKey &&
+        Date.now() - Number(last.time || 0) < HOLD_MS
+      ) {
+        toast("Snapshot sudah tersimpan. Tunggu perubahan signal baru.");
+        return snapshot;
+      }
+    } catch (_) {}
+
+    let result = null;
+
+    if (typeof fb.addCollectionDoc === "function") {
+      result = await fb.addCollectionDoc("signalSnapshots", snapshot);
+    } else if (typeof fb.saveSignal === "function") {
+      result = await fb.saveSignal(snapshot);
+    } else {
+      throw new Error("Firebase save helper not found");
+    }
+
+    localStorage.setItem(LAST_KEY, JSON.stringify({
+      key: snapshot.snapshotKey,
+      time: Date.now()
+    }));
+
+    toast("Signal snapshot tersimpan ke Firebase.");
+    return result || snapshot;
+  }
+
+  window.ASFX_FIREBASE_SIGNAL_SNAPSHOT_V1 = {
+    save: saveSnapshot,
+    build: buildSnapshot
+  };
+
+  document.addEventListener("click", function(e){
+    const btn = e.target.closest("button, a, [role='button']");
+    if (!btn) return;
+
+    const label = clean(btn.textContent, "").trim().toLowerCase();
+    const action = clean(btn.getAttribute("data-action") || btn.getAttribute("data-save") || "", "").toLowerCase();
+
+    const isSaveButton =
+      label === "save" ||
+      label.includes("save signal") ||
+      action.includes("save");
+
+    if (!isSaveButton) return;
+
+    const pageText = clean(document.body?.innerText, "");
+    const inScanner = /Scanner|Signal Detail Room|BTCUSDT|ETHUSDT|BNBUSDT/i.test(pageText);
+    if (!inScanner) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    saveSnapshot().catch((err) => {
+      console.warn("ASFX snapshot save failed:", err);
+      toast("Gagal simpan snapshot. Cek login/Firebase rules.", "error");
+    });
+  }, true);
+
+  console.info("ASFX Firebase Signal Snapshot V1 ready.");
+})();
+
