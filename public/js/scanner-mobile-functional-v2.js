@@ -2,7 +2,7 @@
 (function () {
   const cryptoPairs = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "DOGEUSDT", "ADAUSDT", "AVAXUSDT"];
   const refPairs = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "GBPJPY"];
-  const timeframes = ["5m", "15m", "1H", "4H"];
+  const timeframes = ["1m", "5m", "15m", "30m", "1H", "4H", "1D", "1W"];
 
   const refData = {
     XAUUSD: { price: 2345.12, change: 0.42, bias: "BUY", confidence: 72, risk: "Medium", market: "Gold Ref", setup: "Reference bullish structure" },
@@ -32,8 +32,44 @@
 
   function fmt(v) {
     const n = Number(v || 0);
-    if (!n) return "Loading";
-    return n.toLocaleString("en-US", { maximumFractionDigits: n > 100 ? 2 : 5 });
+    if (!Number.isFinite(n) || !n) return "Loading";
+
+    const digits = n >= 100 ? 2 : n >= 1 ? 4 : 6;
+
+    return n.toLocaleString("en-US", {
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits
+    });
+  }
+
+  function tfCountdown(tf) {
+    const key = String(tf || "15m").toLowerCase();
+    const map = {
+      "1m": 60000,
+      "5m": 300000,
+      "15m": 900000,
+      "30m": 1800000,
+      "1h": 3600000,
+      "4h": 14400000,
+      "1d": 86400000,
+      "1w": 604800000
+    };
+
+    const size = map[key] || map["15m"];
+    const left = Math.max(0, size - (Date.now() % size));
+    const total = Math.ceil(left / 1000);
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const s = total % 60;
+
+    if (h > 0) return h + ":" + String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+    return m + ":" + String(s).padStart(2, "0");
+  }
+
+  function updateMainScannerCountdown() {
+    const node = document.querySelector("[data-main-tf-countdown]");
+    if (!node) return;
+    node.textContent = " · next " + tfCountdown(state.tf);
   }
 
   function safe(v) {
@@ -126,6 +162,7 @@
 
     const data = getPairData(state.pair);
     const price = fmt(data.price);
+    const displayPrice = safe(price);
     const change = Number(data.change || 0);
     const status = data.bias === "WAIT" ? "Waiting" : "Preview";
     const rows = summaryRows();
@@ -155,14 +192,14 @@
         <article class="asfx-focus-card">
           <div class="asfx-focus-top">
             <div>
-              <small>${safe(data.market)} · ${safe(state.tf)}</small>
+              <small>${safe(data.market)} · ${safe(state.tf)}<span data-main-tf-countdown> · next ${safe(tfCountdown(state.tf))}</span></small>
               <h2>${safe(data.symbol)}</h2>
             </div>
             <b class="asfx-badge ${biasClass(data.bias)}">${safe(data.bias)}</b>
           </div>
 
           <div class="asfx-price-row">
-            <strong>${safe(price)}</strong>
+            <strong>${displayPrice}</strong>
             <span class="${change >= 0 ? "green" : "red"}">${change >= 0 ? "+" : ""}${change.toFixed(2)}%</span>
           </div>
 
@@ -1526,6 +1563,12 @@
       boot();
     }
   }, 1200);
+
+  setInterval(function(){
+    const el = root();
+    if (!el || !isMobile()) return;
+    updateMainScannerCountdown();
+  }, 1000);
 })();
 
 /* ASFX Scanner Bottom Nav Auto Hide */
