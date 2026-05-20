@@ -2686,8 +2686,158 @@
   }
 
   
+  /* ASFX_READSMZ_HYBRID_V1 */
+  /* ASFX_READSMZ_HYBRID_WORDING_V1_1 */
+  function asfxReadSmzHybridV1(raw){
+    const next = Object.assign({}, raw || {});
+
+    const text = (v, fb = "") => (v === undefined || v === null || v === "") ? fb : String(v).trim();
+    const num = (v) => {
+      const n = Number(String(v || "").replace(/[,%]/g, ""));
+      return Number.isFinite(n) ? n : 0;
+    };
+
+    const parseZone = (v) => {
+      const nums = String(v || "").match(/\d[\d,]*(?:\.\d+)?/g);
+      if (!nums || nums.length < 2) return null;
+
+      const a = Number(nums[0].replace(/,/g, ""));
+      const b = Number(nums[1].replace(/,/g, ""));
+      if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+
+      return { low: Math.min(a, b), high: Math.max(a, b) };
+    };
+
+    const price = num(next.currentPrice || next.price || next.livePrice);
+    const demand = parseZone(next.demandZone);
+    const supply = parseZone(next.supplyZone);
+
+    const bias = text(next.bias, "WAIT").toUpperCase();
+    const risk = text(next.risk, "Medium");
+    const structure = text(next.structure, "");
+    const oldStatus = text(next.signalStatus || next.zoneState || next.zone, "Waiting Zone");
+
+    const distToZone = (zone) => {
+      if (!price || !zone) return Infinity;
+      if (price >= zone.low && price <= zone.high) return 0;
+      return Math.min(Math.abs(price - zone.low), Math.abs(price - zone.high));
+    };
+
+    const demandDist = distToZone(demand);
+    const supplyDist = distToZone(supply);
+    const range = demand && supply ? Math.max(supply.high - demand.low, 1) : Math.max(price * 0.004, 1);
+
+    /* ASFX_ZONE_PRIORITY_FIX_V1 */
+    const insideDemand = demand && price >= demand.low && price <= demand.high;
+    const insideSupply = supply && price >= supply.low && price <= supply.high;
+
+    // Prioritas wajib pakai posisi harga asli, bukan teks status lama.
+    // Kalau harga masuk supply/resistance, jangan kebaca support hanya karena oldStatus masih berisi Demand.
+    const nearSupply = insideSupply || (!insideDemand && supplyDist <= range * 0.18 && supplyDist <= demandDist);
+    const nearDemand = insideDemand || (!insideSupply && demandDist <= range * 0.18 && demandDist < supplyDist);
+
+    const middleRange =
+      demand && supply &&
+      price > demand.high &&
+      price < supply.low &&
+      demandDist > range * 0.22 &&
+      supplyDist > range * 0.22;
+
+    const step = price >= 10000 ? 500 : price >= 1000 ? 100 : price >= 100 ? 10 : price >= 10 ? 1 : 0.1;
+    const brnLevel = price ? Math.round(price / step) * step : 0;
+    const nearBrn = price ? Math.abs(price - brnLevel) / price * 100 <= 0.12 : false;
+
+    let signalStatus = oldStatus;
+    let setupType = text(next.setupType, oldStatus);
+    let detail = text(next.statusDetail || next.reason, "Menunggu candle dan struktur lebih bersih.");
+
+    if (/high/i.test(risk)) {
+      signalStatus = "Risk Watch";
+      setupType = "Overtrade Guard";
+      detail = "Overtrade Guard: risk sedang tinggi. Sistem menahan entry agresif.";
+    } else if (middleRange) {
+      signalStatus = "No Trade";
+      setupType = "Middle Range No Trade";
+      next.bias = "WAIT";
+      detail = "Middle Range No Trade: harga berada di tengah range support-resistance. Sistem menahan entry untuk menghindari overtrade.";
+    } else if (nearDemand && bias !== "SELL") {
+      signalStatus = "Support Reaction";
+      setupType = "Support Reaction Watch";
+      detail = "Support Reaction Watch: harga dekat area support/demand. BUY belum final; tunggu rejection atau bullish confirmation.";
+    } else if (nearSupply && bias !== "BUY") {
+      signalStatus = "Resistance Reaction";
+      setupType = "Resistance Rejection Watch";
+      detail = "Resistance Rejection Watch: harga dekat area resistance/supply. SELL belum final; tunggu rejection atau bearish confirmation.";
+    } else if (nearBrn) {
+      signalStatus = "BRN Watch";
+      setupType = "BRN Area Watch";
+      detail = "BRN Area Watch: harga dekat round number. Rawan reaksi, sweep, atau fakeout.";
+    } else if (/mixed|range|corrective/i.test(structure)) {
+      signalStatus = "Range Watch";
+      setupType = "Range Scalping Watch";
+      detail = "Market mixed/ranging. Fokus hanya area support/resistance.";
+    }
+
+    /* ASFX_SIGNAL_PACKET_CONTRACT_FIX_V1 */
+    const priceInsideDemand = demand && price >= demand.low && price <= demand.high;
+    const priceInsideSupply = supply && price >= supply.low && price <= supply.high;
+    const priceAboveSupply = supply && price > supply.high;
+    const priceBelowDemand = demand && price < demand.low;
+
+    // Harga asli harus menang dari status lama.
+    // Jika price sudah masuk supply/resistance, jangan tampil Support/Demand hanya karena packet lama masih menyimpan Demand.
+    if (priceInsideSupply) {
+      signalStatus = "Resistance Reaction";
+      setupType = "Resistance / Supply Reaction Watch";
+      next.bias = bias === "BUY" ? "WAIT" : "SELL";
+      next.activeZone = `Supply ${text(next.supplyZone, "zone")}`;
+      next.zone = next.activeZone;
+      next.zoneState = signalStatus;
+      detail = bias === "BUY"
+        ? "Harga masuk area supply/resistance. BUY ditahan dulu; tunggu breakout valid + pullback, atau rejection bearish untuk SELL watch."
+        : "Harga masuk area supply/resistance. Tunggu rejection candle atau bearish confirmation sebelum validasi SELL.";
+    } else if (priceInsideDemand) {
+      signalStatus = "Support Reaction";
+      setupType = "Support / Demand Reaction Watch";
+      next.bias = bias === "SELL" ? "WAIT" : "BUY";
+      next.activeZone = `Demand ${text(next.demandZone, "zone")}`;
+      next.zone = next.activeZone;
+      next.zoneState = signalStatus;
+      detail = bias === "SELL"
+        ? "Harga masuk area demand/support. SELL ditahan dulu; tunggu breakdown valid + pullback, atau rejection bullish untuk BUY watch."
+        : "Harga masuk area demand/support. Tunggu rejection candle atau bullish confirmation sebelum validasi BUY.";
+    } else if (priceAboveSupply) {
+      signalStatus = "Breakout Watch";
+      setupType = "RBS Pullback Watch";
+      next.bias = "BUY";
+      next.activeZone = `Supply breakout ${text(next.supplyZone, "zone")}`;
+      next.zone = next.activeZone;
+      next.zoneState = signalStatus;
+      detail = "Harga sudah di atas supply/resistance. Jangan FOMO; tunggu pullback/retest agar area lama bisa valid sebagai RBS.";
+    } else if (priceBelowDemand) {
+      signalStatus = "Breakdown Watch";
+      setupType = "SBR Retest Watch";
+      next.bias = "SELL";
+      next.activeZone = `Demand breakdown ${text(next.demandZone, "zone")}`;
+      next.zone = next.activeZone;
+      next.zoneState = signalStatus;
+      detail = "Harga sudah di bawah demand/support. Jangan FOMO; tunggu pullback/retest agar area lama bisa valid sebagai SBR.";
+    }
+
+    next.signalStatus = signalStatus;
+    next.status = signalStatus;
+    next.zoneState = signalStatus;
+    next.setupType = setupType;
+    next.signalStatusLabel = setupType;
+    next.statusDetail = detail;
+    next.reason = detail;
+    next.hybridMode = "ASFX_READSMZ_HYBRID_WORDING_V1_1";
+
+    return next;
+  }
+
   function readSmz(){
-    return window.__ASFX_LAST_SMZ_ANALYSIS__ || {};
+    return asfxReadSmzHybridV1(window.__ASFX_LAST_SMZ_ANALYSIS__ || {});
   }
 
   function smzText(v, fallback = "Waiting confirmation"){
@@ -2753,59 +2903,104 @@
   }
 
   /* ASFX_COMPACT_SIGNAL_ROOM_PANEL_V2 */
+/* ASFX_SIGNAL_ROOM_UI_V4 */
 function signalHtml(d){
   const smz = readSmz();
   const readiness = signalPlanReadiness(d, smz);
 
-  const bias = smzText(d.bias || smz.bias, "WAIT");
-  const risk = smzText(d.risk || smz.risk, "Medium");
-  const confidence = String(smzText(d.confidence || smz.confidence || readiness.score, "0")).replace(/%/g, "");
-  const status = smzText(smz.signalStatus || readiness.label, "Waiting Zone");
+  const bias = smzText(smz.bias || d.bias, "WAIT");
+  const risk = smzText(smz.risk || d.risk, "Medium");
+  const confidence = String(smzText(smz.confidence || d.confidence || readiness.score, "0")).replace(/%/g, "");
+  const setup = smzText(smz.signalStatusLabel || smz.setupType || smz.signalStatus || readiness.label, "Market Observation");
+  const action = smzText(smz.actionStatus || smz.signalStatus || "Observation", "Observation");
+
   const activeZone = smzText(smz.activeZone || smz.zoneState || smz.zone, "Waiting valid zone");
-  const sl = smzText(smz.stopLossGuide, "Waiting invalidation level");
+  const demand = smzText(smz.demandZone, "Calculating");
+  const supply = smzText(smz.supplyZone, "Calculating");
+  const distance = smzText(smz.distanceToZoneText, "Waiting distance");
+
+  const sl = smzText(smz.stopLossGuide || smz.slGuide, "Waiting invalidation level");
   const tp1 = smzText(smz.tp1Guide, "Waiting target area");
   const tp2 = smzText(smz.tp2Guide, "Waiting extended target");
-  const insight = smzText(smz.statusDetail || smz.reason || d.setup, "Tunggu reaksi candle bersih sebelum validasi entry.");
+
+  const lower = `${setup} ${action} ${activeZone} ${smz.statusDetail || smz.reason || ""}`.toLowerCase();
+
+  let position = "Market Observation";
+  let execution = "Tunggu candle confirmation. Jangan entry kalau harga belum memberi reaksi yang jelas.";
+
+  if (lower.includes("support") || lower.includes("demand")) {
+    position = "Price near support / demand reaction area";
+    execution = bias === "BUY"
+      ? "Entry guide: tunggu rejection candle atau bullish close sebelum validasi BUY."
+      : "Area support masih rawan pantulan. SELL butuh breakdown bersih dulu.";
+  } else if (lower.includes("resistance") || lower.includes("supply")) {
+    position = "Price near resistance / supply reaction area";
+    execution = bias === "SELL"
+      ? "Entry guide: tunggu rejection candle atau bearish close sebelum validasi SELL."
+      : "BUY butuh breakout bersih lalu pullback/retest agar tidak kejebak fakeout.";
+  } else if (lower.includes("middle range") || lower.includes("no trade")) {
+    position = "Price inside middle range";
+    execution = "No trade area. Tunggu harga kembali ke support/resistance atau tunggu breakout-pullback.";
+  } else if (lower.includes("brn")) {
+    position = "Price near BRN / round number";
+    execution = "Tunggu candle close yang jelas. BRN sering memicu sweep atau fakeout.";
+  } else if (lower.includes("risk") || lower.includes("overtrade")) {
+    position = "Overtrade Guard active";
+    execution = "Prioritas jaga modal. Tunggu struktur lebih bersih sebelum mencari entry.";
+  }
 
   return `
     <div class="asfx-bridge-wrap" data-asfx-bridge-rendered="signal">
       <div class="asfx-bridge-head">
         <div class="asfx-bridge-kicker">Final Signal Plan</div>
-        <div class="asfx-bridge-title">${status}</div>
-        <div class="asfx-bridge-sub">${d.pair} · ${d.tf} · ${bias} · ${risk} Risk · ${confidence}%</div>
+        <div class="asfx-bridge-title">${setup}</div>
+        <div class="asfx-bridge-sub">${d.pair} · ${d.tf} · ${bias} Bias · ${risk} Risk · ${confidence}%</div>
       </div>
 
       <div class="asfx-bridge-grid">
-        <div class="asfx-bridge-mini"><small>Bias</small><b class="${biasClass(bias)}">${bias}</b></div>
-        <div class="asfx-bridge-mini"><small>Status</small><b>${status}</b></div>
-        <div class="asfx-bridge-mini"><small>Score</small><b>${confidence}%</b></div>
+        <div class="asfx-bridge-mini">
+          <small>Direction</small>
+          <b class="${biasClass(bias)}">${bias}</b>
+        </div>
+        <div class="asfx-bridge-mini">
+          <small>Risk</small>
+          <b>${risk}</b>
+        </div>
+        <div class="asfx-bridge-mini">
+          <small>Score</small>
+          <b>${confidence}%</b>
+        </div>
       </div>
 
       <div class="asfx-bridge-box">
-        <b style="color:#fff;">Active Zone</b><br>
-        ${activeZone}
+        <b style="color:#fff;">Market Position</b><br>
+        ${position}<br>
+        <span style="opacity:.78;">Status: ${action}</span>
+      </div>
+
+      <div class="asfx-bridge-box">
+        <b style="color:#fff;">Zone Respect</b><br>
+        Active: <b style="color:#fff;">${activeZone}</b><br>
+        Distance: <b style="color:#fff;">${distance}</b>
       </div>
 
       <div class="asfx-bridge-box">
         <b style="color:#fff;">Execution Guide</b><br>
+        ${execution}<br><br>
         SL: <b style="color:#fff;">${sl}</b><br>
         TP1: <b style="color:#fff;">${tp1}</b><br>
         TP2: <b style="color:#fff;">${tp2}</b>
       </div>
 
-      <div class="asfx-bridge-box">
-        <b style="color:#fff;">Insight</b><br>
-        ${insight}
-      </div>
-
       <details class="asfx-bridge-box">
-        <summary style="cursor:pointer;color:#fff;font-weight:900;">Lihat Full Analysis</summary>
+        <summary style="cursor:pointer;color:#fff;font-weight:900;">Full Analysis</summary>
         <br>
+        Demand: <b style="color:#fff;">${demand}</b><br>
+        Supply: <b style="color:#fff;">${supply}</b><br>
         Structure: <b style="color:#fff;">${smzText(smz.structure, "Reading")}</b><br>
-        Demand: <b style="color:#fff;">${smzText(smz.demandZone, "Calculating")}</b><br>
-        Supply: <b style="color:#fff;">${smzText(smz.supplyZone, "Calculating")}</b><br>
         Liquidity: <b style="color:#fff;">${smzText(smz.liquidity, "Waiting")}</b><br>
-        FVG: <b style="color:#fff;">${smzText(smz.imbalance, "Waiting")}</b>
+        FVG / Imbalance: <b style="color:#fff;">${smzText(smz.imbalance, "Waiting")}</b><br>
+        Reason: <b style="color:#fff;">${smzText(smz.statusDetail || smz.reason, "Reading market context.")}</b>
       </details>
 
       <div class="asfx-bridge-lock">Educational analysis only. Execution remains user responsibility.</div>
@@ -2816,30 +3011,76 @@ function signalHtml(d){
 function riskHtml(d){
   const smz = readSmz();
 
-  const bias = smzText(d.bias || smz.bias, "WAIT");
-  const risk = smzText(d.risk || smz.risk, "Medium");
-  const confidence = String(smzText(d.confidence || smz.confidence, "0")).replace(/%/g, "");
-  const zone = smzText(smz.zoneState || smz.zone || smz.activeZone, "Waiting Zone");
+  const bias = smzText(smz.bias || d.bias, "WAIT");
+  const risk = smzText(smz.risk || d.risk, "Medium");
+  const confidence = String(smzText(smz.confidence || d.confidence, "0")).replace(/%/g, "");
+  const setup = smzText(smz.signalStatusLabel || smz.setupType || smz.signalStatus || smz.zoneState, "Market Observation");
+
+  const demand = smzText(smz.demandZone, "Calculating");
+  const supply = smzText(smz.supplyZone, "Calculating");
+  const activeZone = smzText(smz.activeZone || smz.zoneState || smz.zone, "Waiting valid zone");
+  const distance = smzText(smz.distanceToZoneText, "Waiting distance");
+
+  const lower = `${setup} ${activeZone} ${smz.statusDetail || ""}`.toLowerCase();
+
+  let guard = "Wait confirmation";
+  let guardNote = "Setup belum final. Tunggu candle yang lebih jelas sebelum validasi entry.";
+
+  if (lower.includes("middle range") || lower.includes("no trade")) {
+    guard = "No Trade Area";
+    guardNote = "Harga berada di tengah range. Area ini rawan overtrade dan tidak ideal untuk entry.";
+  } else if (lower.includes("overtrade") || lower.includes("risk")) {
+    guard = "Overtrade Guard";
+    guardNote = "Sistem menahan entry karena risk belum ideal. Prioritas utama adalah jaga modal.";
+  } else if (lower.includes("support") || lower.includes("demand")) {
+    guard = "Support Reaction";
+    guardNote = "Risk lebih aman jika entry menunggu rejection/bullish confirmation di area support.";
+  } else if (lower.includes("resistance") || lower.includes("supply")) {
+    guard = "Resistance Reaction";
+    guardNote = "Risk lebih aman jika entry menunggu rejection/bearish confirmation di area resistance.";
+  } else if (lower.includes("brn")) {
+    guard = "BRN Watch";
+    guardNote = "Harga dekat round number. Waspadai sweep, fakeout, atau candle spike.";
+  }
 
   return `
     <div class="asfx-bridge-wrap" data-asfx-bridge-rendered="risk">
       <div class="asfx-bridge-head">
         <div class="asfx-bridge-kicker">Risk Guard</div>
-        <div class="asfx-bridge-title">${risk} Risk · ${d.pair}</div>
-        <div class="asfx-bridge-sub">Validasi volatilitas, struktur, dan posisi harga terhadap zona.</div>
+        <div class="asfx-bridge-title">${guard}</div>
+        <div class="asfx-bridge-sub">${d.pair} · ${d.tf} · ${bias} Bias · ${risk} Risk · ${confidence}%</div>
       </div>
 
       <div class="asfx-bridge-grid">
-        <div class="asfx-bridge-mini"><small>Bias</small><b class="${biasClass(bias)}">${bias}</b></div>
-        <div class="asfx-bridge-mini"><small>Confidence</small><b>${confidence}%</b></div>
-        <div class="asfx-bridge-mini"><small>Status</small><b>${zone}</b></div>
+        <div class="asfx-bridge-mini">
+          <small>Bias</small>
+          <b class="${biasClass(bias)}">${bias}</b>
+        </div>
+        <div class="asfx-bridge-mini">
+          <small>Risk</small>
+          <b>${risk}</b>
+        </div>
+        <div class="asfx-bridge-mini">
+          <small>Guard</small>
+          <b>${guard}</b>
+        </div>
       </div>
 
       <div class="asfx-bridge-box">
-        <b style="color:#fff;">Risk Validation</b><br>
-        Structure: <b style="color:#fff;">${smzText(smz.structure, "Reading")}</b><br>
-        Demand: <b style="color:#fff;">${smzText(smz.demandZone, "Calculating")}</b><br>
-        Supply: <b style="color:#fff;">${smzText(smz.supplyZone, "Calculating")}</b>
+        <b style="color:#fff;">Risk Reading</b><br>
+        ${guardNote}
+      </div>
+
+      <div class="asfx-bridge-box">
+        <b style="color:#fff;">Zone Context</b><br>
+        Active: <b style="color:#fff;">${activeZone}</b><br>
+        Demand: <b style="color:#fff;">${demand}</b><br>
+        Supply: <b style="color:#fff;">${supply}</b><br>
+        Distance: <b style="color:#fff;">${distance}</b>
+      </div>
+
+      <div class="asfx-bridge-lock">
+        Best signal is not the most frequent signal. Avoid forced entries.
       </div>
     </div>
   `;
@@ -2848,29 +3089,92 @@ function riskHtml(d){
 function chatHtml(d){
   const smz = readSmz();
 
-  const bias = smzText(d.bias || smz.bias, "WAIT");
-  const risk = smzText(d.risk || smz.risk, "Medium");
-  const confidence = String(smzText(d.confidence || smz.confidence, "0")).replace(/%/g, "");
-  const status = smzText(smz.signalStatus || smz.zoneState, "Waiting Zone");
-  const insight = smzText(smz.statusDetail || smz.reason || d.setup, "Tunggu candle yang lebih jelas sebelum validasi entry.");
+  const bias = smzText(smz.bias || d.bias, "WAIT");
+  const risk = smzText(smz.risk || d.risk, "Medium");
+  const confidence = String(smzText(smz.confidence || d.confidence, "0")).replace(/%/g, "");
+  const setup = smzText(smz.signalStatusLabel || smz.setupType || smz.signalStatus || smz.zoneState, "Market Observation");
+  const activeZone = smzText(smz.activeZone || smz.zoneState || smz.zone, "Waiting valid zone");
+
+  const lower = `${setup} ${activeZone} ${smz.statusDetail || smz.reason || ""}`.toLowerCase();
+
+  let headline = setup;
+  let traderRead = "Market masih butuh konfirmasi. Jangan buru-buru entry sebelum harga memberi reaksi yang jelas.";
+  let whatToWait = "Tunggu candle confirmation dan hindari entry kalau harga masih di area tengah range.";
+  let riskNote = "Gunakan risk kecil dan jangan overtrade.";
+
+  if (lower.includes("support") || lower.includes("demand")) {
+    headline = "Support / Demand Reaction";
+    traderRead = `${d.pair} sedang test area support/demand. Bias ${bias}, tapi entry belum otomatis valid.`;
+    whatToWait = bias === "BUY"
+      ? "Tunggu rejection candle, bullish close, atau retest yang bersih sebelum validasi BUY."
+      : "Support masih berpotensi mantul. SELL butuh breakdown yang benar-benar bersih.";
+  } else if (lower.includes("resistance") || lower.includes("supply")) {
+    headline = "Resistance / Supply Reaction";
+    traderRead = `${d.pair} sedang test area resistance/supply. Area ini rawan rejection atau fake breakout.`;
+    whatToWait = bias === "SELL"
+      ? "Tunggu rejection candle, bearish close, atau retest yang gagal sebelum validasi SELL."
+      : "BUY butuh breakout bersih lalu pullback/retest supaya tidak kejebak fakeout.";
+  } else if (lower.includes("middle range") || lower.includes("no trade")) {
+    headline = "Middle Range No Trade";
+    traderRead = "Harga berada di area tengah range. Ini area yang sering bikin overtrade karena arah belum jelas.";
+    whatToWait = "Tunggu harga kembali ke support/resistance, atau tunggu breakout-pullback yang lebih bersih.";
+    riskNote = "Lebih baik skip daripada memaksa entry di area nanggung.";
+  } else if (lower.includes("brn")) {
+    headline = "BRN / Round Number Watch";
+    traderRead = "Harga dekat angka bulat psikologis. Area seperti ini sering jadi tempat reaksi, sweep, atau fakeout.";
+    whatToWait = "Tunggu candle close yang jelas. Jangan entry hanya karena harga menyentuh angka bulat.";
+  } else if (lower.includes("risk") || lower.includes("overtrade")) {
+    headline = "Overtrade Guard Active";
+    traderRead = "Risk sedang kurang ideal. Sistem menahan signal agar tidak memaksa entry di kondisi yang rawan.";
+    whatToWait = "Tunggu struktur lebih bersih, zona lebih jelas, atau candle confirmation yang kuat.";
+    riskNote = "Prioritas sekarang adalah jaga modal, bukan cari entry sebanyak-banyaknya.";
+  } else if (lower.includes("fvg") || lower.includes("imbalance")) {
+    headline = "FVG / Imbalance Watch";
+    traderRead = "Ada area imbalance/FVG yang bisa jadi konfirmasi tambahan, tapi bukan alasan entry sendirian.";
+    whatToWait = "Tunggu harga retest area dan lihat reaksi candle sebelum validasi setup.";
+  } else if (bias === "BUY") {
+    headline = "BUY Bias Watch";
+    traderRead = `${d.pair} condong BUY, tapi tetap butuh konfirmasi zona dan candle.`;
+    whatToWait = "Tunggu pullback ke area valid atau candle bullish confirmation.";
+  } else if (bias === "SELL") {
+    headline = "SELL Bias Watch";
+    traderRead = `${d.pair} condong SELL, tapi tetap butuh konfirmasi zona dan candle.`;
+    whatToWait = "Tunggu pullback/retest atau candle bearish confirmation.";
+  }
 
   return `
     <div class="asfx-bridge-wrap" data-asfx-bridge-rendered="chat">
       <div class="asfx-bridge-head">
-        <div class="asfx-bridge-kicker">AI Insight</div>
-        <div class="asfx-bridge-title">${status}</div>
-        <div class="asfx-bridge-sub">Ringkasan bahasa trader dari hasil SMZ Engine.</div>
+        <div class="asfx-bridge-kicker">Sentinel AI Insight</div>
+        <div class="asfx-bridge-title">${headline}</div>
+        <div class="asfx-bridge-sub">${d.pair} · ${d.tf} · ${bias} Bias · ${risk} Risk · ${confidence}%</div>
       </div>
 
       <div class="asfx-bridge-box">
-        <b style="color:#fff;">Ringkasan</b><br>
-        ${d.pair} · ${d.tf} bias <b class="${biasClass(bias)}">${bias}</b>, risk <b style="color:#fff;">${risk}</b>, confidence <b style="color:#fff;">${confidence}%</b>.
+        <b style="color:#fff;">Trader Read</b><br>
+        ${traderRead}
       </div>
 
       <div class="asfx-bridge-box">
-        <b style="color:#fff;">Insight</b><br>
-        ${insight}
+        <b style="color:#fff;">What To Wait</b><br>
+        ${whatToWait}
       </div>
+
+      <div class="asfx-bridge-box">
+        <b style="color:#fff;">Risk Note</b><br>
+        ${riskNote}
+      </div>
+
+      <details class="asfx-bridge-box">
+        <summary style="cursor:pointer;color:#fff;font-weight:900;">Full Analysis Context</summary>
+        <br>
+        Active Zone: <b style="color:#fff;">${activeZone}</b><br>
+        Demand: <b style="color:#fff;">${smzText(smz.demandZone, "Calculating")}</b><br>
+        Supply: <b style="color:#fff;">${smzText(smz.supplyZone, "Calculating")}</b><br>
+        Structure: <b style="color:#fff;">${smzText(smz.structure, "Structure reading")}</b><br>
+        Liquidity: <b style="color:#fff;">${smzText(smz.liquidity, "Waiting liquidity")}</b><br>
+        FVG / Imbalance: <b style="color:#fff;">${smzText(smz.imbalance, "Waiting imbalance")}</b>
+      </details>
     </div>
   `;
 }
