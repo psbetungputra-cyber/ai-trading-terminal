@@ -898,11 +898,14 @@
         </div>
 
         <div class="asfx-detail-tfbar">
+          <button class="${state.tf === "1m" ? "active" : ""}">1m</button>
+          <button class="${state.tf === "5m" ? "active" : ""}">5m</button>
           <button class="${state.tf === "15m" ? "active" : ""}">15m</button>
+          <button class="${state.tf === "30m" ? "active" : ""}">30m</button>
           <button class="${state.tf === "1h" ? "active" : ""}">1H</button>
           <button class="${state.tf === "4h" ? "active" : ""}">4H</button>
           <button class="${state.tf === "1d" ? "active" : ""}">1D</button>
-          <button>1W</button>
+          <button class="${state.tf === "1w" ? "active" : ""}">1W</button>
           <button class="icon">▥</button>
           <button class="icon">ƒx</button>
         </div>
@@ -2458,8 +2461,10 @@
   function normalizeTfLabel(raw){
     const value = String(raw || "").trim().toLowerCase();
     const map = {
+      "1m":"1m",
       "5m":"5m",
       "15m":"15m",
+      "30m":"30m",
       "1h":"1h",
       "4h":"4h",
       "1d":"1d",
