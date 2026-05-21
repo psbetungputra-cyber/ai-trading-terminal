@@ -4680,7 +4680,7 @@ document.addEventListener("click", function(e){
     document.querySelectorAll(selector).forEach((el) => {
       if (!el || el.dataset.asfxHydratorKey === key) return;
       el.dataset.asfxHydratorKey = key;
-      /* ASFX_DISABLE_LEGACY_HYDRATOR_UI_V1: legacy panel writer disabled; compact stable renderer owns panel. */
+      el.innerHTML = html;
     });
   };
 
@@ -4710,6 +4710,41 @@ document.addEventListener("click", function(e){
     const tp2Guide = esc(pick(d.tp2Guide, "Waiting extended target"));
     const invalidationLevel = esc(pick(d.invalidationLevel, "Waiting zone invalidation"));
     const riskNotice = esc(pick(d.riskNotice, "Educational analysis only. Execution remains user responsibility."));
+
+    const isWaitingText = (value) => /waiting|calculating|menunggu|observation|belum|tunggu/i.test(String(value || ""));
+    const rawBias = String(pick(d.bias, "WAIT")).toUpperCase();
+    const rawRisk = String(pick(d.risk, "Medium")).toLowerCase();
+    const rawStatus = String(pick(d.signalStatus, d.status, "Waiting Zone")).toUpperCase();
+
+    const hasActionableEntry =
+      !isWaitingText(entryZone) &&
+      !isWaitingText(activeZone) &&
+      entryZone !== "-" &&
+      activeZone !== "-";
+
+    const isBuyBias = rawBias.includes("BUY") || rawBias.includes("BULL");
+    const isSellBias = rawBias.includes("SELL") || rawBias.includes("BEAR");
+    const isHighRisk = rawRisk.includes("high");
+
+    let decisionStatus = "NO TRADE";
+    let decisionAction = "Tidak ada eksekusi. Harga belum berada di zona valid.";
+
+    if (rawStatus.includes("OFFICIAL BUY")) {
+      decisionStatus = "OFFICIAL BUY";
+      decisionAction = "Eksekusi hanya di dalam entry zone.";
+    } else if (rawStatus.includes("OFFICIAL SELL")) {
+      decisionStatus = "OFFICIAL SELL";
+      decisionAction = "Eksekusi hanya di dalam entry zone.";
+    } else if (hasActionableEntry && isBuyBias && !isHighRisk) {
+      decisionStatus = "OFFICIAL BUY";
+      decisionAction = "Entry valid selama harga masih berada di area eksekusi.";
+    } else if (hasActionableEntry && isSellBias && !isHighRisk) {
+      decisionStatus = "OFFICIAL SELL";
+      decisionAction = "Entry valid selama harga masih berada di area eksekusi.";
+    } else if ((isBuyBias || isSellBias) && (hasActionableEntry || !isHighRisk)) {
+      decisionStatus = "SETUP WATCH";
+      decisionAction = "Setup terbaca, tapi tunggu harga masuk zona eksekusi terbaik.";
+    }
 
     setPanel(
       '[data-asfx-bridge-rendered="risk"]',
@@ -4753,26 +4788,21 @@ document.addEventListener("click", function(e){
       '[data-asfx-bridge-rendered="signal"]',
       panelKey(d, "signal"),
       `
-        <div class="asfx-bridge-kicker">Final Signal Plan</div>
-        <div class="asfx-bridge-title">${status}</div>
-        <div class="asfx-bridge-sub">Final plan membaca Chart, Risk Guard, AI Insight, dan SMZ context sebelum eksekusi.</div>
+        <div class="asfx-bridge-kicker">Signal</div>
+        <div class="asfx-bridge-title">${decisionStatus}</div>
+        <div class="asfx-bridge-sub">${decisionAction}</div>
+
         <br>
-        <b style="color:#fff">Signal Readiness</b><br>
+        <b style="color:#fff">Execution</b><br>
         Pair: <b style="color:#fff">${pair}</b><br>
-        Bias: <b style="color:#fff">${bias}</b><br>
+        Setup: <b style="color:#fff">${setupType}</b><br>
+        Entry: <b style="color:#fff">${entryZone}</b><br>
+        SL: <b style="color:#fff">${stopLossGuide}</b><br>
+        TP1: <b style="color:#fff">${tp1Guide}</b><br>
+        TP2: <b style="color:#fff">${tp2Guide}</b><br>
+        <br>
         Risk: <b style="color:#fff">${risk}</b><br>
         Confidence: <b style="color:#fff">${confidence}</b><br>
-        Structure: <b style="color:#fff">${structure}</b><br>
-        Zone: <b style="color:#fff">${zone}</b><br>
-        <br>
-        <b style="color:#fff">Execution Plan Guide</b><br>
-        Setup Type: <b style="color:#fff">${setupType}</b><br>
-        Active Zone: <b style="color:#fff">${activeZone}</b><br>
-        Distance to Zone: <b style="color:#fff">${distanceToZone}</b><br>
-        Entry Zone Guide: <b style="color:#fff">${entryZone}</b><br>
-        Stop Loss Guide: <b style="color:#fff">${stopLossGuide}</b><br>
-        TP1 Guide: <b style="color:#fff">${tp1Guide}</b><br>
-        TP2 Guide: <b style="color:#fff">${tp2Guide}</b><br>
         Invalidation: <b style="color:#fff">${invalidationLevel}</b><br><br>
         <small>${riskNotice}</small>
       `
@@ -7979,4 +8009,6 @@ document.addEventListener("click", function(e){
 
   console.info("ASFX Snapshot Hydrator V1.1 ready.");
 })();
+
+
 
