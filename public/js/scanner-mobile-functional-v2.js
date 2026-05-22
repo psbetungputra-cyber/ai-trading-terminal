@@ -2979,6 +2979,69 @@ window.asfxCoreStatusV1 = window.asfxCoreStatusV1 || function(payload = {}) {
 
 
 /* ASFX_SIGNAL_ACTIVE_TRIGGER_V1 */
+
+/* ASFX_ZONE_TOUCH_DETECTOR_V1 */
+window.asfxNumberFromTextV1 = window.asfxNumberFromTextV1 || function(value) {
+  const match = String(value || "").match(/-?\d{1,3}(?:,\d{3})*(?:\.\d+)?|-?\d+(?:\.\d+)?/);
+  if (!match) return null;
+  const n = Number(match[0].replace(/,/g, ""));
+  return Number.isFinite(n) ? n : null;
+};
+
+window.asfxRangeFromTextV1 = window.asfxRangeFromTextV1 || function(value) {
+  const nums = String(value || "")
+    .match(/-?\d{1,3}(?:,\d{3})*(?:\.\d+)?|-?\d+(?:\.\d+)?/g);
+
+  if (!nums || nums.length < 2) return null;
+
+  const parsed = nums
+    .map((n) => Number(String(n).replace(/,/g, "")))
+    .filter(Number.isFinite);
+
+  if (parsed.length < 2) return null;
+
+  return {
+    low: Math.min(parsed[0], parsed[1]),
+    high: Math.max(parsed[0], parsed[1])
+  };
+};
+
+window.asfxCurrentPriceV1 = window.asfxCurrentPriceV1 || function(payload = {}) {
+  const direct =
+    payload.price ||
+    payload.currentPrice ||
+    payload.livePrice ||
+    payload.lastPrice ||
+    "";
+
+  let price = window.asfxNumberFromTextV1(direct);
+  if (Number.isFinite(price)) return price;
+
+  const body = document.body ? document.body.innerText || "" : "";
+  const currentMatch =
+    body.match(/Current price\s*:\s*([\d,.]+)/i) ||
+    body.match(/Price at signal\s*:\s*([\d,.]+)/i);
+
+  price = window.asfxNumberFromTextV1(currentMatch ? currentMatch[1] : "");
+  return Number.isFinite(price) ? price : null;
+};
+
+window.asfxZoneTouchedV1 = window.asfxZoneTouchedV1 || function(payload = {}) {
+  const zoneText =
+    payload.activeZone ||
+    payload.entryZone ||
+    payload.zone ||
+    payload.zoneState ||
+    "";
+
+  const range = window.asfxRangeFromTextV1(zoneText);
+  const price = window.asfxCurrentPriceV1(payload);
+
+  if (!range || !Number.isFinite(price)) return false;
+
+  return price >= range.low && price <= range.high;
+};
+
 window.asfxSignalActiveTriggerV1 = window.asfxSignalActiveTriggerV1 || function(payload = {}) {
   const raw = [
     payload.signalStatus,
@@ -3000,7 +3063,9 @@ window.asfxSignalActiveTriggerV1 = window.asfxSignalActiveTriggerV1 || function(
   const riskOk = !risk.includes("high");
   const confidenceOk = confidence >= 65;
   const zoneOk = zone && !/waiting|pending|calculating|invalid|none|-/.test(zone);
-  const touched = /zone touched|touched|signal active/i.test(raw);
+  const touched =
+    /zone touched|touched|signal active/i.test(raw) ||
+    (window.asfxZoneTouchedV1 && window.asfxZoneTouchedV1(payload));
   const blocked = /no trade|middle range|invalid|stale|expired|risk alert|risk watch/i.test(raw);
 
   return hasSide && riskOk && confidenceOk && zoneOk && touched && !blocked;
@@ -3094,7 +3159,11 @@ function signalHtml(d){
     statusDetail: reason,
     reason,
     bias,
-    risk
+    risk,
+    confidence,
+    activeZone,
+    entryZone: entry,
+    price: d.price || d.currentPrice || d.livePrice || smz.price || smz.currentPrice || ""
   });
 
   if (!hasEntry || lower.includes('no trade') || lower.includes('middle range')) compactStatus = 'NO TRADE';
@@ -4909,7 +4978,11 @@ document.addEventListener("click", function(e){
       actionStatus: rawActionStatus,
       setupType,
       bias: rawBias,
-      risk: rawRisk
+      risk: rawRisk,
+      confidence,
+      activeZone,
+      entryZone,
+      price: pick(d.price, d.currentPrice, d.livePrice, "")
     });
 
     const canShowExecutionPlan =
