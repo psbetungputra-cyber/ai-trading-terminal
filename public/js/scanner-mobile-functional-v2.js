@@ -3052,7 +3052,7 @@ function signalHtml(d){
   if (compactStatus !== 'SIGNAL ACTIVE' || !entryMid || side === 'WAIT') {
     setPendingPlan();
     if (/^OFFICIAL/i.test(verdict)) {
-      verdict = compactStatus === 'NO TRADE' ? 'NO TRADE' : 'SETUP WATCH';
+      verdict = compactStatus === 'NO TRADE' ? 'NO TRADE' : compactStatus;
       verdictClass = '';
       execution = compactStatus === 'NO TRADE'
         ? 'Tidak ada eksekusi. Zona hanya dipantau.'
@@ -4828,8 +4828,11 @@ document.addEventListener("click", function(e){
       /no trade|middle range|invalid|stale|expired/i.test(decisionSeed) ||
       rawBias === "WAIT";
 
-    const isWatchDecision =
-      /zone watch|zone touched|setup watch|risk watch|risk alert|observation|waiting zone|touched/i.test(decisionSeed);
+    const isZoneWatchDecision =
+      /zone watch|zone touched|waiting zone|touched/i.test(decisionSeed);
+
+    const isSetupWatchDecision =
+      /setup watch|risk watch|risk alert|observation/i.test(decisionSeed);
 
     const isSignalActiveDecision =
       /signal active/i.test(decisionSeed);
@@ -4853,7 +4856,10 @@ document.addEventListener("click", function(e){
     } else if (isNoTradeDecision) {
       decisionStatus = "NO TRADE";
       decisionAction = "Tidak ada eksekusi. Sistem menahan entry sampai zona valid.";
-    } else if (isWatchDecision || isBuyBias || isSellBias || hasActionableEntry) {
+    } else if (isZoneWatchDecision) {
+      decisionStatus = "ZONE WATCH";
+      decisionAction = "Zona terbaca. Entry, SL, dan TP menunggu Signal Active.";
+    } else if (isSetupWatchDecision || isBuyBias || isSellBias || hasActionableEntry) {
       decisionStatus = "SETUP WATCH";
       decisionAction = "Setup terbaca, tapi Entry, SL, dan TP menunggu Signal Active.";
     }
