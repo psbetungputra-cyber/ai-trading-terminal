@@ -2952,6 +2952,34 @@
 
   /* ASFX_COMPACT_SIGNAL_ROOM_PANEL_V2 */
 /* ASFX_SIGNAL_ROOM_UI_V4 */
+
+/* ASFX_SCANNER_CORE_FINISH_V1 */
+window.asfxCoreStatusV1 = window.asfxCoreStatusV1 || function(payload = {}) {
+  const raw = [
+    payload.signalStatus,
+    payload.actionStatus,
+    payload.status,
+    payload.setupType,
+    payload.reason,
+    payload.statusDetail
+  ].filter(Boolean).join(" ").toLowerCase();
+
+  const bias = String(payload.bias || "WAIT").toUpperCase();
+  const risk = String(payload.risk || "Medium").toLowerCase();
+
+  if (/invalid|expired|stale|sl hit|stop loss hit/i.test(raw)) return "INVALID";
+  if (/signal active/i.test(raw) && bias !== "WAIT" && !risk.includes("high")) return "SIGNAL ACTIVE";
+  if (/no trade|middle range/i.test(raw) || bias === "WAIT") return "NO TRADE";
+  if (/zone touched|zone watch|waiting zone|demand watch|supply watch|touched/i.test(raw)) return "ZONE WATCH";
+  if (/setup watch|risk watch|risk alert|observation|waiting/i.test(raw)) return "SETUP WATCH";
+
+  return bias === "BUY" || bias === "SELL" ? "SETUP WATCH" : "NO TRADE";
+};
+
+window.asfxCanExecuteV1 = window.asfxCanExecuteV1 || function(status) {
+  return status === "SIGNAL ACTIVE";
+};
+
 function signalHtml(d){
   const smz = readSmz();
   const readiness = smz.readiness || d.readiness || {};
@@ -3028,9 +3056,21 @@ function signalHtml(d){
   const confirmedForExecution = /signal active/i.test(statusSeed);
 
   let compactStatus = verdict;
+  compactStatus = window.asfxCoreStatusV1({
+    signalStatus: smz.signalStatus,
+    actionStatus: smz.actionStatus,
+    status: compactStatus,
+    setupType: setup,
+    statusDetail: reason,
+    reason,
+    bias,
+    risk
+  });
+
   if (!hasEntry || lower.includes('no trade') || lower.includes('middle range')) compactStatus = 'NO TRADE';
-  else if (!confirmedForExecution || blockedForExecution || isHighRisk) compactStatus = 'ZONE WATCH';
-  else compactStatus = 'SIGNAL ACTIVE';
+  else if (!window.asfxCanExecuteV1(compactStatus) || blockedForExecution || isHighRisk) {
+    compactStatus = compactStatus === 'NO TRADE' ? 'NO TRADE' : 'ZONE WATCH';
+  }
 
   let displayEntry = entry;
   let displaySl = sl;
@@ -4834,12 +4874,17 @@ document.addEventListener("click", function(e){
     const isSetupWatchDecision =
       /setup watch|risk watch|risk alert|observation/i.test(decisionSeed);
 
-    const isSignalActiveDecision =
-      /signal active/i.test(decisionSeed);
+    const normalizedDecisionStatus = window.asfxCoreStatusV1({
+      signalStatus: rawStatus,
+      actionStatus: rawActionStatus,
+      setupType,
+      bias: rawBias,
+      risk: rawRisk
+    });
 
     const canShowExecutionPlan =
       hasActionableEntry &&
-      isSignalActiveDecision &&
+      window.asfxCanExecuteV1(normalizedDecisionStatus) &&
       !isNoTradeDecision &&
       !isHighRisk &&
       (isBuyBias || isSellBias);
@@ -4853,13 +4898,13 @@ document.addEventListener("click", function(e){
     } else if (canShowExecutionPlan && isSellBias) {
       decisionStatus = "OFFICIAL SELL";
       decisionAction = "Signal aktif. Eksekusi hanya di dalam entry zone.";
-    } else if (isNoTradeDecision) {
+    } else if (isNoTradeDecision || normalizedDecisionStatus === "NO TRADE") {
       decisionStatus = "NO TRADE";
       decisionAction = "Tidak ada eksekusi. Sistem menahan entry sampai zona valid.";
-    } else if (isZoneWatchDecision) {
+    } else if (isZoneWatchDecision || normalizedDecisionStatus === "ZONE WATCH") {
       decisionStatus = "ZONE WATCH";
       decisionAction = "Zona terbaca. Entry, SL, dan TP menunggu Signal Active.";
-    } else if (isSetupWatchDecision || isBuyBias || isSellBias || hasActionableEntry) {
+    } else if (isSetupWatchDecision || normalizedDecisionStatus === "SETUP WATCH" || isBuyBias || isSellBias || hasActionableEntry) {
       decisionStatus = "SETUP WATCH";
       decisionAction = "Setup terbaca, tapi Entry, SL, dan TP menunggu Signal Active.";
     }
