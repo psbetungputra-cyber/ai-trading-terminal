@@ -8725,3 +8725,96 @@ document.addEventListener("click", function(e){
   document.addEventListener("visibilitychange", evaluate);
   setTimeout(evaluate, 600);
 })();
+
+
+/* ASFX_SNAPSHOT_STATUS_SYNC_V1 */
+(function(){
+  if (window.__ASFX_SNAPSHOT_STATUS_SYNC_V1__) return;
+  window.__ASFX_SNAPSHOT_STATUS_SYNC_V1__ = true;
+
+  const clean = (value, fallback = "-") => {
+    const text = String(value ?? "").trim();
+    return text || fallback;
+  };
+
+  const readLine = (text, label) => {
+    const re = new RegExp(label + "\\s*:\\s*([^\\n]+)", "i");
+    const match = String(text || "").match(re);
+    return clean(match ? match[1] : "", "-");
+  };
+
+  const readSignalPanel = () => {
+    const panel = document.querySelector('[data-asfx-bridge-rendered="signal"]');
+    if (!panel) return {};
+
+    const text = panel.innerText || "";
+    const status = clean(panel.querySelector(".asfx-bridge-title")?.textContent, "NO TRADE");
+
+    return {
+      status,
+      signalStatus: status,
+      actionStatus: status,
+      lifecycleStatus: clean(panel.dataset.asfxLifecycleState, status),
+      pair: readLine(text, "Pair"),
+      setupType: readLine(text, "Setup"),
+      entryZone: readLine(text, "Entry"),
+      activeZone: readLine(text, "Entry"),
+      slGuide: readLine(text, "SL"),
+      stopLossGuide: readLine(text, "SL"),
+      tp1Guide: readLine(text, "TP1"),
+      tp2Guide: readLine(text, "TP2"),
+      risk: readLine(text, "Risk"),
+      confidence: readLine(text, "Confidence"),
+      invalidationLevel: readLine(text, "Invalidation")
+    };
+  };
+
+  const wrapBuild = () => {
+    const api = window.ASFX_FIREBASE_SIGNAL_SNAPSHOT_V1;
+    if (!api || typeof api.build !== "function" || api.__statusSyncV1) return false;
+
+    const originalBuild = api.build.bind(api);
+
+    api.build = function(...args) {
+      const base = originalBuild(...args) || {};
+      const panel = readSignalPanel();
+
+      const next = {
+        ...base,
+        ...Object.fromEntries(
+          Object.entries(panel).filter(([, value]) => value && value !== "-")
+        )
+      };
+
+      next.status = panel.status || base.status || "NO TRADE";
+      next.signalStatus = next.status;
+      next.actionStatus = panel.lifecycleStatus || next.status;
+      next.lifecycleStatus = panel.lifecycleStatus || next.status;
+      next.snapshotKey = [
+        next.pair,
+        next.timeframe,
+        next.bias,
+        next.status,
+        next.confidence,
+        next.activeZone,
+        next.stopLossGuide,
+        next.tp1Guide,
+        next.tp2Guide
+      ].join("|");
+
+      return next;
+    };
+
+    api.__statusSyncV1 = true;
+    console.info("ASFX Snapshot Status Sync V1 wrapped build().");
+    return true;
+  };
+
+  if (!wrapBuild()) {
+    let tries = 0;
+    const timer = setInterval(() => {
+      tries += 1;
+      if (wrapBuild() || tries > 30) clearInterval(timer);
+    }, 500);
+  }
+})();
