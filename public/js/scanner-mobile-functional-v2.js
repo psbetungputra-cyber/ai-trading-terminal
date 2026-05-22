@@ -96,97 +96,12 @@
     return "Low";
   }
 
-  /* ASFX_MAIN_SCANNER_PREVIEW_SYNC_V1 */
-  function asfxMainNumber(v, fallback = null) {
-    const n = Number(String(v ?? "").replace(/[^0-9.-]/g, ""));
-    return Number.isFinite(n) ? n : fallback;
-  }
-
-  function asfxMainSignalPacket(pair) {
-    try {
-      const candidates = [
-        window.__ASFX_LAST_SMZ_ANALYSIS__,
-        window.ASFXSignalRoomDataHydratorV1?.latest?.()
-      ].filter(Boolean);
-
-      const target = String(pair || "").toUpperCase();
-
-      return candidates.find((packet) => {
-        const symbol = String(packet.pair || packet.symbol || target).toUpperCase();
-        return !symbol || symbol === target;
-      }) || null;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  function asfxMainStatus(packet, fallbackBias) {
-    if (!packet) return fallbackBias === "WAIT" ? "Waiting" : "Preview";
-
-    try {
-      if (window.asfxCoreStatusV1) {
-        return window.asfxCoreStatusV1(packet);
-      }
-    } catch (_) {}
-
-    const raw = [
-      packet.lifecycleStatus,
-      packet.actionStatus,
-      packet.signalStatus,
-      packet.status,
-      packet.setupType,
-      packet.statusDetail,
-      packet.reason
-    ].filter(Boolean).join(" ").toLowerCase();
-
-    const bias = String(packet.bias || fallbackBias || "WAIT").toUpperCase();
-    const risk = String(packet.risk || "").toLowerCase();
-
-    if (/tp1 hit/i.test(raw)) return "TP1 HIT";
-    if (/tp2 hit/i.test(raw)) return "TP2 HIT";
-    if (/sl hit|invalid|expired|stale/i.test(raw)) return "INVALID";
-    if (/signal active/i.test(raw) && bias !== "WAIT" && !risk.includes("high")) return "SIGNAL ACTIVE";
-    if (/no trade|middle range/i.test(raw) || bias === "WAIT") return "NO TRADE";
-    if (/zone watch|zone touched|waiting zone|demand watch|supply watch|touched/i.test(raw)) return "ZONE WATCH";
-    if (/setup watch|risk watch|risk alert|observation|waiting/i.test(raw)) return "SETUP WATCH";
-
-    return bias === "WAIT" ? "Waiting" : "Preview";
-  }
-
-  function asfxMergeMainPreview(base, pair) {
-    const packet = asfxMainSignalPacket(pair);
-    if (!packet) return base;
-
-    const status = asfxMainStatus(packet, base.bias);
-    const confidence = asfxMainNumber(packet.confidence, base.confidence);
-    const risk = packet.risk || base.risk;
-    const bias = packet.bias || base.bias;
-
-    const setup =
-      packet.setupType ||
-      packet.signalStatus ||
-      packet.actionStatus ||
-      packet.status ||
-      packet.activeZone ||
-      base.setup;
-
-    return {
-      ...base,
-      bias,
-      confidence,
-      risk,
-      setup,
-      status
-    };
-  }
-
   function getPairData(pair) {
     if (state.mode === "crypto") {
       const d = state.live[pair] || {};
       const change = Number(d.priceChangePercent || 0);
       const bias = biasFromChange(change);
-
-      const base = {
+      return {
         symbol: pair,
         price: Number(d.lastPrice || 0),
         change,
@@ -194,14 +109,43 @@
         confidence: Math.min(88, Math.max(55, Math.round(58 + Math.abs(change) * 6))),
         risk: riskFromChange(change),
         market: "Crypto Live",
-        setup: "Open Detail for live zone analysis",
-        status: bias === "WAIT" ? "Waiting" : "Preview"
+        setup: bias === "BUY" ? "Momentum continuation" : bias === "SELL" ? "Pullback pressure" : "Waiting confirmation"
       };
-
-      return asfxMergeMainPreview(base, pair);
     }
 
-    return asfxMergeMainPreview({ symbol: pair, ...(refData[pair] || refData.XAUUSD) }, pair);
+    return { symbol: pair, ...(refData[pair] || refData.XAUUSD) };
+  }
+
+  function biasClass(bias) {
+    const b = String(bias || "WAIT").toLowerCase();
+    return b === "buy" ? "buy" : b === "sell" ? "sell" : "wait";
+  }
+
+  async function fetchCrypto(pair) {
+    if (state.mode !== "crypto") return;
+    if (state.loading) return;
+
+    state.loading = true;
+
+    const urls = [
+      `https://data-api.binance.vision/api/v3/ticker/24hr?symbol=${pair}`,
+      `https://api.binance.com/api/v3/ticker/24hr?symbol=${pair}`
+    ];
+
+    for (const url of urls) {
+      try {
+        const res = await fetch(url, { cache: "no-store" });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const json = await res.json();
+        state.live[pair] = json;
+        state.loading = false;
+        render();
+        return;
+      } catch (e) {}
+    }
+
+    state.loading = false;
+    render();
   }
 
   function pairs() {
@@ -220,7 +164,7 @@
     const price = fmt(data.price);
     const displayPrice = safe(price);
     const change = Number(data.change || 0);
-    const status = data.status || (data.bias === "WAIT" ? "Waiting" : "Preview");
+    const status = data.bias === "WAIT" ? "Waiting" : "Preview";
     const rows = summaryRows();
 
     el.innerHTML = `
