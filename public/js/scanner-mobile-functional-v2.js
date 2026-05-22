@@ -3003,6 +3003,94 @@ function signalHtml(d){
     verdict = "SETUP WATCH";
     execution = "Bias terbaca. Tunggu harga masuk zona eksekusi terbaik.";
   }
+  /* __ASFX_SIGNAL_INTEGRITY_PACK_V1__ */
+  const asfxNums = (value) => String(value || '').replace(/,/g, '').match(/-?\d+(?:\.\d+)?/g)?.map(Number).filter(Number.isFinite) || [];
+  const asfxLastNum = (value) => { const nums = asfxNums(value); return nums.length ? nums[nums.length - 1] : null; };
+  const asfxRange = (value) => {
+    const nums = asfxNums(value);
+    if (nums.length >= 2) {
+      const a = nums[0];
+      const b = nums[1];
+      return { low: Math.min(a, b), high: Math.max(a, b), mid: (a + b) / 2 };
+    }
+    if (nums.length === 1) return { low: nums[0], high: nums[0], mid: nums[0] };
+    return null;
+  };
+  const asfxFmt = (value) => {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return 'Waiting';
+    return n.toLocaleString('en-US', { maximumFractionDigits: 2 });
+  };
+
+  const statusSeed = `${setup} ${action} ${activeZone} ${reason} ${smz.signalStatus || ''} ${smz.actionStatus || ''}`.toLowerCase();
+  const side = isSell ? 'SELL' : isBuy ? 'BUY' : 'WAIT';
+  const blockedForExecution = /no trade|wait|waiting|zone watch|setup watch|risk watch|observation|invalid|stale|expired|pending|middle range/i.test(statusSeed);
+  const confirmedForExecution = /signal active|official buy|official sell|confirmed|valid signal/i.test(statusSeed);
+
+  let compactStatus = verdict;
+  if (!hasEntry || lower.includes('no trade') || lower.includes('middle range')) compactStatus = 'NO TRADE';
+  else if (!confirmedForExecution || blockedForExecution || isHighRisk) compactStatus = 'ZONE WATCH';
+  else compactStatus = 'SIGNAL ACTIVE';
+
+  let displayEntry = entry;
+  let displaySl = sl;
+  let displayTp1 = tp1;
+  let displayTp2 = tp2;
+
+  const entryRange = asfxRange(entry) || asfxRange(activeZone);
+  const entryMid = entryRange ? entryRange.mid : null;
+  const demandRange = asfxRange(demand);
+  const supplyRange = asfxRange(supply);
+
+  const setPendingPlan = () => {
+    displayEntry = 'Pending - watch zone only';
+    displaySl = 'Pending - waiting invalidation';
+    displayTp1 = 'Pending - waiting valid target';
+    displayTp2 = 'Pending - waiting extended target';
+  };
+
+  if (compactStatus !== 'SIGNAL ACTIVE' || !entryMid || side === 'WAIT') {
+    setPendingPlan();
+    if (/^OFFICIAL/i.test(verdict)) {
+      verdict = compactStatus === 'NO TRADE' ? 'NO TRADE' : 'SETUP WATCH';
+      verdictClass = '';
+      execution = compactStatus === 'NO TRADE'
+        ? 'Tidak ada eksekusi. Zona hanya dipantau.'
+        : 'Zona terbaca. Entry, SL, dan TP menunggu validasi signal.';
+    }
+  } else if (side === 'SELL') {
+    const slNum = asfxLastNum(sl);
+    const tp1Num = asfxLastNum(tp1);
+    const tp2Num = asfxLastNum(tp2);
+
+    if (!(Number.isFinite(slNum) && slNum > entryMid)) {
+      displaySl = supplyRange && supplyRange.high > entryMid ? `Above supply invalidation ${asfxFmt(supplyRange.high)}` : 'Pending - invalidation not valid';
+    }
+    if (!(Number.isFinite(tp1Num) && tp1Num < entryMid)) {
+      displayTp1 = demandRange && demandRange.high < entryMid ? `First target near ${asfxFmt(demandRange.high)}` : 'Pending - waiting valid SELL target';
+    }
+    const fixedTp1 = asfxLastNum(displayTp1);
+    if (!(Number.isFinite(tp2Num) && tp2Num < (Number.isFinite(fixedTp1) ? fixedTp1 : entryMid))) {
+      displayTp2 = demandRange && demandRange.low < entryMid ? `Extended target near ${asfxFmt(demandRange.low)}` : 'Pending - waiting extended SELL target';
+    }
+  } else if (side === 'BUY') {
+    const slNum = asfxLastNum(sl);
+    const tp1Num = asfxLastNum(tp1);
+    const tp2Num = asfxLastNum(tp2);
+
+    if (!(Number.isFinite(slNum) && slNum < entryMid)) {
+      displaySl = demandRange && demandRange.low < entryMid ? `Below demand invalidation ${asfxFmt(demandRange.low)}` : 'Pending - invalidation not valid';
+    }
+    if (!(Number.isFinite(tp1Num) && tp1Num > entryMid)) {
+      displayTp1 = supplyRange && supplyRange.low > entryMid ? `First target near ${asfxFmt(supplyRange.low)}` : 'Pending - waiting valid BUY target';
+    }
+    const fixedTp1 = asfxLastNum(displayTp1);
+    if (!(Number.isFinite(tp2Num) && tp2Num > (Number.isFinite(fixedTp1) ? fixedTp1 : entryMid))) {
+      displayTp2 = supplyRange && supplyRange.high > entryMid ? `Extended target near ${asfxFmt(supplyRange.high)}` : 'Pending - waiting extended BUY target';
+    }
+  }
+
+  const compactValidity = compactStatus === 'SIGNAL ACTIVE' ? 'Fresh / Active' : compactStatus === 'NO TRADE' ? 'No Trade' : 'Waiting Validation';
 
   return `
     <div class="asfx-bridge-wrap" data-asfx-bridge-rendered="signal">
@@ -3012,24 +3100,33 @@ function signalHtml(d){
         <div class="asfx-bridge-sub">${d.pair} � ${d.tf} � ${bias} Bias � ${risk} Risk � ${confidence}%</div>
       </div>
 
+      <div class="asfx-bridge-box" style="border-color:rgba(56,189,248,.28);background:linear-gradient(135deg,rgba(2,6,23,.82),rgba(14,165,233,.10));">
+        <div style="font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#38bdf8;font-weight:950;margin-bottom:8px;">AiSignal Engine</div>
+        <div class="asfx-bridge-grid">
+          <div class="asfx-bridge-mini"><small>Status</small><b>${compactStatus}</b></div>
+          <div class="asfx-bridge-mini"><small>Zone</small><b>${activeZone}</b></div>
+          <div class="asfx-bridge-mini"><small>Validity</small><b>${compactValidity}</b></div>
+        </div>
+      </div>
+
       <div class="asfx-bridge-box">
         <small>Entry Zone</small><br>
-        <b style="color:#fff;font-size:18px;">${entry}</b><br>
+        <b style="color:#fff;font-size:18px;">${displayEntry}</b><br>
         <span style="opacity:.78;">${execution}</span>
       </div>
 
       <div class="asfx-bridge-grid">
         <div class="asfx-bridge-mini">
           <small>SL</small>
-          <b>${sl}</b>
+          <b>${displaySl}</b>
         </div>
         <div class="asfx-bridge-mini">
           <small>TP1</small>
-          <b>${tp1}</b>
+          <b>${displayTp1}</b>
         </div>
         <div class="asfx-bridge-mini">
           <small>TP2</small>
-          <b>${tp2}</b>
+          <b>${displayTp2}</b>
         </div>
       </div>
 
