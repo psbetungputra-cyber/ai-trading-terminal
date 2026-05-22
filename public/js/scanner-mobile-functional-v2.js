@@ -3025,7 +3025,7 @@ function signalHtml(d){
   const statusSeed = `${setup} ${action} ${activeZone} ${reason} ${smz.signalStatus || ''} ${smz.actionStatus || ''}`.toLowerCase();
   const side = isSell ? 'SELL' : isBuy ? 'BUY' : 'WAIT';
   const blockedForExecution = /no trade|wait|waiting|zone watch|setup watch|risk watch|observation|invalid|stale|expired|pending|middle range/i.test(statusSeed);
-  const confirmedForExecution = /signal active|official buy|official sell|confirmed|valid signal/i.test(statusSeed);
+  const confirmedForExecution = /signal active/i.test(statusSeed);
 
   let compactStatus = verdict;
   if (!hasEntry || lower.includes('no trade') || lower.includes('middle range')) compactStatus = 'NO TRADE';
