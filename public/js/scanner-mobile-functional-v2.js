@@ -8596,3 +8596,132 @@ document.addEventListener("click", function(e){
 
   console.info("ASFX Signal Freshness / Validity Guard V1 ready.");
 })();
+
+
+/* ASFX_TP_SL_LIFECYCLE_V1 */
+(function(){
+  if (window.__ASFX_TP_SL_LIFECYCLE_V1__) return;
+  window.__ASFX_TP_SL_LIFECYCLE_V1__ = true;
+
+  const nums = (value) => {
+    const found = String(value || "").match(/-?\d{1,3}(?:,\d{3})*(?:\.\d+)?|-?\d+(?:\.\d+)?/g);
+    if (!found) return [];
+    return found
+      .map((n) => Number(String(n).replace(/,/g, "")))
+      .filter(Number.isFinite);
+  };
+
+  const lastNum = (value) => {
+    const list = nums(value);
+    return list.length ? list[list.length - 1] : null;
+  };
+
+  const rangeMid = (value) => {
+    const list = nums(value);
+    if (list.length >= 2) return (list[0] + list[1]) / 2;
+    if (list.length === 1) return list[0];
+    return null;
+  };
+
+  const lineValue = (text, label) => {
+    const re = new RegExp(label + "\\s*:\\s*([^\\n]+)", "i");
+    const match = String(text || "").match(re);
+    return match ? match[1].trim() : "";
+  };
+
+  const fmt = (value) => {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return "-";
+    return n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  };
+
+  const currentPrice = () => {
+    if (typeof window.asfxCurrentPriceV1 === "function") {
+      const p = window.asfxCurrentPriceV1({});
+      if (Number.isFinite(p)) return p;
+    }
+
+    const body = document.body ? document.body.innerText || "" : "";
+    const direct =
+      body.match(/Current price\s*:\s*([\d,.]+)/i) ||
+      body.match(/Price at signal\s*:\s*([\d,.]+)/i);
+
+    return lastNum(direct ? direct[1] : "");
+  };
+
+  const evaluate = () => {
+    const panel = document.querySelector('[data-asfx-bridge-rendered="signal"]');
+    if (!panel) return;
+
+    const titleNode = panel.querySelector(".asfx-bridge-title");
+    const subNode = panel.querySelector(".asfx-bridge-sub");
+    if (!titleNode) return;
+
+    const title = String(titleNode.textContent || "").trim().toUpperCase();
+    if (!/OFFICIAL BUY|OFFICIAL SELL/.test(title)) return;
+
+    const side = title.includes("SELL") ? "SELL" : "BUY";
+    const text = panel.innerText || "";
+
+    const entryText = lineValue(text, "Entry");
+    const slText = lineValue(text, "SL");
+    const tp1Text = lineValue(text, "TP1");
+    const tp2Text = lineValue(text, "TP2");
+
+    if (/pending|waiting|watch zone/i.test(entryText + slText + tp1Text + tp2Text)) return;
+
+    const price = currentPrice();
+    const entry = rangeMid(entryText);
+    const sl = lastNum(slText);
+    const tp1 = lastNum(tp1Text);
+    const tp2 = lastNum(tp2Text);
+
+    if (![price, entry, sl, tp1].every(Number.isFinite)) return;
+
+    if (side === "BUY") {
+      if (!(sl < entry && tp1 > entry)) return;
+    } else {
+      if (!(sl > entry && tp1 < entry)) return;
+    }
+
+    let state = "SIGNAL ACTIVE";
+    let note = side + " active · price " + fmt(price);
+
+    if (side === "BUY") {
+      if (price <= sl) {
+        state = "SL HIT";
+        note = "BUY invalidated · SL touched at " + fmt(price);
+      } else if (Number.isFinite(tp2) && price >= tp2) {
+        state = "TP2 HIT";
+        note = "BUY target 2 reached · price " + fmt(price);
+      } else if (price >= tp1) {
+        state = "TP1 HIT";
+        note = "BUY target 1 reached · price " + fmt(price);
+      }
+    } else {
+      if (price >= sl) {
+        state = "SL HIT";
+        note = "SELL invalidated · SL touched at " + fmt(price);
+      } else if (Number.isFinite(tp2) && price <= tp2) {
+        state = "TP2 HIT";
+        note = "SELL target 2 reached · price " + fmt(price);
+      } else if (price <= tp1) {
+        state = "TP1 HIT";
+        note = "SELL target 1 reached · price " + fmt(price);
+      }
+    }
+
+    if (state === "SIGNAL ACTIVE") {
+      panel.dataset.asfxLifecycleState = state;
+      return;
+    }
+
+    panel.dataset.asfxLifecycleState = state;
+    titleNode.textContent = state;
+    if (subNode) subNode.textContent = note;
+  };
+
+  setInterval(evaluate, 2500);
+  document.addEventListener("visibilitychange", evaluate);
+  setTimeout(evaluate, 600);
+})();
