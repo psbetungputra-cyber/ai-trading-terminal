@@ -4868,11 +4868,12 @@ document.addEventListener("click", function(e){
       decisionStatus === "OFFICIAL BUY" ||
       decisionStatus === "OFFICIAL SELL";
 
+    const decisionPlanLabel = showExecutionPlan ? "Execution Plan" : "Signal Watch Plan";
     const decisionEntry = showExecutionPlan ? entryZone : "Pending - watch zone only";
-    const decisionSl = showExecutionPlan ? stopLossGuide : "Pending - waiting active signal";
-    const decisionTp1 = showExecutionPlan ? tp1Guide : "Pending - waiting active signal";
-    const decisionTp2 = showExecutionPlan ? tp2Guide : "Pending - waiting active signal";
-    const decisionInvalidation = showExecutionPlan ? invalidationLevel : "Pending - waiting active signal";
+    const decisionSl = showExecutionPlan ? stopLossGuide : "Pending - waiting Signal Active";
+    const decisionTp1 = showExecutionPlan ? tp1Guide : "Pending - waiting Signal Active";
+    const decisionTp2 = showExecutionPlan ? tp2Guide : "Pending - waiting Signal Active";
+    const decisionInvalidation = showExecutionPlan ? invalidationLevel : "Pending - waiting Signal Active";
 
     setPanel(
       '[data-asfx-bridge-rendered="risk"]',
@@ -4921,7 +4922,7 @@ document.addEventListener("click", function(e){
         <div class="asfx-bridge-sub">${decisionAction}</div>
 
         <br>
-        <b style="color:#fff">Execution</b><br>
+        <b style="color:#fff">${decisionPlanLabel}</b><br>
         Pair: <b style="color:#fff">${pair}</b><br>
         Setup: <b style="color:#fff">${setupType}</b><br>
         Entry: <b style="color:#fff">${decisionEntry}</b><br>
