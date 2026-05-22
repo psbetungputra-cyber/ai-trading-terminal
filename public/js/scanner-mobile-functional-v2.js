@@ -4821,25 +4821,52 @@ document.addEventListener("click", function(e){
     const isSellBias = rawBias.includes("SELL") || rawBias.includes("BEAR");
     const isHighRisk = rawRisk.includes("high");
 
+    const rawActionStatus = String(pick(d.actionStatus, "")).toUpperCase();
+    const decisionSeed = `${rawStatus} ${rawActionStatus} ${setupType}`.toLowerCase();
+
+    const isNoTradeDecision =
+      /no trade|middle range|invalid|stale|expired/i.test(decisionSeed) ||
+      rawBias === "WAIT";
+
+    const isWatchDecision =
+      /zone watch|zone touched|setup watch|risk watch|risk alert|observation|waiting zone|touched/i.test(decisionSeed);
+
+    const isSignalActiveDecision =
+      /signal active/i.test(decisionSeed);
+
+    const canShowExecutionPlan =
+      hasActionableEntry &&
+      isSignalActiveDecision &&
+      !isNoTradeDecision &&
+      !isHighRisk &&
+      (isBuyBias || isSellBias);
+
     let decisionStatus = "NO TRADE";
     let decisionAction = "Tidak ada eksekusi. Harga belum berada di zona valid.";
 
-    if (rawStatus.includes("OFFICIAL BUY")) {
+    if (canShowExecutionPlan && isBuyBias) {
       decisionStatus = "OFFICIAL BUY";
-      decisionAction = "Eksekusi hanya di dalam entry zone.";
-    } else if (rawStatus.includes("OFFICIAL SELL")) {
+      decisionAction = "Signal aktif. Eksekusi hanya di dalam entry zone.";
+    } else if (canShowExecutionPlan && isSellBias) {
       decisionStatus = "OFFICIAL SELL";
-      decisionAction = "Eksekusi hanya di dalam entry zone.";
-    } else if (hasActionableEntry && isBuyBias && !isHighRisk) {
-      decisionStatus = "OFFICIAL BUY";
-      decisionAction = "Entry valid selama harga masih berada di area eksekusi.";
-    } else if (hasActionableEntry && isSellBias && !isHighRisk) {
-      decisionStatus = "OFFICIAL SELL";
-      decisionAction = "Entry valid selama harga masih berada di area eksekusi.";
-    } else if ((isBuyBias || isSellBias) && (hasActionableEntry || !isHighRisk)) {
+      decisionAction = "Signal aktif. Eksekusi hanya di dalam entry zone.";
+    } else if (isNoTradeDecision) {
+      decisionStatus = "NO TRADE";
+      decisionAction = "Tidak ada eksekusi. Sistem menahan entry sampai zona valid.";
+    } else if (isWatchDecision || isBuyBias || isSellBias || hasActionableEntry) {
       decisionStatus = "SETUP WATCH";
-      decisionAction = "Setup terbaca, tapi tunggu harga masuk zona eksekusi terbaik.";
+      decisionAction = "Setup terbaca, tapi Entry, SL, dan TP menunggu Signal Active.";
     }
+
+    const showExecutionPlan =
+      decisionStatus === "OFFICIAL BUY" ||
+      decisionStatus === "OFFICIAL SELL";
+
+    const decisionEntry = showExecutionPlan ? entryZone : "Pending - watch zone only";
+    const decisionSl = showExecutionPlan ? stopLossGuide : "Pending - waiting active signal";
+    const decisionTp1 = showExecutionPlan ? tp1Guide : "Pending - waiting active signal";
+    const decisionTp2 = showExecutionPlan ? tp2Guide : "Pending - waiting active signal";
+    const decisionInvalidation = showExecutionPlan ? invalidationLevel : "Pending - waiting active signal";
 
     setPanel(
       '[data-asfx-bridge-rendered="risk"]',
@@ -4891,14 +4918,14 @@ document.addEventListener("click", function(e){
         <b style="color:#fff">Execution</b><br>
         Pair: <b style="color:#fff">${pair}</b><br>
         Setup: <b style="color:#fff">${setupType}</b><br>
-        Entry: <b style="color:#fff">${entryZone}</b><br>
-        SL: <b style="color:#fff">${stopLossGuide}</b><br>
-        TP1: <b style="color:#fff">${tp1Guide}</b><br>
-        TP2: <b style="color:#fff">${tp2Guide}</b><br>
+        Entry: <b style="color:#fff">${decisionEntry}</b><br>
+        SL: <b style="color:#fff">${decisionSl}</b><br>
+        TP1: <b style="color:#fff">${decisionTp1}</b><br>
+        TP2: <b style="color:#fff">${decisionTp2}</b><br>
         <br>
         Risk: <b style="color:#fff">${risk}</b><br>
         Confidence: <b style="color:#fff">${confidence}</b><br>
-        Invalidation: <b style="color:#fff">${invalidationLevel}</b><br><br>
+        Invalidation: <b style="color:#fff">${decisionInvalidation}</b><br><br>
         <small>${riskNotice}</small>
       `
     );
