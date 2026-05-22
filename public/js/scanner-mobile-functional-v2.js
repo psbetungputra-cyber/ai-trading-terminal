@@ -8414,3 +8414,295 @@ document.addEventListener("click", function(e){
 
   console.info("ASFX Signal Freshness / Validity Guard V1 ready.");
 })();
+
+
+
+/* ASFX_SIGNAL_LIFECYCLE_TRACKER_V1 */
+(function(){
+  if (window.__ASFX_SIGNAL_LIFECYCLE_TRACKER_V1__) return;
+  window.__ASFX_SIGNAL_LIFECYCLE_TRACKER_V1__ = true;
+
+  const STORE_KEY = "aisignalfx:active_signal_lifecycle_v1";
+  const HISTORY_KEY = "aisignalfx:signal_lifecycle_history_v1";
+
+  const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (m) => ({
+    "&":"&amp;",
+    "<":"&lt;",
+    ">":"&gt;",
+    '"':"&quot;",
+    "'":"&#039;"
+  })[m]);
+
+  const nums = (v) => String(v || "")
+    .replace(/,/g, "")
+    .match(/-?\d+(?:\.\d+)?/g)
+    ?.map(Number)
+    .filter(Number.isFinite) || [];
+
+  const lastNum = (v) => {
+    const n = nums(v);
+    return n.length ? n[n.length - 1] : null;
+  };
+
+  const range = (v) => {
+    const n = nums(v);
+    if (n.length >= 2) {
+      const a = n[0];
+      const b = n[1];
+      return { low: Math.min(a, b), high: Math.max(a, b), mid: (a + b) / 2 };
+    }
+    if (n.length === 1) return { low: n[0], high: n[0], mid: n[0] };
+    return null;
+  };
+
+  const fmt = (v) => {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return "—";
+    return n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  };
+
+  function getJson(key, fallback) {
+    try {
+      return JSON.parse(localStorage.getItem(key) || "null") || fallback;
+    } catch (_) {
+      return fallback;
+    }
+  }
+
+  function setJson(key, value) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch (_) {}
+  }
+
+  function packet() {
+    return window.__ASFX_LAST_SIGNAL_PACKET_V1__ ||
+      window.__ASFX_LAST_SMZ_ANALYSIS__ ||
+      window.ASFXSignalRoomDataHydratorV1?.latest?.() ||
+      {};
+  }
+
+  function currentPrice() {
+    const p = packet();
+    const candidates = [
+      p.currentPrice,
+      p.price,
+      p.livePrice,
+      window.__ASFX_LAST_SMZ_ANALYSIS__?.currentPrice,
+      window.__ASFX_LAST_SIGNAL_PACKET_V1__?.currentPrice
+    ];
+
+    for (const item of candidates) {
+      const n = lastNum(item);
+      if (Number.isFinite(n) && n > 0) return n;
+    }
+
+    const text = document.body ? document.body.innerText || "" : "";
+    const m = text.match(/Current price:\s*([\d,.]+)/i) || text.match(/Price\s*([\d,.]+)/i);
+    const n = m ? lastNum(m[1]) : null;
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }
+
+  function panel() {
+    return document.querySelector('[data-asfx-bridge-rendered="signal"]');
+  }
+
+  function miniValue(p, label) {
+    const want = String(label || "").toLowerCase();
+    for (const box of p.querySelectorAll(".asfx-bridge-mini")) {
+      const small = box.querySelector("small")?.textContent?.trim().toLowerCase() || "";
+      if (small === want) return box.querySelector("b")?.textContent?.trim() || "";
+    }
+    return "";
+  }
+
+  function entryValue(p) {
+    for (const box of p.querySelectorAll(".asfx-bridge-box")) {
+      const small = box.querySelector("small")?.textContent?.trim().toLowerCase() || "";
+      if (small === "entry zone") return box.querySelector("b")?.textContent?.trim() || "";
+    }
+    return "";
+  }
+
+  function sideValue(p) {
+    const txt = p.innerText || "";
+    if (/OFFICIAL\s+SELL|SELL\s+Bias/i.test(txt)) return "SELL";
+    if (/OFFICIAL\s+BUY|BUY\s+Bias/i.test(txt)) return "BUY";
+    return "WAIT";
+  }
+
+  function isPending(v) {
+    return /pending|waiting|watch zone only|no trade|belum|tunggu/i.test(String(v || ""));
+  }
+
+  function isSignalActive(p, status, entry, sl, tp1, tp2) {
+    const txt = p.innerText || "";
+    const activeText = /SIGNAL\s+ACTIVE|OFFICIAL\s+BUY|OFFICIAL\s+SELL/i.test(txt + " " + status);
+    return activeText && ![entry, sl, tp1, tp2].some(isPending);
+  }
+
+  function signalKey(data) {
+    return [
+      data.pair,
+      data.tf,
+      data.side,
+      data.entry,
+      data.sl,
+      data.tp1,
+      data.tp2
+    ].join("|");
+  }
+
+  function pushHistory(prev, reason) {
+    if (!prev || !prev.key) return;
+    const history = getJson(HISTORY_KEY, []);
+    history.unshift({
+      ...prev,
+      archivedAt: new Date().toISOString(),
+      archiveReason: reason || "Replaced"
+    });
+    setJson(HISTORY_KEY, history.slice(0, 30));
+  }
+
+  function render(p, info) {
+    let box = p.querySelector(".asfx-lifecycle-panel-v1");
+    if (!box) {
+      box = document.createElement("div");
+      box.className = "asfx-bridge-box asfx-lifecycle-panel-v1";
+      const engine = Array.from(p.querySelectorAll(".asfx-bridge-box"))
+        .find((el) => /AiSignal Engine/i.test(el.textContent || ""));
+      if (engine && engine.nextSibling) engine.parentNode.insertBefore(box, engine.nextSibling);
+      else p.appendChild(box);
+    }
+
+    box.innerHTML = `
+      <div style="font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#38bdf8;font-weight:950;margin-bottom:8px;">Signal Lifecycle</div>
+      <div class="asfx-bridge-grid">
+        <div class="asfx-bridge-mini"><small>Status</small><b>${esc(info.status)}</b></div>
+        <div class="asfx-bridge-mini"><small>Entry</small><b>${esc(info.entryState)}</b></div>
+        <div class="asfx-bridge-mini"><small>Price</small><b>${esc(info.priceText)}</b></div>
+      </div>
+      <div class="asfx-bridge-grid" style="margin-top:8px;">
+        <div class="asfx-bridge-mini"><small>TP1</small><b>${esc(info.tp1State)}</b></div>
+        <div class="asfx-bridge-mini"><small>TP2</small><b>${esc(info.tp2State)}</b></div>
+        <div class="asfx-bridge-mini"><small>SL</small><b>${esc(info.slState)}</b></div>
+      </div>
+    `;
+  }
+
+  function update() {
+    const p = panel();
+    if (!p) return;
+
+    const pk = packet();
+    const pair = String(pk.pair || pk.symbol || "BTCUSDT").toUpperCase();
+    const tf = String(pk.timeframe || pk.tf || "15m");
+
+    const status = miniValue(p, "Status") || "";
+    const entry = entryValue(p);
+    const sl = miniValue(p, "SL");
+    const tp1 = miniValue(p, "TP1");
+    const tp2 = miniValue(p, "TP2");
+    const side = sideValue(p);
+    const price = currentPrice();
+
+    const active = isSignalActive(p, status, entry, sl, tp1, tp2);
+    const entryRange = range(entry);
+    const slNum = lastNum(sl);
+    const tp1Num = lastNum(tp1);
+    const tp2Num = lastNum(tp2);
+
+    const baseInfo = {
+      status: active ? "Monitoring" : "Waiting Validation",
+      entryState: active ? "Waiting Entry" : "Pending",
+      tp1State: active ? "Waiting" : "Pending",
+      tp2State: active ? "Waiting" : "Pending",
+      slState: active ? "Safe" : "Pending",
+      priceText: price ? fmt(price) : "—"
+    };
+
+    if (!active || !price || !entryRange || !Number.isFinite(slNum)) {
+      render(p, baseInfo);
+      return;
+    }
+
+    const data = {
+      pair,
+      tf,
+      side,
+      entry,
+      sl,
+      tp1,
+      tp2
+    };
+
+    const key = signalKey(data);
+    let state = getJson(STORE_KEY, null);
+
+    if (!state || state.key !== key) {
+      pushHistory(state, "New signal replaced previous lifecycle");
+      state = {
+        key,
+        ...data,
+        createdAt: new Date().toISOString(),
+        entryTouched: false,
+        tp1Hit: false,
+        tp2Hit: false,
+        slHit: false,
+        status: "Monitoring"
+      };
+    }
+
+    const inEntry = price >= entryRange.low && price <= entryRange.high;
+
+    if (inEntry) state.entryTouched = true;
+
+    if (side === "SELL") {
+      if (Number.isFinite(tp1Num) && price <= tp1Num) state.tp1Hit = true;
+      if (Number.isFinite(tp2Num) && price <= tp2Num) state.tp2Hit = true;
+      if (price >= slNum) state.slHit = true;
+    }
+
+    if (side === "BUY") {
+      if (Number.isFinite(tp1Num) && price >= tp1Num) state.tp1Hit = true;
+      if (Number.isFinite(tp2Num) && price >= tp2Num) state.tp2Hit = true;
+      if (price <= slNum) state.slHit = true;
+    }
+
+    if (state.slHit) state.status = "SL HIT";
+    else if (state.tp2Hit) state.status = "TP2 HIT";
+    else if (state.tp1Hit) state.status = "TP1 HIT";
+    else if (state.entryTouched) state.status = "ENTRY TOUCHED";
+    else state.status = "Monitoring";
+
+    state.lastPrice = price;
+    state.updatedAt = new Date().toISOString();
+
+    setJson(STORE_KEY, state);
+
+    render(p, {
+      status: state.status,
+      entryState: state.entryTouched ? "Touched" : "Waiting",
+      tp1State: state.tp1Hit ? "HIT" : "Waiting",
+      tp2State: state.tp2Hit ? "HIT" : "Waiting",
+      slState: state.slHit ? "HIT" : "Safe",
+      priceText: fmt(price)
+    });
+  }
+
+  const schedule = () => setTimeout(update, 120);
+
+  setInterval(update, 1000);
+  const observer = new MutationObserver(schedule);
+  observer.observe(document.documentElement, { childList: true, subtree: true });
+
+  window.ASFXSignalLifecycleTrackerV1 = {
+    version: "1.0.0",
+    update,
+    active: () => getJson(STORE_KEY, null),
+    history: () => getJson(HISTORY_KEY, [])
+  };
+
+  setTimeout(update, 1200);
+  console.info("ASFX Signal Lifecycle Tracker V1 ready.");
+})();
