@@ -2969,11 +2969,41 @@ window.asfxCoreStatusV1 = window.asfxCoreStatusV1 || function(payload = {}) {
 
   if (/invalid|expired|stale|sl hit|stop loss hit/i.test(raw)) return "INVALID";
   if (/signal active/i.test(raw) && bias !== "WAIT" && !risk.includes("high")) return "SIGNAL ACTIVE";
+  if (window.asfxSignalActiveTriggerV1 && window.asfxSignalActiveTriggerV1(payload)) return "SIGNAL ACTIVE";
   if (/no trade|middle range/i.test(raw) || bias === "WAIT") return "NO TRADE";
   if (/zone touched|zone watch|waiting zone|demand watch|supply watch|touched/i.test(raw)) return "ZONE WATCH";
   if (/setup watch|risk watch|risk alert|observation|waiting/i.test(raw)) return "SETUP WATCH";
 
   return bias === "BUY" || bias === "SELL" ? "SETUP WATCH" : "NO TRADE";
+};
+
+
+/* ASFX_SIGNAL_ACTIVE_TRIGGER_V1 */
+window.asfxSignalActiveTriggerV1 = window.asfxSignalActiveTriggerV1 || function(payload = {}) {
+  const raw = [
+    payload.signalStatus,
+    payload.actionStatus,
+    payload.status,
+    payload.setupType,
+    payload.reason,
+    payload.statusDetail,
+    payload.activeZone,
+    payload.entryZone
+  ].filter(Boolean).join(" ").toLowerCase();
+
+  const bias = String(payload.bias || "WAIT").toUpperCase();
+  const risk = String(payload.risk || "Medium").toLowerCase();
+  const confidence = Number(String(payload.confidence || "0").replace(/[^0-9.]/g, "")) || 0;
+  const zone = String(payload.activeZone || payload.entryZone || payload.zone || "").toLowerCase();
+
+  const hasSide = bias === "BUY" || bias === "SELL";
+  const riskOk = !risk.includes("high");
+  const confidenceOk = confidence >= 65;
+  const zoneOk = zone && !/waiting|pending|calculating|invalid|none|-/.test(zone);
+  const touched = /zone touched|touched|signal active/i.test(raw);
+  const blocked = /no trade|middle range|invalid|stale|expired|risk alert|risk watch/i.test(raw);
+
+  return hasSide && riskOk && confidenceOk && zoneOk && touched && !blocked;
 };
 
 window.asfxCanExecuteV1 = window.asfxCanExecuteV1 || function(status) {
