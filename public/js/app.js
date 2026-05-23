@@ -2529,3 +2529,593 @@ window.saveLearningModule = saveLearningModule;
 
   console.info("ASFX Hide Bottom Nav Login Only V1 ready.");
 })();
+
+/* ASFX_ADMIN_CONTROL_COMPLETE_V1 */
+(function(){
+  if (window.__ASFX_ADMIN_CONTROL_COMPLETE_V1__) return;
+  window.__ASFX_ADMIN_CONTROL_COMPLETE_V1__ = true;
+
+  const MARK = "Admin Control Complete V1";
+  const STATE = {
+    ready: false,
+    activePanel: "overview",
+    users: [],
+    requests: [],
+    packages: [],
+    payments: [],
+    settings: {},
+    news: [],
+    signals: [],
+    ads: [],
+    lastLoadedAt: null
+  };
+
+  const FALLBACK_PACKAGES = [
+    { id: "vip-starter", name: "VIP Starter", normalPrice: 35000, discount: 10000, finalPrice: 25000, durationDays: 30, label: "Early Promo", active: true },
+    { id: "vip-pro", name: "VIP Pro", normalPrice: 75000, discount: 25000, finalPrice: 50000, durationDays: 30, label: "Best Value", active: true },
+    { id: "founder-promo", name: "Founder Promo", normalPrice: 150000, discount: 50000, finalPrice: 100000, durationDays: 90, label: "Founder Access", active: true }
+  ];
+
+  const FALLBACK_PAYMENTS = [
+    { id: "dana", type: "ewallet", name: "DANA", number: "082258464062", accountName: "ROMADON SAPUTRA", active: true },
+    { id: "gopay", type: "ewallet", name: "GoPay", number: "082258464062", accountName: "ROMADON SAPUTRA", active: true },
+    { id: "ovo", type: "ewallet", name: "OVO", number: "082258464062", accountName: "ROMADON SAPUTRA", active: true },
+    { id: "bri", type: "bank", name: "Bank BRI", number: "7705 0101 2157 535", accountName: "ROMADON SAPUTRA", active: true },
+    { id: "jago", type: "bank", name: "Bank Jago", number: "102893930380", accountName: "ROMADON SAPUTRA", active: true },
+    { id: "seabank", type: "bank", name: "SeaBank", number: "901537786673", accountName: "ROMADON SAPUTRA", active: true }
+  ];
+
+  const DEFAULT_MODES = {
+    signalScanner: "vip_live_crypto_reference_fx",
+    sentinelAI: "free_limited_vip_full",
+    sentinelCommunity: "enabled",
+    tradingLab: "enabled",
+    scannerHistory: "enabled",
+    ads: "manual_ready",
+    maintenanceMode: "off",
+    cryptoProvider: "binance_public_ready",
+    forexProvider: "reference_mode",
+    dashboardMode: "premium_clean"
+  };
+
+  const money = (n) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(Number(n || 0));
+  const text = (v, fallback = "-") => String(v ?? fallback).trim() || fallback;
+  const safeId = (v) => String(v || "").replace(/[^a-zA-Z0-9_-]/g, "");
+  const esc = (v) => String(v ?? "").replace(/[&<>'"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;","\"":"&quot;"}[c]));
+  const lower = (v) => String(v || "").trim().toLowerCase();
+
+  function toast(message, type = "info"){
+    let box = document.getElementById("asfx-admin-toast-v1");
+    if (!box) {
+      box = document.createElement("div");
+      box.id = "asfx-admin-toast-v1";
+      box.className = "asfx-admin-toast-v1";
+      document.body.appendChild(box);
+    }
+    box.textContent = message;
+    box.dataset.type = type;
+    box.classList.add("show");
+    clearTimeout(box.__timer);
+    box.__timer = setTimeout(() => box.classList.remove("show"), 2600);
+  }
+
+  function firebase(){
+    return window.AiSignalFirebase || null;
+  }
+
+  function getAccess(){
+    try{
+      const guarded = window.ASFXAccessGuard?.getAccess?.();
+      if (guarded) return guarded;
+    }catch(_e){}
+
+    let cached = null;
+    try { cached = JSON.parse(localStorage.getItem("aisignalfx:firebase_user") || "null"); } catch(_e) {}
+    const role = lower(localStorage.getItem("asfxRole") || cached?.role || cached?.level);
+    const owner = role === "owner" || role === "founder" || new URLSearchParams(location.search).get("owner") === "1";
+    const admin = owner || role === "admin" || new URLSearchParams(location.search).get("admin") === "1";
+    const vip = admin || role === "vip" || cached?.vipAccess === true;
+    return { role: owner ? "owner" : admin ? "admin" : vip ? "vip" : "free", owner, admin, vip, profile: cached || {} };
+  }
+
+  function canOpenAdmin(){
+    const access = getAccess();
+    return !!(access.owner || access.admin || window.ASFXAccessGuard?.canOpenAdmin?.() === true);
+  }
+
+  async function getCollection(name, fallback = []){
+    try{
+      const api = firebase();
+      if (api?.getCollectionDocs) {
+        const rows = await api.getCollectionDocs(name);
+        return Array.isArray(rows) ? rows : fallback;
+      }
+    }catch(err){
+      console.warn("Admin collection fallback", name, err?.message || err);
+    }
+    return fallback;
+  }
+
+  async function refreshData(){
+    const settingsRows = await getCollection("settings", []);
+    const settings = {};
+    settingsRows.forEach((row) => { if (row?.id) settings[row.id] = row; });
+
+    STATE.users = await getCollection("users", []);
+    STATE.requests = await getCollection("vipRequests", []);
+    STATE.packages = await getCollection("vipPackages", FALLBACK_PACKAGES);
+    STATE.payments = await getCollection("paymentMethods", FALLBACK_PAYMENTS);
+    STATE.news = await getCollection("news", []);
+    STATE.signals = await getCollection("signals", []);
+    STATE.ads = await getCollection("ads", []);
+    STATE.settings = settings;
+    STATE.lastLoadedAt = new Date();
+  }
+
+  function ensureStyle(){
+    if (document.getElementById("asfx-admin-complete-v1-style")) return;
+    const style = document.createElement("style");
+    style.id = "asfx-admin-complete-v1-style";
+    style.textContent = `
+      #admin.asfx-admin-complete-v1 { padding-bottom: 86px; }
+      .asfx-admin-shell-v1 { display: grid; gap: 18px; }
+      .asfx-admin-hero-v1 { position: relative; overflow: hidden; border: 1px solid rgba(255,255,255,.09); border-radius: 28px; padding: 20px; background: radial-gradient(circle at top left, rgba(245,184,61,.16), transparent 34%), linear-gradient(135deg, rgba(14,20,34,.98), rgba(6,9,16,.98)); box-shadow: 0 28px 70px rgba(0,0,0,.38); }
+      .asfx-admin-hero-v1:after { content:""; position:absolute; inset:auto -16% -50% 35%; height: 180px; background: radial-gradient(circle, rgba(36,114,255,.22), transparent 64%); pointer-events:none; }
+      .asfx-admin-kicker-v1 { color:#f5b83d; font-weight:900; letter-spacing:.18em; font-size:10px; text-transform:uppercase; }
+      .asfx-admin-hero-v1 h2 { margin:8px 0 6px; font-size: clamp(24px, 4vw, 42px); letter-spacing:-.04em; }
+      .asfx-admin-hero-v1 p { max-width: 780px; color: rgba(255,255,255,.66); line-height:1.55; }
+      .asfx-admin-hero-row-v1 { display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; position:relative; z-index:1; }
+      .asfx-admin-actions-v1 { display:flex; gap:10px; flex-wrap:wrap; }
+      .asfx-admin-btn-v1 { border:1px solid rgba(255,255,255,.13); background:rgba(255,255,255,.07); color:#fff; border-radius:999px; padding:10px 14px; font-weight:800; cursor:pointer; transition:.18s ease; }
+      .asfx-admin-btn-v1:hover { transform: translateY(-1px); background:rgba(255,255,255,.12); }
+      .asfx-admin-btn-v1.primary { border-color: rgba(245,184,61,.42); background: linear-gradient(135deg, #f5b83d, #ffdc73); color:#141006; }
+      .asfx-admin-btn-v1.danger { border-color: rgba(255,82,82,.35); color:#ffb3b3; }
+      .asfx-admin-stats-v1 { display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:12px; margin-top:18px; position:relative; z-index:1; }
+      .asfx-admin-stat-v1 { border:1px solid rgba(255,255,255,.09); border-radius:22px; padding:14px; background: rgba(255,255,255,.055); min-height:96px; }
+      .asfx-admin-stat-v1 small { color:rgba(255,255,255,.52); text-transform:uppercase; font-size:10px; letter-spacing:.14em; font-weight:800; }
+      .asfx-admin-stat-v1 b { display:block; margin-top:8px; font-size:24px; }
+      .asfx-admin-stat-v1 span { display:block; color:rgba(255,255,255,.55); font-size:12px; margin-top:4px; }
+      .asfx-admin-tabs-v1 { display:flex; gap:8px; overflow-x:auto; padding:8px; border:1px solid rgba(255,255,255,.08); border-radius:22px; background:rgba(255,255,255,.035); scrollbar-width:none; }
+      .asfx-admin-tabs-v1::-webkit-scrollbar { display:none; }
+      .asfx-admin-tabs-v1 button { flex:0 0 auto; border:1px solid transparent; background:transparent; color:rgba(255,255,255,.66); border-radius:16px; padding:10px 12px; font-weight:800; cursor:pointer; }
+      .asfx-admin-tabs-v1 button.active { background:rgba(245,184,61,.14); color:#ffdc73; border-color:rgba(245,184,61,.32); }
+      .asfx-admin-panel-v1 { display:none; }
+      .asfx-admin-panel-v1.active { display:block; }
+      .asfx-admin-grid-v1 { display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:14px; }
+      .asfx-admin-grid2-v1 { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:14px; }
+      .asfx-admin-card-v1 { border:1px solid rgba(255,255,255,.09); border-radius:24px; padding:16px; background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.025)); box-shadow: 0 18px 50px rgba(0,0,0,.22); }
+      .asfx-admin-card-v1 h3 { margin:0 0 6px; }
+      .asfx-admin-card-v1 p { color:rgba(255,255,255,.62); line-height:1.45; }
+      .asfx-admin-list-v1 { display:grid; gap:12px; }
+      .asfx-admin-row-v1 { display:flex; justify-content:space-between; gap:14px; align-items:flex-start; border:1px solid rgba(255,255,255,.08); border-radius:22px; padding:14px; background:rgba(255,255,255,.045); }
+      .asfx-admin-row-v1 h3 { margin:0 0 4px; }
+      .asfx-admin-row-v1 p { margin:3px 0; color:rgba(255,255,255,.63); }
+      .asfx-admin-row-actions-v1 { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+      .asfx-admin-form-v1 { display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:10px; margin:12px 0; }
+      .asfx-admin-form-v1 input, .asfx-admin-form-v1 select, .asfx-admin-form-v1 textarea { width:100%; border:1px solid rgba(255,255,255,.11); background:rgba(0,0,0,.22); color:#fff; border-radius:16px; padding:12px; outline:none; }
+      .asfx-admin-form-v1 textarea { grid-column:1 / -1; min-height:90px; resize:vertical; }
+      .asfx-admin-pill-v1 { display:inline-flex; align-items:center; gap:6px; border:1px solid rgba(255,255,255,.10); border-radius:999px; padding:6px 9px; font-size:11px; font-weight:900; color:rgba(255,255,255,.72); background:rgba(255,255,255,.05); }
+      .asfx-admin-pill-v1.ok { color:#8ff0bd; border-color:rgba(143,240,189,.28); }
+      .asfx-admin-pill-v1.warn { color:#ffdc73; border-color:rgba(255,220,115,.28); }
+      .asfx-admin-pill-v1.bad { color:#ff9b9b; border-color:rgba(255,155,155,.28); }
+      .asfx-admin-muted-v1 { color:rgba(255,255,255,.55); font-size:13px; }
+      .asfx-admin-empty-v1 { border:1px dashed rgba(255,255,255,.16); border-radius:22px; padding:18px; text-align:center; color:rgba(255,255,255,.55); }
+      .asfx-admin-toast-v1 { position:fixed; left:50%; bottom:24px; transform:translate(-50%, 20px); opacity:0; pointer-events:none; z-index:99999; background:rgba(7,10,18,.96); color:#fff; border:1px solid rgba(255,255,255,.13); border-radius:999px; padding:12px 16px; box-shadow:0 20px 50px rgba(0,0,0,.35); transition:.18s ease; font-weight:800; }
+      .asfx-admin-toast-v1.show { opacity:1; transform:translate(-50%, 0); }
+      .asfx-admin-toast-v1[data-type="success"] { border-color:rgba(143,240,189,.42); color:#a9ffd0; }
+      .asfx-admin-toast-v1[data-type="error"] { border-color:rgba(255,120,120,.42); color:#ffc1c1; }
+      @media (max-width: 860px) { .asfx-admin-stats-v1, .asfx-admin-grid-v1, .asfx-admin-grid2-v1, .asfx-admin-form-v1 { grid-template-columns:1fr; } .asfx-admin-row-v1 { flex-direction:column; } .asfx-admin-row-actions-v1 { justify-content:flex-start; } .asfx-admin-hero-v1 { border-radius:22px; padding:16px; } }
+    `;
+    document.head.appendChild(style);
+  }
+
+  function statCards(){
+    const pending = STATE.requests.filter((r) => lower(r.status || "pending") === "pending").length;
+    const vipUsers = STATE.users.filter((u) => lower(u.level) === "vip" || lower(u.vipStatus) === "active").length;
+    const activePackages = STATE.packages.filter((p) => p.active !== false).length;
+    const activePayments = STATE.payments.filter((p) => p.active !== false).length;
+    return `
+      <div class="asfx-admin-stats-v1">
+        <div class="asfx-admin-stat-v1"><small>Users</small><b>${STATE.users.length}</b><span>${vipUsers} VIP active/founder</span></div>
+        <div class="asfx-admin-stat-v1"><small>VIP Requests</small><b>${pending}</b><span>${STATE.requests.length} total request</span></div>
+        <div class="asfx-admin-stat-v1"><small>Pricing</small><b>${activePackages}</b><span>${STATE.packages.length} total package</span></div>
+        <div class="asfx-admin-stat-v1"><small>Payments</small><b>${activePayments}</b><span>${STATE.payments.length} method ready</span></div>
+      </div>`;
+  }
+
+  function tabs(){
+    const items = [
+      ["overview", "Overview"], ["users", "Users"], ["vip", "VIP Requests"],
+      ["pricing", "Pricing"], ["payments", "Payments"], ["modules", "Module Manager"],
+      ["content", "Content"], ["system", "System"]
+    ];
+    return `<div class="asfx-admin-tabs-v1">${items.map(([id,label]) => `<button type="button" data-asfx-admin-tab="${id}" class="${STATE.activePanel === id ? "active" : ""}">${label}</button>`).join("")}</div>`;
+  }
+
+  function renderOverview(){
+    const modes = { ...DEFAULT_MODES, ...(STATE.settings.featureModes || {}) };
+    return `
+      <div class="asfx-admin-panel-v1 ${STATE.activePanel === "overview" ? "active" : ""}" data-admin-panel="overview">
+        <div class="asfx-admin-grid-v1">
+          <div class="asfx-admin-card-v1"><span class="asfx-admin-pill-v1 ok">Control Center</span><h3>VIP & Payment Core</h3><p>Kelola pricing, payment method, dan request VIP dari satu tempat.</p><button class="asfx-admin-btn-v1" data-asfx-admin-tab="vip">Open VIP Requests</button></div>
+          <div class="asfx-admin-card-v1"><span class="asfx-admin-pill-v1 warn">Modules</span><h3>Feature Visibility</h3><p>Atur mode scanner, Sentinel AI, community, Trading Lab, ads, dan maintenance.</p><button class="asfx-admin-btn-v1" data-asfx-admin-tab="modules">Open Module Manager</button></div>
+          <div class="asfx-admin-card-v1"><span class="asfx-admin-pill-v1 ok">Content</span><h3>Manual Desk</h3><p>Input sentiment, news, signal broadcast, dan sponsor slot tanpa edit code.</p><button class="asfx-admin-btn-v1" data-asfx-admin-tab="content">Open Content</button></div>
+        </div>
+        <div class="asfx-admin-card-v1" style="margin-top:14px;">
+          <h3>Current Module Status</h3>
+          <div class="asfx-admin-grid-v1" style="margin-top:10px;">
+            ${Object.entries(modes).map(([k,v]) => `<div><span class="asfx-admin-pill-v1">${esc(k)}</span><p>${esc(v)}</p></div>`).join("")}
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function renderUsers(){
+    const rows = STATE.users.length ? STATE.users.map((u) => {
+      const role = lower(u.level || u.role || "free");
+      const protectedOwner = role === "owner" || lower(u.email).includes("psbetungputra");
+      return `
+        <div class="asfx-admin-row-v1">
+          <div><h3>${esc(u.displayName || u.name || u.email || u.id)}</h3><p>${esc(u.email || "No email")}</p><p><span class="asfx-admin-pill-v1 ${role === "vip" || role === "admin" ? "ok" : ""}">${esc(u.level || u.role || "free")}</span> <span class="asfx-admin-pill-v1">${esc(u.vipStatus || "free")}</span></p></div>
+          <div class="asfx-admin-row-actions-v1">
+            <button class="asfx-admin-btn-v1" data-role-user="${esc(u.id)}" data-role-level="free">Free</button>
+            <button class="asfx-admin-btn-v1" data-role-user="${esc(u.id)}" data-role-level="vip">VIP</button>
+            <button class="asfx-admin-btn-v1 ${protectedOwner ? "danger" : ""}" data-role-user="${esc(u.id)}" data-role-level="admin" ${protectedOwner ? "disabled" : ""}>Admin</button>
+          </div>
+        </div>`;
+    }).join("") : `<div class="asfx-admin-empty-v1">Belum ada user Firebase. Demo login tidak masuk database.</div>`;
+    return `<div class="asfx-admin-panel-v1 ${STATE.activePanel === "users" ? "active" : ""}" data-admin-panel="users"><div class="asfx-admin-card-v1"><h3>User Manager</h3><p>Ubah role user tanpa edit database manual. Owner tetap dilindungi.</p><div class="asfx-admin-list-v1">${rows}</div></div></div>`;
+  }
+
+  function renderVipRequests(){
+    const rows = STATE.requests.length ? STATE.requests.slice().sort((a,b) => String(b.createdAt?.seconds || b.updatedAt?.seconds || "").localeCompare(String(a.createdAt?.seconds || a.updatedAt?.seconds || ""))).map((r) => {
+      const status = lower(r.status || "pending");
+      return `
+        <div class="asfx-admin-row-v1">
+          <div><h3>${esc(r.userName || r.email || "User")} • ${esc(r.packageName || r.packageId || "VIP")}</h3><p>${money(r.amount)} via ${esc(r.paymentMethod || "-")} • ${esc(r.senderName || "")}</p><p><span class="asfx-admin-pill-v1 ${status === "approved" ? "ok" : status === "rejected" ? "bad" : "warn"}">${esc(status)}</span> <span class="asfx-admin-pill-v1">${esc(r.durationDays || 30)} days</span></p><p>${esc(r.note || "No note")}</p>${r.proofUrl ? `<p><a href="${esc(r.proofUrl)}" target="_blank" rel="noreferrer">Open payment proof</a></p>` : `<p class="asfx-admin-muted-v1">Proof belum upload / dikirim manual.</p>`}</div>
+          <div class="asfx-admin-row-actions-v1"><button class="asfx-admin-btn-v1 primary" data-vip-request="${esc(r.id)}" data-vip-status="approved">Approve</button><button class="asfx-admin-btn-v1 danger" data-vip-request="${esc(r.id)}" data-vip-status="rejected">Reject</button></div>
+        </div>`;
+    }).join("") : `<div class="asfx-admin-empty-v1">Belum ada VIP request.</div>`;
+    return `<div class="asfx-admin-panel-v1 ${STATE.activePanel === "vip" ? "active" : ""}" data-admin-panel="vip"><div class="asfx-admin-card-v1"><h3>VIP Request Manager</h3><p>Approve/reject request pembayaran. Jika userId valid, approve juga mengaktifkan role VIP.</p><div class="asfx-admin-list-v1">${rows}</div></div></div>`;
+  }
+
+  function renderPricing(){
+    const cards = STATE.packages.map((p) => `<div class="asfx-admin-card-v1"><span class="asfx-admin-pill-v1 ${p.active === false ? "bad" : "ok"}">${p.active === false ? "Inactive" : "Active"}</span><h3>${esc(p.name)}</h3><p>${esc(p.label || "VIP")}</p><p>Normal ${money(p.normalPrice)} • Discount ${money(p.discount)}</p><h3>${money(p.finalPrice)}</h3><p>${esc(p.durationDays || 30)} hari</p><div class="asfx-admin-row-actions-v1"><button class="asfx-admin-btn-v1" data-edit-package="${esc(p.id)}">Edit</button><button class="asfx-admin-btn-v1 ${p.active === false ? "primary" : "danger"}" data-toggle-package="${esc(p.id)}">${p.active === false ? "Activate" : "Disable"}</button></div></div>`).join("");
+    return `
+      <div class="asfx-admin-panel-v1 ${STATE.activePanel === "pricing" ? "active" : ""}" data-admin-panel="pricing">
+        <div class="asfx-admin-card-v1"><h3>VIP Pricing Manager</h3><p>Tambah/edit paket VIP, diskon, durasi, dan status aktif.</p>
+          <div class="asfx-admin-form-v1"><input id="asfx-package-id" placeholder="package id"><input id="asfx-package-name" placeholder="Nama paket"><input id="asfx-package-label" placeholder="Label promo"><input id="asfx-package-normal" placeholder="Harga normal" type="number"><input id="asfx-package-discount" placeholder="Diskon" type="number"><input id="asfx-package-final" placeholder="Harga final" type="number"><input id="asfx-package-days" placeholder="Durasi hari" type="number"><select id="asfx-package-active"><option value="true">Active</option><option value="false">Inactive</option></select></div>
+          <button class="asfx-admin-btn-v1 primary" data-save-package>Save Package</button>
+        </div>
+        <div class="asfx-admin-grid-v1" style="margin-top:14px;">${cards || `<div class="asfx-admin-empty-v1">Belum ada paket.</div>`}</div>
+      </div>`;
+  }
+
+  function renderPayments(){
+    const cards = STATE.payments.map((p) => `<div class="asfx-admin-card-v1"><span class="asfx-admin-pill-v1 ${p.active === false ? "bad" : "ok"}">${p.active === false ? "Inactive" : "Active"}</span><h3>${esc(p.name)}</h3><p>${esc(p.type || "payment")}</p><h3>${esc(p.number)}</h3><p>a.n. ${esc(p.accountName || "ROMADON SAPUTRA")}</p><div class="asfx-admin-row-actions-v1"><button class="asfx-admin-btn-v1" data-edit-payment="${esc(p.id)}">Edit</button><button class="asfx-admin-btn-v1 ${p.active === false ? "primary" : "danger"}" data-toggle-payment="${esc(p.id)}">${p.active === false ? "Activate" : "Disable"}</button></div></div>`).join("");
+    return `
+      <div class="asfx-admin-panel-v1 ${STATE.activePanel === "payments" ? "active" : ""}" data-admin-panel="payments">
+        <div class="asfx-admin-card-v1"><h3>Payment Method Manager</h3><p>Kelola e-wallet dan bank dari Admin. VIP page otomatis membaca collection paymentMethods.</p>
+          <div class="asfx-admin-form-v1"><input id="asfx-payment-id" placeholder="id contoh dana"><input id="asfx-payment-name" placeholder="Nama metode"><select id="asfx-payment-type"><option value="ewallet">E-Wallet</option><option value="bank">Bank</option><option value="manual">Manual</option></select><input id="asfx-payment-number" placeholder="Nomor"><input id="asfx-payment-account" placeholder="Atas nama" value="ROMADON SAPUTRA"><select id="asfx-payment-active"><option value="true">Active</option><option value="false">Inactive</option></select></div>
+          <button class="asfx-admin-btn-v1 primary" data-save-payment>Save Payment</button>
+        </div>
+        <div class="asfx-admin-grid-v1" style="margin-top:14px;">${cards || `<div class="asfx-admin-empty-v1">Belum ada payment method.</div>`}</div>
+      </div>`;
+  }
+
+  function renderModules(){
+    const modes = { ...DEFAULT_MODES, ...(STATE.settings.featureModes || {}) };
+    const field = (id, label, options) => `<div><p class="asfx-admin-muted-v1">${label}</p><select id="asfx-mode-${id}">${options.map((o) => `<option value="${o[0]}" ${modes[id] === o[0] ? "selected" : ""}>${o[1]}</option>`).join("")}</select></div>`;
+    return `
+      <div class="asfx-admin-panel-v1 ${STATE.activePanel === "modules" ? "active" : ""}" data-admin-panel="modules">
+        <div class="asfx-admin-card-v1"><h3>Module Manager</h3><p>Control center untuk mengatur mode fitur tanpa edit code. Scanner V5 tetap terkunci; panel ini hanya menyimpan setting.</p>
+          <div class="asfx-admin-form-v1">
+            ${field("signalScanner", "Signal Scanner", [["vip_live_crypto_reference_fx","VIP Live Crypto / FX Ref"],["maintenance","Maintenance"],["locked","Locked"]])}
+            ${field("sentinelAI", "Sentinel AI", [["free_limited_vip_full","Free Limited / VIP Full"],["vip_only","VIP Only"],["off","Off"]])}
+            ${field("sentinelCommunity", "Community", [["enabled","Enabled"],["read_only","Read Only"],["off","Off"]])}
+            ${field("tradingLab", "Trading Lab", [["enabled","Enabled"],["vip_only","VIP Only"],["off","Off"]])}
+            ${field("scannerHistory", "Scanner History", [["enabled","Enabled"],["vip_only","VIP Only"],["off","Off"]])}
+            ${field("ads", "Ads", [["manual_ready","Manual Ready"],["ad_light","Ad Light"],["off","Off"]])}
+            ${field("maintenanceMode", "Maintenance", [["off","Off"],["soft","Soft Notice"],["full","Full Maintenance"]])}
+            ${field("cryptoProvider", "Crypto Provider", [["binance_public_ready","Binance Public"],["demo","Demo"]])}
+            ${field("forexProvider", "Forex/XAU Provider", [["reference_mode","Reference Mode"],["oanda_practice","OANDA Practice"],["off","Off"]])}
+            ${field("dashboardMode", "Dashboard", [["premium_clean","Premium Clean"],["compact","Compact"],["maintenance","Maintenance"]])}
+          </div>
+          <button class="asfx-admin-btn-v1 primary" data-save-modes>Save Module Settings</button>
+        </div>
+      </div>`;
+  }
+
+  function renderContent(){
+    const sent = STATE.settings.marketSentiment || {};
+    return `
+      <div class="asfx-admin-panel-v1 ${STATE.activePanel === "content" ? "active" : ""}" data-admin-panel="content">
+        <div class="asfx-admin-grid2-v1">
+          <div class="asfx-admin-card-v1"><h3>Manual Market Sentiment</h3><div class="asfx-admin-form-v1"><input id="asfx-sentiment-pair" value="${esc(sent.pair || "XAUUSD")}" placeholder="Pair"><input id="asfx-sentiment-session" value="${esc(sent.session || "Asia")}" placeholder="Session"><input id="asfx-sentiment-long" value="${esc(sent.long || "59")}" placeholder="Long %"><input id="asfx-sentiment-short" value="${esc(sent.short || "41")}" placeholder="Short %"><input id="asfx-sentiment-volume" value="${esc(sent.netVolume || "+321.66 lots")}" placeholder="Net volume"><input id="asfx-sentiment-positions" value="${esc(sent.positions || "14.2K")}" placeholder="Positions"><textarea id="asfx-sentiment-note" placeholder="Catatan sentiment">${esc(sent.note || "")}</textarea></div><button class="asfx-admin-btn-v1 primary" data-save-sentiment>Save Sentiment</button></div>
+          <div class="asfx-admin-card-v1"><h3>Market News / Brief</h3><div class="asfx-admin-form-v1"><input id="asfx-news-title" placeholder="Judul brief"><select id="asfx-news-impact"><option value="manual">Manual</option><option value="high">High Impact</option><option value="medium">Medium Impact</option><option value="low">Low Impact</option></select><textarea id="asfx-news-body" placeholder="Isi brief"></textarea></div><button class="asfx-admin-btn-v1 primary" data-save-news>Save News</button></div>
+          <div class="asfx-admin-card-v1"><h3>Official Signal Broadcast</h3><div class="asfx-admin-form-v1"><input id="asfx-signal-pair" placeholder="Pair"><select id="asfx-signal-bias"><option value="WAIT">WAIT</option><option value="BUY">BUY</option><option value="SELL">SELL</option></select><textarea id="asfx-signal-note" placeholder="Catatan signal"></textarea></div><button class="asfx-admin-btn-v1 primary" data-save-signal>Save Signal Broadcast</button></div>
+          <div class="asfx-admin-card-v1"><h3>Ads / Sponsor Slot</h3><div class="asfx-admin-form-v1"><input id="asfx-ad-title" placeholder="Judul sponsor"><input id="asfx-ad-link" placeholder="Link"><textarea id="asfx-ad-note" placeholder="Catatan iklan"></textarea></div><button class="asfx-admin-btn-v1 primary" data-save-ad>Save Ad Slot</button></div>
+        </div>
+      </div>`;
+  }
+
+  function renderSystem(){
+    const snapshot = {
+      users: STATE.users.length,
+      vipRequests: STATE.requests.length,
+      packages: STATE.packages.length,
+      payments: STATE.payments.length,
+      settings: Object.keys(STATE.settings || {}).length,
+      lastLoadedAt: STATE.lastLoadedAt?.toLocaleString("id-ID") || "-"
+    };
+    return `
+      <div class="asfx-admin-panel-v1 ${STATE.activePanel === "system" ? "active" : ""}" data-admin-panel="system">
+        <div class="asfx-admin-grid2-v1">
+          <div class="asfx-admin-card-v1"><h3>Firebase Foundation</h3><p>Seed default VIP packages, payment methods, dan feature modes awal.</p><button class="asfx-admin-btn-v1 primary" data-seed-foundation>Seed Firebase Foundation</button></div>
+          <div class="asfx-admin-card-v1"><h3>System Snapshot</h3><pre style="white-space:pre-wrap; color:rgba(255,255,255,.72); font-size:12px;">${esc(JSON.stringify(snapshot, null, 2))}</pre><button class="asfx-admin-btn-v1" data-copy-snapshot>Copy Snapshot</button></div>
+        </div>
+      </div>`;
+  }
+
+  function renderShell(){
+    const admin = document.getElementById("admin");
+    if (!admin) return;
+    ensureStyle();
+    admin.classList.add("asfx-admin-complete-v1");
+
+    if (!canOpenAdmin()) {
+      admin.innerHTML = `<div class="asfx-admin-shell-v1"><div class="asfx-admin-hero-v1"><div class="asfx-admin-kicker-v1">ADMIN CONTROL</div><h2>Owner/Admin Access Required</h2><p>Panel ini hanya untuk owner/admin AiSignalFx PRO. Login sebagai owner/admin untuk membuka user, VIP, payment, module, dan content manager.</p></div></div>`;
+      return;
+    }
+
+    admin.innerHTML = `
+      <div class="asfx-admin-shell-v1" data-asfx-admin-complete="v1">
+        <div class="asfx-admin-hero-v1">
+          <div class="asfx-admin-hero-row-v1">
+            <div><div class="asfx-admin-kicker-v1">${MARK}</div><h2>Admin Control Center</h2><p>Premium no-code control layer untuk VIP, payment, user role, module visibility, content desk, sentiment, ads, dan Firebase operations.</p></div>
+            <div class="asfx-admin-actions-v1"><button class="asfx-admin-btn-v1" data-refresh-admin>Refresh</button><button class="asfx-admin-btn-v1 primary" data-asfx-admin-tab="system">System</button></div>
+          </div>
+          ${statCards()}
+        </div>
+        ${tabs()}
+        ${renderOverview()}
+        ${renderUsers()}
+        ${renderVipRequests()}
+        ${renderPricing()}
+        ${renderPayments()}
+        ${renderModules()}
+        ${renderContent()}
+        ${renderSystem()}
+      </div>`;
+  }
+
+  async function loadAndRender(panel){
+    if (panel) STATE.activePanel = panel;
+    ensureStyle();
+    renderShell();
+    await refreshData();
+    renderShell();
+  }
+
+  function setFormValue(id, value){
+    const el = document.getElementById(id);
+    if (el) el.value = value ?? "";
+  }
+
+  async function savePackage(){
+    const id = safeId(document.getElementById("asfx-package-id")?.value || "");
+    if (!id) return toast("Package ID wajib diisi.", "error");
+    const data = {
+      id,
+      name: text(document.getElementById("asfx-package-name")?.value, id),
+      label: text(document.getElementById("asfx-package-label")?.value, "VIP"),
+      normalPrice: Number(document.getElementById("asfx-package-normal")?.value || 0),
+      discount: Number(document.getElementById("asfx-package-discount")?.value || 0),
+      finalPrice: Number(document.getElementById("asfx-package-final")?.value || 0),
+      durationDays: Number(document.getElementById("asfx-package-days")?.value || 30),
+      active: document.getElementById("asfx-package-active")?.value !== "false"
+    };
+    await firebase()?.upsertDoc?.("vipPackages", id, data);
+    toast("Paket VIP tersimpan.", "success");
+    await loadAndRender("pricing");
+  }
+
+  async function savePayment(){
+    const id = safeId(document.getElementById("asfx-payment-id")?.value || "");
+    if (!id) return toast("Payment ID wajib diisi.", "error");
+    const data = {
+      id,
+      name: text(document.getElementById("asfx-payment-name")?.value, id),
+      type: text(document.getElementById("asfx-payment-type")?.value, "ewallet"),
+      number: text(document.getElementById("asfx-payment-number")?.value, ""),
+      accountName: text(document.getElementById("asfx-payment-account")?.value, "ROMADON SAPUTRA"),
+      active: document.getElementById("asfx-payment-active")?.value !== "false"
+    };
+    if (!data.number) return toast("Nomor payment wajib diisi.", "error");
+    await firebase()?.upsertDoc?.("paymentMethods", id, data);
+    toast("Metode pembayaran tersimpan.", "success");
+    await loadAndRender("payments");
+  }
+
+  async function saveModes(){
+    const data = {};
+    Object.keys(DEFAULT_MODES).forEach((k) => { data[k] = document.getElementById("asfx-mode-" + k)?.value || DEFAULT_MODES[k]; });
+    await firebase()?.saveFeatureModes?.(data);
+    toast("Module settings tersimpan.", "success");
+    await loadAndRender("modules");
+  }
+
+  async function saveSentiment(){
+    const data = {
+      pair: text(document.getElementById("asfx-sentiment-pair")?.value, "XAUUSD"),
+      session: text(document.getElementById("asfx-sentiment-session")?.value, "Asia"),
+      long: text(document.getElementById("asfx-sentiment-long")?.value, "59"),
+      short: text(document.getElementById("asfx-sentiment-short")?.value, "41"),
+      netVolume: text(document.getElementById("asfx-sentiment-volume")?.value, "+321.66 lots"),
+      positions: text(document.getElementById("asfx-sentiment-positions")?.value, "14.2K"),
+      note: text(document.getElementById("asfx-sentiment-note")?.value, ""),
+      updatedAtText: new Date().toLocaleString("id-ID")
+    };
+    await firebase()?.saveManualSentiment?.(data);
+    if (typeof window.applySentimentToUI === "function") window.applySentimentToUI(data);
+    toast("Sentiment tersimpan.", "success");
+  }
+
+  async function saveNews(){
+    const title = text(document.getElementById("asfx-news-title")?.value, "");
+    const body = text(document.getElementById("asfx-news-body")?.value, "");
+    if (!title || !body) return toast("Judul dan isi news wajib diisi.", "error");
+    await firebase()?.saveManualNews?.({ title, body, impact: document.getElementById("asfx-news-impact")?.value || "manual" });
+    toast("News tersimpan.", "success");
+    await refreshData();
+  }
+
+  async function saveSignal(){
+    const pair = text(document.getElementById("asfx-signal-pair")?.value, "");
+    const bias = text(document.getElementById("asfx-signal-bias")?.value, "WAIT");
+    const note = text(document.getElementById("asfx-signal-note")?.value, "");
+    if (!pair) return toast("Pair signal wajib diisi.", "error");
+    await firebase()?.saveSignal?.({ pair, bias, note, mode: "admin_manual" });
+    toast("Signal broadcast tersimpan.", "success");
+  }
+
+  async function saveAd(){
+    const title = text(document.getElementById("asfx-ad-title")?.value, "");
+    if (!title) return toast("Judul ads wajib diisi.", "error");
+    await firebase()?.saveAd?.({ title, link: text(document.getElementById("asfx-ad-link")?.value, ""), note: text(document.getElementById("asfx-ad-note")?.value, ""), active: true });
+    toast("Ad slot tersimpan.", "success");
+  }
+
+  async function updateRole(uid, level){
+    if (!uid || !level) return;
+    if (!confirm("Ubah role user menjadi " + level + "?")) return;
+    await firebase()?.updateUserRole?.(uid, level);
+    toast("Role user diperbarui.", "success");
+    await loadAndRender("users");
+  }
+
+  async function updateVipRequest(id, status){
+    if (!id || !status) return;
+    const row = STATE.requests.find((r) => r.id === id) || {};
+    await firebase()?.updateVipRequestStatus?.(id, status);
+    if (status === "approved" && row.userId && !String(row.userId).startsWith("demo-") && firebase()?.updateUserRole) {
+      await firebase().updateUserRole(row.userId, "vip");
+    }
+    toast("VIP request " + status + ".", "success");
+    await loadAndRender("vip");
+  }
+
+  async function togglePackage(id){
+    const item = STATE.packages.find((p) => p.id === id);
+    if (!item) return;
+    await firebase()?.upsertDoc?.("vipPackages", id, { ...item, active: item.active === false });
+    toast("Status paket diperbarui.", "success");
+    await loadAndRender("pricing");
+  }
+
+  async function togglePayment(id){
+    const item = STATE.payments.find((p) => p.id === id);
+    if (!item) return;
+    await firebase()?.upsertDoc?.("paymentMethods", id, { ...item, active: item.active === false });
+    toast("Status payment diperbarui.", "success");
+    await loadAndRender("payments");
+  }
+
+  function editPackage(id){
+    const p = STATE.packages.find((x) => x.id === id);
+    if (!p) return;
+    setFormValue("asfx-package-id", p.id);
+    setFormValue("asfx-package-name", p.name);
+    setFormValue("asfx-package-label", p.label);
+    setFormValue("asfx-package-normal", p.normalPrice);
+    setFormValue("asfx-package-discount", p.discount);
+    setFormValue("asfx-package-final", p.finalPrice);
+    setFormValue("asfx-package-days", p.durationDays);
+    setFormValue("asfx-package-active", p.active === false ? "false" : "true");
+    toast("Data paket masuk ke form.");
+  }
+
+  function editPayment(id){
+    const p = STATE.payments.find((x) => x.id === id);
+    if (!p) return;
+    setFormValue("asfx-payment-id", p.id);
+    setFormValue("asfx-payment-name", p.name);
+    setFormValue("asfx-payment-type", p.type);
+    setFormValue("asfx-payment-number", p.number);
+    setFormValue("asfx-payment-account", p.accountName);
+    setFormValue("asfx-payment-active", p.active === false ? "false" : "true");
+    toast("Data payment masuk ke form.");
+  }
+
+  function bindEvents(){
+    if (document.__asfxAdminCompleteEvents) return;
+    document.__asfxAdminCompleteEvents = true;
+    document.addEventListener("click", async (e) => {
+      const tab = e.target.closest("[data-asfx-admin-tab]")?.dataset.asfxAdminTab;
+      if (tab) { e.preventDefault(); await loadAndRender(tab); return; }
+      if (e.target.closest("[data-refresh-admin]")) { e.preventDefault(); await loadAndRender(STATE.activePanel); toast("Admin refreshed.", "success"); return; }
+      if (e.target.closest("[data-save-package]")) { e.preventDefault(); await savePackage(); return; }
+      if (e.target.closest("[data-save-payment]")) { e.preventDefault(); await savePayment(); return; }
+      if (e.target.closest("[data-save-modes]")) { e.preventDefault(); await saveModes(); return; }
+      if (e.target.closest("[data-save-sentiment]")) { e.preventDefault(); await saveSentiment(); return; }
+      if (e.target.closest("[data-save-news]")) { e.preventDefault(); await saveNews(); return; }
+      if (e.target.closest("[data-save-signal]")) { e.preventDefault(); await saveSignal(); return; }
+      if (e.target.closest("[data-save-ad]")) { e.preventDefault(); await saveAd(); return; }
+      if (e.target.closest("[data-seed-foundation]")) { e.preventDefault(); await firebase()?.seedFoundationData?.(); await loadAndRender("system"); return; }
+      if (e.target.closest("[data-copy-snapshot]")) { e.preventDefault(); navigator.clipboard?.writeText(JSON.stringify({ users: STATE.users, requests: STATE.requests, packages: STATE.packages, payments: STATE.payments, settings: STATE.settings }, null, 2)); toast("Snapshot disalin.", "success"); return; }
+      const roleBtn = e.target.closest("[data-role-user]");
+      if (roleBtn) { e.preventDefault(); await updateRole(roleBtn.dataset.roleUser, roleBtn.dataset.roleLevel); return; }
+      const reqBtn = e.target.closest("[data-vip-request]");
+      if (reqBtn) { e.preventDefault(); await updateVipRequest(reqBtn.dataset.vipRequest, reqBtn.dataset.vipStatus); return; }
+      const packageToggle = e.target.closest("[data-toggle-package]");
+      if (packageToggle) { e.preventDefault(); await togglePackage(packageToggle.dataset.togglePackage); return; }
+      const paymentToggle = e.target.closest("[data-toggle-payment]");
+      if (paymentToggle) { e.preventDefault(); await togglePayment(paymentToggle.dataset.togglePayment); return; }
+      const packageEdit = e.target.closest("[data-edit-package]");
+      if (packageEdit) { e.preventDefault(); editPackage(packageEdit.dataset.editPackage); return; }
+      const paymentEdit = e.target.closest("[data-edit-payment]");
+      if (paymentEdit) { e.preventDefault(); editPayment(paymentEdit.dataset.editPayment); return; }
+    }, true);
+  }
+
+  function installRoutingBridge(){
+    if (window.__ASFX_ADMIN_COMPLETE_ROUTING_BRIDGE_V1__) return;
+    window.__ASFX_ADMIN_COMPLETE_ROUTING_BRIDGE_V1__ = true;
+
+    const originalShowPage = window.showPage;
+    if (typeof originalShowPage === "function") {
+      window.showPage = function(id, button){
+        const result = originalShowPage.apply(this, arguments);
+        if (id === "admin") setTimeout(() => loadAndRender(STATE.activePanel), 160);
+        return result;
+      };
+    }
+
+    const originalShowPageById = window.showPageById;
+    if (typeof originalShowPageById === "function") {
+      window.showPageById = function(id){
+        const result = originalShowPageById.apply(this, arguments);
+        if (id === "admin") setTimeout(() => loadAndRender(STATE.activePanel), 160);
+        return result;
+      };
+    }
+
+    window.showAdminPanel = function(name){ loadAndRender(name || "overview"); };
+    window.loadAdminOverview = function(){ loadAndRender("overview"); };
+  }
+
+  async function boot(){
+    bindEvents();
+    installRoutingBridge();
+    ensureStyle();
+    const admin = document.getElementById("admin");
+    if (admin?.classList.contains("active")) await loadAndRender("overview");
+    console.info("ASFX Admin Control Complete V1 ready.");
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot, { once: true });
+  else boot();
+
+  window.ASFXAdminControlV1 = { refresh: loadAndRender, getState: () => STATE, canOpenAdmin };
+})();
+/* END ASFX_ADMIN_CONTROL_COMPLETE_V1 */
