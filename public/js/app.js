@@ -2750,33 +2750,79 @@ window.saveLearningModule = saveLearningModule;
       </div>`;
   }
 
+
+  /* ASFX_VIP_SUBSCRIPTION_COMPLETE_V1 helpers */
+  function vipDateText(v){
+    const ms = window.ASFXVipLifecycleV1?.toMs?.(v) || (typeof v === 'number' ? v : Date.parse(v || '')) || 0;
+    return ms ? new Date(ms).toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' }) : '-';
+  }
+  function vipUserStatus(user){
+    return window.ASFXVipLifecycleV1?.getUserStatus?.(user) || { state: lower(user?.vipStatus || user?.level || 'free'), active: false, daysLeft: 0, label: 'Free account' };
+  }
+  function vipPillClass(state){
+    state = lower(state);
+    if (state === 'active' || state === 'founder') return 'ok';
+    if (state === 'expired') return 'bad';
+    return 'warn';
+  }
+  function vipRequestSubscriptionLine(r){
+    if (r.subscriptionExpiresAt || r.subscriptionExpiresAtMs) {
+      return `<p><span class="asfx-admin-pill-v1 ok">Active Until</span> ${esc(vipDateText(r.subscriptionExpiresAtMs || r.subscriptionExpiresAt))}</p>`;
+    }
+    if (lower(r.lifecycleStatus) === 'manual_required') return `<p><span class="asfx-admin-pill-v1 warn">Manual activation required</span></p>`;
+    return `<p class="asfx-admin-muted-v1">Subscription will be generated after approval.</p>`;
+  }
+
   function renderUsers(){
     const rows = STATE.users.length ? STATE.users.map((u) => {
-      const role = lower(u.level || u.role || "free");
-      const protectedOwner = role === "owner" || lower(u.email).includes("psbetungputra");
-      return `
-        <div class="asfx-admin-row-v1">
-          <div><h3>${esc(u.displayName || u.name || u.email || u.id)}</h3><p>${esc(u.email || "No email")}</p><p><span class="asfx-admin-pill-v1 ${role === "vip" || role === "admin" ? "ok" : ""}">${esc(u.level || u.role || "free")}</span> <span class="asfx-admin-pill-v1">${esc(u.vipStatus || "free")}</span></p></div>
+      const protectedOwner = lower(u.level) === "admin" || lower(u.role) === "owner" || lower(u.role) === "founder" || lower(u.vipStatus) === "founder";
+      const status = vipUserStatus(u);
+      const expiresAt = status.expiresAtMs || u.vipExpiresAtMs || u.vipExpiresAt;
+      const activeLine = status.owner
+        ? "Lifetime owner/admin access"
+        : status.active
+          ? `Active until ${vipDateText(expiresAt)}${status.daysLeft !== null ? ` • ${status.daysLeft} days left` : ""}`
+          : status.state === "expired" ? `Expired ${vipDateText(expiresAt)}` : "No active VIP subscription";
+      return `<div class="asfx-admin-row-v1">
+          <div>
+            <h3>${esc(u.name || u.displayName || u.email || "User")}</h3>
+            <p>${esc(u.email || "No email")} • Role: <b>${esc(u.level || u.role || "free")}</b></p>
+            <p><span class="asfx-admin-pill-v1 ${vipPillClass(status.state)}">${esc(status.state || "free")}</span> <span class="asfx-admin-pill-v1">${esc(activeLine)}</span></p>
+            <p class="asfx-admin-muted-v1">Last package: ${esc(u.vipLastPackageName || u.vipLastPackageId || "-")} • Last request: ${esc(u.vipLastRequestId || "-")}</p>
+          </div>
           <div class="asfx-admin-row-actions-v1">
             <button class="asfx-admin-btn-v1" data-role-user="${esc(u.id)}" data-role-level="free">Free</button>
-            <button class="asfx-admin-btn-v1" data-role-user="${esc(u.id)}" data-role-level="vip">VIP</button>
+            <button class="asfx-admin-btn-v1" data-role-user="${esc(u.id)}" data-role-level="vip">VIP +30d</button>
+            <button class="asfx-admin-btn-v1" data-vip-extend-user="${esc(u.id)}" data-vip-extend-days="90">Extend 90d</button>
             <button class="asfx-admin-btn-v1 ${protectedOwner ? "danger" : ""}" data-role-user="${esc(u.id)}" data-role-level="admin" ${protectedOwner ? "disabled" : ""}>Admin</button>
           </div>
         </div>`;
     }).join("") : `<div class="asfx-admin-empty-v1">Belum ada user Firebase. Demo login tidak masuk database.</div>`;
-    return `<div class="asfx-admin-panel-v1 ${STATE.activePanel === "users" ? "active" : ""}" data-admin-panel="users"><div class="asfx-admin-card-v1"><h3>User Manager</h3><p>Ubah role user tanpa edit database manual. Owner tetap dilindungi.</p><div class="asfx-admin-list-v1">${rows}</div></div></div>`;
+    return `<div class="asfx-admin-panel-v1 ${STATE.activePanel === "users" ? "active" : ""}" data-admin-panel="users"><div class="asfx-admin-card-v1"><h3>User Manager</h3><p>Kelola role dan masa aktif VIP. Approve request akan membuat vipStartedAt/vipExpiresAt otomatis.</p><div class="asfx-admin-list-v1">${rows}</div></div></div>`;
   }
 
   function renderVipRequests(){
     const rows = STATE.requests.length ? STATE.requests.slice().sort((a,b) => String(b.createdAt?.seconds || b.updatedAt?.seconds || "").localeCompare(String(a.createdAt?.seconds || a.updatedAt?.seconds || ""))).map((r) => {
       const status = lower(r.status || "pending");
+      const lifecycle = lower(r.lifecycleStatus || (status === "approved" ? "vip_active" : status));
+      const isApproved = status === "approved" || lifecycle === "vip_active";
       return `
         <div class="asfx-admin-row-v1">
-          <div><h3>${esc(r.userName || r.email || "User")} • ${esc(r.packageName || r.packageId || "VIP")}</h3><p>${money(r.amount)} via ${esc(r.paymentMethod || "-")} • ${esc(r.senderName || "")}</p><p><span class="asfx-admin-pill-v1 ${status === "approved" ? "ok" : status === "rejected" ? "bad" : "warn"}">${esc(status)}</span> <span class="asfx-admin-pill-v1">${esc(r.durationDays || 30)} days</span></p><p>${esc(r.note || "No note")}</p>${r.proofUrl ? `<p><a href="${esc(r.proofUrl)}" target="_blank" rel="noreferrer">Open payment proof</a></p>` : `<p class="asfx-admin-muted-v1">Proof belum upload / dikirim manual.</p>`}</div>
-          <div class="asfx-admin-row-actions-v1"><button class="asfx-admin-btn-v1 primary" data-vip-request="${esc(r.id)}" data-vip-status="approved">Approve</button><button class="asfx-admin-btn-v1 danger" data-vip-request="${esc(r.id)}" data-vip-status="rejected">Reject</button></div>
+          <div>
+            <h3>${esc(r.userName || r.email || "User")} • ${esc(r.packageName || r.packageId || "VIP")}</h3>
+            <p>${money(r.amount)} via ${esc(r.paymentMethod || "-")} • ${esc(r.senderName || "")}</p>
+            <p><span class="asfx-admin-pill-v1 ${status === "approved" ? "ok" : status === "rejected" ? "bad" : "warn"}">${esc(status)}</span> <span class="asfx-admin-pill-v1">${esc(r.durationDays || 30)} days</span> <span class="asfx-admin-pill-v1 ${vipPillClass(lifecycle)}">${esc(lifecycle)}</span></p>
+            <p>${esc(r.note || "No note")}</p>
+            ${vipRequestSubscriptionLine(r)}
+            ${r.proofUrl ? `<p><a href="${esc(r.proofUrl)}" target="_blank" rel="noreferrer">Open payment proof</a></p>` : `<p class="asfx-admin-muted-v1">Proof belum upload / dikirim manual.</p>`}
+          </div>
+          <div class="asfx-admin-row-actions-v1">
+            <button class="asfx-admin-btn-v1 primary" data-vip-request="${esc(r.id)}" data-vip-status="approved" ${isApproved ? "disabled" : ""}>Approve + Activate VIP</button>
+            <button class="asfx-admin-btn-v1 danger" data-vip-request="${esc(r.id)}" data-vip-status="rejected" ${status === "rejected" ? "disabled" : ""}>Reject</button>
+          </div>
         </div>`;
     }).join("") : `<div class="asfx-admin-empty-v1">Belum ada VIP request.</div>`;
-    return `<div class="asfx-admin-panel-v1 ${STATE.activePanel === "vip" ? "active" : ""}" data-admin-panel="vip"><div class="asfx-admin-card-v1"><h3>VIP Request Manager</h3><p>Approve/reject request pembayaran. Jika userId valid, approve juga mengaktifkan role VIP.</p><div class="asfx-admin-list-v1">${rows}</div></div></div>`;
+    return `<div class="asfx-admin-panel-v1 ${STATE.activePanel === "vip" ? "active" : ""}" data-admin-panel="vip"><div class="asfx-admin-card-v1"><h3>VIP Request Manager</h3><p>Approve request akan otomatis mengaktifkan VIP, menghitung expiry, menyimpan payment history, dan mengupdate status user.</p><div class="asfx-admin-list-v1">${rows}</div></div></div>`;
   }
 
   function renderPricing(){
@@ -2997,11 +3043,23 @@ window.saveLearningModule = saveLearningModule;
   async function updateVipRequest(id, status){
     if (!id || !status) return;
     const row = STATE.requests.find((r) => r.id === id) || {};
-    await firebase()?.updateVipRequestStatus?.(id, status);
-    if (status === "approved" && row.userId && !String(row.userId).startsWith("demo-") && firebase()?.updateUserRole) {
-      await firebase().updateUserRole(row.userId, "vip");
+    if (status === "approved") {
+      if (firebase()?.approveVipRequestLifecycle) {
+        await firebase().approveVipRequestLifecycle(row);
+      } else {
+        await firebase()?.updateVipRequestStatus?.(id, status);
+        if (row.userId && !String(row.userId).startsWith("demo-") && firebase()?.updateUserRole) await firebase().updateUserRole(row.userId, "vip");
+      }
+      toast("VIP approved and subscription activated.", "success");
+    } else if (status === "rejected") {
+      if (firebase()?.rejectVipRequestLifecycle) await firebase().rejectVipRequestLifecycle(row);
+      else await firebase()?.updateVipRequestStatus?.(id, status);
+      toast("VIP request rejected.", "success");
+    } else {
+      await firebase()?.updateVipRequestStatus?.(id, status);
+      toast("VIP request " + status + ".", "success");
     }
-    toast("VIP request " + status + ".", "success");
+    try { await firebase()?.syncAllVipExpiries?.(); } catch(_e) {}
     await loadAndRender("vip");
   }
 
@@ -3119,3 +3177,135 @@ window.saveLearningModule = saveLearningModule;
   window.ASFXAdminControlV1 = { refresh: loadAndRender, getState: () => STATE, canOpenAdmin };
 })();
 /* END ASFX_ADMIN_CONTROL_COMPLETE_V1 */
+
+
+/* ASFX_VIP_SUBSCRIPTION_COMPLETE_V1 */
+(function(){
+  if (window.__ASFX_VIP_SUBSCRIPTION_COMPLETE_V1__) return;
+  window.__ASFX_VIP_SUBSCRIPTION_COMPLETE_V1__ = true;
+
+  const clean = (v) => String(v || '').trim().toLowerCase();
+  const toMs = (v) => window.ASFXVipLifecycleV1?.toMs?.(v) || (typeof v === 'number' ? v : Date.parse(v || '')) || 0;
+  const day = 24 * 60 * 60 * 1000;
+  const fallbackStatus = (profile) => {
+    const level = clean(profile?.level);
+    const role = clean(profile?.role);
+    const vipStatus = clean(profile?.vipStatus || profile?.status);
+    const owner = ['owner','founder','admin'].includes(level) || ['owner','founder','admin'].includes(role) || vipStatus === 'founder';
+    if (owner) return { state:'founder', active:true, owner:true, daysLeft:null, label:'Owner/Admin lifetime access' };
+    const exp = Number(profile?.vipExpiresAtMs || 0) || toMs(profile?.vipExpiresAt || profile?.activeUntil || profile?.vipActiveUntil);
+    const active = (vipStatus === 'active' || profile?.vipAccess === true || level === 'vip') && (!exp || exp > Date.now());
+    if (active) return { state:'active', active:true, owner:false, daysLeft: exp ? Math.max(0, Math.ceil((exp - Date.now()) / day)) : null, expiresAtMs: exp, label: exp ? 'VIP active • ' + Math.max(0, Math.ceil((exp - Date.now()) / day)) + ' days left' : 'VIP active' };
+    if (exp && exp <= Date.now()) return { state:'expired', active:false, owner:false, daysLeft:0, expiresAtMs:exp, label:'VIP expired' };
+    return { state:'free', active:false, owner:false, daysLeft:0, expiresAtMs:exp, label:'Free account' };
+  };
+  const statusOf = (profile) => window.ASFXVipLifecycleV1?.getUserStatus?.(profile) || fallbackStatus(profile || {});
+  const dateText = (ms) => ms ? new Date(ms).toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' }) : '-';
+
+  function getCachedProfile(){
+    try { return window.currentUser || JSON.parse(localStorage.getItem('aisignalfx:firebase_user') || 'null') || {}; } catch(_e) { return window.currentUser || {}; }
+  }
+
+  function normalizeProfileAccess(profile){
+    const status = statusOf(profile || {});
+    if (status.owner) {
+      profile.vipAccess = true; profile.isVip = true; profile.vipStatus = profile.vipStatus || 'founder';
+      return profile;
+    }
+    if (status.state === 'expired') {
+      profile.level = 'free';
+      profile.role = profile.role === 'VIP Member' ? 'Free Member' : (profile.role || 'Free Member');
+      profile.vipAccess = false;
+      profile.isVip = false;
+      profile.vipStatus = 'expired';
+    } else if (status.active) {
+      profile.level = 'vip';
+      profile.role = profile.role || 'VIP Member';
+      profile.vipAccess = true;
+      profile.isVip = true;
+      profile.vipStatus = 'active';
+    }
+    return profile;
+  }
+
+  function installAccessBridge(){
+    const guard = window.ASFXAccessGuard;
+    if (!guard || guard.__vipSubscriptionWrapped) return;
+    const originalGet = guard.getAccess?.bind(guard);
+    guard.getAccess = function(){
+      const base = originalGet ? originalGet() : { role:'free', owner:false, admin:false, vip:false, profile:getCachedProfile() };
+      const profile = normalizeProfileAccess(base.profile || getCachedProfile());
+      const status = statusOf(profile);
+      if (base.owner || base.admin || status.owner) {
+        return { ...base, role: base.owner ? 'owner' : 'admin', vip:true, canOpenSignalRoom:true, canUseVip:true, vipStatus:status };
+      }
+      if (status.active) {
+        return { ...base, role:'vip', vip:true, canOpenSignalRoom:true, canUseVip:true, profile, vipStatus:status };
+      }
+      return { ...base, role:'free', vip:false, canOpenSignalRoom:false, canUseVip:false, profile, vipStatus:status };
+    };
+    guard.isVip = () => guard.getAccess().vip;
+    guard.canOpenSignalRoom = () => guard.getAccess().canOpenSignalRoom;
+    guard.canUseVip = () => guard.getAccess().canUseVip;
+    guard.__vipSubscriptionWrapped = true;
+  }
+
+  function renderProfileVipStatus(){
+    const el = document.getElementById('vip-status-text');
+    if (!el) return;
+    const profile = normalizeProfileAccess(getCachedProfile());
+    const status = statusOf(profile);
+    let text = status.label || 'Free account';
+    if (status.owner) text = 'Owner/Admin lifetime access.';
+    else if (status.active && status.expiresAtMs) text = 'VIP active until ' + dateText(status.expiresAtMs) + ' (' + status.daysLeft + ' days left).';
+    else if (status.state === 'expired') text = 'VIP expired' + (status.expiresAtMs ? ' on ' + dateText(status.expiresAtMs) : '') + '. Renew VIP to unlock Scanner.';
+    else text = 'Free account. Upgrade VIP to unlock Signal Scanner.';
+    el.textContent = text;
+
+    let card = document.getElementById('asfx-profile-vip-lifecycle-card');
+    if (!card && el.parentElement) {
+      card = document.createElement('div');
+      card.id = 'asfx-profile-vip-lifecycle-card';
+      card.className = 'card';
+      card.style.marginTop = '12px';
+      el.parentElement.appendChild(card);
+    }
+    if (card) {
+      card.innerHTML = '<h3>VIP Subscription</h3><p><b>Status:</b> ' + (status.state || 'free') + '</p><p><b>Active Until:</b> ' + (status.expiresAtMs ? dateText(status.expiresAtMs) : (status.owner ? 'Lifetime' : '-')) + '</p><p><b>Days Left:</b> ' + (status.daysLeft === null ? 'Lifetime' : (status.daysLeft || 0)) + '</p>';
+    }
+
+    if (status.state === 'expired' && profile?.uid && window.AiSignalFirebase?.syncVipExpiryForUser) {
+      window.AiSignalFirebase.syncVipExpiryForUser({ ...profile, id: profile.uid }).catch(() => {});
+    }
+  }
+
+  function bindLifecycleAdminEvents(){
+    if (document.__asfxVipSubscriptionEvents) return;
+    document.__asfxVipSubscriptionEvents = true;
+    document.addEventListener('click', async (e) => {
+      const btn = e.target.closest('[data-vip-extend-user]');
+      if (!btn) return;
+      e.preventDefault();
+      const uid = btn.dataset.vipExtendUser;
+      const days = Number(btn.dataset.vipExtendDays || 30);
+      if (!uid || !window.AiSignalFirebase?.extendVipSubscription) return alert('VIP lifecycle Firebase belum siap.');
+      if (!confirm('Extend VIP user ini ' + days + ' hari?')) return;
+      await window.AiSignalFirebase.extendVipSubscription(uid, days, { note:'Manual extend from Admin Control' });
+      if (window.ASFXAdminControlV1?.refresh) await window.ASFXAdminControlV1.refresh('users');
+      alert('VIP diperpanjang ' + days + ' hari.');
+    }, true);
+  }
+
+  function boot(){
+    installAccessBridge();
+    bindLifecycleAdminEvents();
+    renderProfileVipStatus();
+    setTimeout(installAccessBridge, 500);
+    setTimeout(renderProfileVipStatus, 700);
+    setInterval(() => { installAccessBridge(); renderProfileVipStatus(); }, 5000);
+    console.info('ASFX VIP Subscription Complete V1 ready.');
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once:true });
+  else boot();
+})();
+/* END ASFX_VIP_SUBSCRIPTION_COMPLETE_V1 */

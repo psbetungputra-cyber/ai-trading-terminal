@@ -315,3 +315,271 @@ window.logoutFirebaseAuth = async function () {
     console.warn("Firebase logout skipped:", error);
   }
 };
+
+
+/* ASFX_VIP_LIFECYCLE_FIREBASE_V1 */
+(function(){
+  if (window.__ASFX_VIP_LIFECYCLE_FIREBASE_V1__) return;
+  window.__ASFX_VIP_LIFECYCLE_FIREBASE_V1__ = true;
+
+  const DAY = 24 * 60 * 60 * 1000;
+  const apiReady = () => window.AiSignalFirebase || null;
+  const clean = (v) => String(v || '').trim().toLowerCase();
+  const toMs = (v) => {
+    if (!v) return 0;
+    if (typeof v === 'number') return v;
+    if (typeof v === 'string') {
+      const ms = Date.parse(v);
+      return Number.isFinite(ms) ? ms : 0;
+    }
+    if (typeof v?.toDate === 'function') return v.toDate().getTime();
+    if (typeof v?.seconds === 'number') return v.seconds * 1000;
+    if (v instanceof Date) return v.getTime();
+    return 0;
+  };
+  const iso = (ms) => ms ? new Date(ms).toISOString() : '';
+  const daysLeft = (ms) => Math.max(0, Math.ceil((Number(ms || 0) - Date.now()) / DAY));
+
+  function getUserStatus(user){
+    const level = clean(user?.level);
+    const role = clean(user?.role);
+    const vipStatus = clean(user?.vipStatus || user?.status);
+    const owner = ['owner','founder','admin'].includes(level) || ['owner','founder','admin'].includes(role) || vipStatus === 'founder';
+    if (owner) return { state:'founder', active:true, owner:true, daysLeft:null, expiresAtMs:0, label:'Owner/Admin lifetime access' };
+    const expiresAtMs = Number(user?.vipExpiresAtMs || 0) || toMs(user?.vipExpiresAt || user?.activeUntil || user?.vipActiveUntil);
+    const active = (vipStatus === 'active' || user?.vipAccess === true || level === 'vip') && (!expiresAtMs || expiresAtMs > Date.now());
+    if (active) return { state:'active', active:true, owner:false, daysLeft: expiresAtMs ? daysLeft(expiresAtMs) : null, expiresAtMs, label: expiresAtMs ? 'VIP active • ' + daysLeft(expiresAtMs) + ' days left' : 'VIP active' };
+    if (expiresAtMs && expiresAtMs <= Date.now()) return { state:'expired', active:false, owner:false, daysLeft:0, expiresAtMs, label:'VIP expired' };
+    return { state: vipStatus === 'expired' ? 'expired' : 'free', active:false, owner:false, daysLeft:0, expiresAtMs, label: vipStatus === 'expired' ? 'VIP expired' : 'Free account' };
+  }
+
+  async function findUser(uid){
+    const api = apiReady();
+    if (!uid || !api?.getCollectionDocs) return null;
+    const users = await api.getCollectionDocs('users');
+    return (users || []).find((u) => String(u.id) === String(uid)) || null;
+  }
+
+  function buildSubscription(user, requestOrOptions = {}){
+    const durationDays = Math.max(1, Number(requestOrOptions.durationDays || requestOrOptions.days || 30));
+    const currentExpiry = toMs(user?.vipExpiresAt || user?.activeUntil || user?.vipActiveUntil) || Number(user?.vipExpiresAtMs || 0) || 0;
+    const base = currentExpiry > Date.now() ? currentExpiry : Date.now();
+    const startedAtMs = Date.now();
+    const expiresAtMs = base + durationDays * DAY;
+    return { durationDays, startedAtMs, expiresAtMs, startedAt: iso(startedAtMs), expiresAt: iso(expiresAtMs), extendedFromMs: currentExpiry || 0 };
+  }
+
+  async function approveVipRequestLifecycle(request){
+    const api = apiReady();
+    if (!api?.upsertDoc || !api?.updateCollectionDoc) throw new Error('Firebase helper belum siap.');
+    if (!request?.id) throw new Error('VIP request ID tidak ditemukan.');
+    const uid = request.userId;
+    if (!uid || String(uid).startsWith('demo-')) {
+      await api.updateCollectionDoc('vipRequests', request.id, {
+        status:'approved_manual',
+        lifecycleStatus:'manual_required',
+        approvedAt: iso(Date.now()),
+        adminNote:'Request demo/manual. UserId tidak valid untuk auto activation.'
+      });
+      return { manual:true, reason:'demo_user' };
+    }
+
+    const user = await findUser(uid);
+    const sub = buildSubscription(user, request);
+    const userPatch = {
+      uid,
+      email: request.email || user?.email || '',
+      name: request.userName || user?.name || user?.displayName || 'VIP User',
+      level:'vip',
+      role:'VIP Member',
+      vipAccess:true,
+      vipStatus:'active',
+      vipStartedAt: sub.startedAt,
+      vipStartedAtMs: sub.startedAtMs,
+      vipExpiresAt: sub.expiresAt,
+      vipExpiresAtMs: sub.expiresAtMs,
+      vipDurationDays: sub.durationDays,
+      vipLastPackageId: request.packageId || '',
+      vipLastPackageName: request.packageName || '',
+      vipLastRequestId: request.id,
+      vipLastAmount: Number(request.amount || 0),
+      vipLastPaymentMethod: request.paymentMethod || '',
+      vipLastApprovedAt: iso(Date.now())
+    };
+    await api.upsertDoc('users', uid, userPatch);
+    await api.updateCollectionDoc('vipRequests', request.id, {
+      status:'approved',
+      lifecycleStatus:'vip_active',
+      approvedAt: iso(Date.now()),
+      subscriptionStartedAt: sub.startedAt,
+      subscriptionStartedAtMs: sub.startedAtMs,
+      subscriptionExpiresAt: sub.expiresAt,
+      subscriptionExpiresAtMs: sub.expiresAtMs,
+      subscriptionDurationDays: sub.durationDays
+    });
+    if (api.addCollectionDoc) {
+      await api.addCollectionDoc('paymentHistory', {
+        type:'vip_subscription',
+        status:'approved',
+        userId: uid,
+        userName: request.userName || user?.name || '',
+        email: request.email || user?.email || '',
+        requestId: request.id,
+        packageId: request.packageId || '',
+        packageName: request.packageName || '',
+        amount: Number(request.amount || 0),
+        durationDays: sub.durationDays,
+        paymentMethod: request.paymentMethod || '',
+        paymentNumber: request.paymentNumber || '',
+        senderName: request.senderName || '',
+        proofUrl: request.proofUrl || '',
+        startedAt: sub.startedAt,
+        startedAtMs: sub.startedAtMs,
+        expiresAt: sub.expiresAt,
+        expiresAtMs: sub.expiresAtMs
+      });
+    }
+    return { userPatch, subscription: sub };
+  }
+
+  async function rejectVipRequestLifecycle(request, reason = ''){
+    const api = apiReady();
+    if (!api?.updateCollectionDoc) throw new Error('Firebase helper belum siap.');
+    if (!request?.id) throw new Error('VIP request ID tidak ditemukan.');
+    await api.updateCollectionDoc('vipRequests', request.id, {
+      status:'rejected',
+      lifecycleStatus:'rejected',
+      rejectedAt: iso(Date.now()),
+      rejectReason: reason || request.rejectReason || ''
+    });
+    if (api.addCollectionDoc) {
+      await api.addCollectionDoc('paymentHistory', {
+        type:'vip_subscription',
+        status:'rejected',
+        userId: request.userId || '',
+        userName: request.userName || '',
+        email: request.email || '',
+        requestId: request.id,
+        packageId: request.packageId || '',
+        packageName: request.packageName || '',
+        amount: Number(request.amount || 0),
+        paymentMethod: request.paymentMethod || '',
+        senderName: request.senderName || '',
+        proofUrl: request.proofUrl || '',
+        reason: reason || ''
+      });
+    }
+  }
+
+  async function extendVipSubscription(uid, days = 30, meta = {}){
+    const api = apiReady();
+    if (!uid || !api?.upsertDoc) throw new Error('User/Firebase tidak siap.');
+    const user = await findUser(uid);
+    const sub = buildSubscription(user, { days });
+    const patch = {
+      uid,
+      name: user?.name || user?.displayName || meta.userName || 'VIP User',
+      email: user?.email || meta.email || '',
+      level:'vip',
+      role:'VIP Member',
+      vipAccess:true,
+      vipStatus:'active',
+      vipStartedAt: user?.vipStartedAt || sub.startedAt,
+      vipStartedAtMs: user?.vipStartedAtMs || sub.startedAtMs,
+      vipExpiresAt: sub.expiresAt,
+      vipExpiresAtMs: sub.expiresAtMs,
+      vipDurationDays: Number(user?.vipDurationDays || 0) + Number(days || 0),
+      vipLastManualExtendAt: iso(Date.now())
+    };
+    await api.upsertDoc('users', uid, patch);
+    if (api.addCollectionDoc) {
+      await api.addCollectionDoc('paymentHistory', {
+        type:'vip_manual_extend',
+        status:'approved',
+        userId: uid,
+        userName: patch.name,
+        email: patch.email,
+        durationDays: Number(days || 0),
+        startedAt: sub.startedAt,
+        expiresAt: sub.expiresAt,
+        expiresAtMs: sub.expiresAtMs,
+        note: meta.note || 'Manual extend from Admin Control'
+      });
+    }
+    return patch;
+  }
+
+  async function syncVipExpiryForUser(user){
+    const api = apiReady();
+    const status = getUserStatus(user);
+    if (!user?.id && !user?.uid) return status;
+    if (status.state !== 'expired' || status.owner) return status;
+    const uid = user.id || user.uid;
+    if (!api?.upsertDoc) return status;
+    await api.upsertDoc('users', uid, {
+      level:'free',
+      role:'Free Member',
+      vipAccess:false,
+      vipStatus:'expired',
+      vipExpiredAt: iso(Date.now())
+    });
+    return status;
+  }
+
+  async function syncAllVipExpiries(users){
+    const rows = Array.isArray(users) ? users : (apiReady()?.getCollectionDocs ? await apiReady().getCollectionDocs('users') : []);
+    const expired = [];
+    for (const user of rows || []) {
+      const status = getUserStatus(user);
+      if (status.state === 'expired') {
+        expired.push(user.id || user.uid);
+        try { await syncVipExpiryForUser(user); } catch(err) { console.warn('VIP expiry sync skipped:', err?.message || err); }
+      }
+    }
+    return expired;
+  }
+
+  function installApi(){
+    const api = apiReady();
+    if (!api || api.__vipLifecycleV1Installed) return;
+    const originalUpdateUserRole = api.updateUserRole;
+    api.approveVipRequestLifecycle = approveVipRequestLifecycle;
+    api.rejectVipRequestLifecycle = rejectVipRequestLifecycle;
+    api.extendVipSubscription = extendVipSubscription;
+    api.syncVipExpiryForUser = syncVipExpiryForUser;
+    api.syncAllVipExpiries = syncAllVipExpiries;
+    api.getVipLifecycleStatus = getUserStatus;
+    api.updateUserRole = async function(uid, level, options = {}){
+      const lv = clean(level);
+      if (lv === 'vip') return await extendVipSubscription(uid, Number(options.days || 30), { note:'Role changed to VIP from Admin Control' });
+      if (lv === 'free') {
+        await api.upsertDoc('users', uid, { level:'free', role:'Free Member', vipAccess:false, vipStatus:'free', vipExpiresAt:null, vipExpiresAtMs:0 });
+        return;
+      }
+      if (lv === 'admin' || lv === 'owner') {
+        await api.upsertDoc('users', uid, { level:'admin', role:'Founder', vipAccess:true, vipStatus:'founder', vipExpiresAt:null, vipExpiresAtMs:0 });
+        return;
+      }
+      return originalUpdateUserRole ? originalUpdateUserRole(uid, level) : null;
+    };
+    api.__vipLifecycleV1Installed = true;
+  }
+
+  window.ASFXVipLifecycleV1 = {
+    getUserStatus,
+    daysLeft,
+    toMs,
+    approveVipRequestLifecycle,
+    rejectVipRequestLifecycle,
+    extendVipSubscription,
+    syncVipExpiryForUser,
+    syncAllVipExpiries,
+    installApi
+  };
+
+  installApi();
+  setTimeout(installApi, 400);
+  setTimeout(installApi, 1200);
+  console.info('ASFX VIP Lifecycle Firebase V1 ready.');
+})();
+/* END ASFX_VIP_LIFECYCLE_FIREBASE_V1 */
