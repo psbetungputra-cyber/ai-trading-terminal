@@ -96,12 +96,47 @@
     return "Low";
   }
 
+  /* ASFX_MAIN_SCANNER_PACKET_SYNC_V5 */
+  function asfxScannerFinalPacketForMainV5(pair) {
+    try {
+      const p = window.__ASFX_FINAL_SIGNAL_PACKET_V5__ || window.ASFX_SCANNER_COMPLETE_V5?.getPacket?.();
+      if (!p) return null;
+      const target = String(pair || "").toUpperCase();
+      const symbol = String(p.pair || p.symbol || "").toUpperCase();
+      if (target && symbol && target !== symbol) return null;
+      const activeTf = String(state.tf || "").toLowerCase();
+      const packetTf = String(p.timeframe || p.tf || "").toLowerCase();
+      if (activeTf && packetTf && activeTf !== packetTf) return null;
+      return p;
+    } catch (_) { return null; }
+  }
+
+  function asfxScannerMergeFinalPacketV5(base, pair) {
+    const p = asfxScannerFinalPacketForMainV5(pair);
+    if (!p) {
+      return {
+        ...base,
+        setup: base.setup || "Open Detail for final score",
+        status: base.bias === "WAIT" ? "Waiting" : "Preview"
+      };
+    }
+    const conf = Number(String(p.confidence ?? p.score ?? base.confidence ?? 0).replace(/[^0-9.]/g, ""));
+    return {
+      ...base,
+      bias: p.bias || base.bias,
+      risk: p.risk || base.risk,
+      confidence: Number.isFinite(conf) && conf > 0 ? Math.round(conf) : base.confidence,
+      setup: p.finalStatus || p.signalStatus || p.setupType || p.actionStatus || base.setup,
+      status: p.finalStatus || p.lifecycleStatus || p.status || p.actionStatus || "Final Score"
+    };
+  }
+
   function getPairData(pair) {
     if (state.mode === "crypto") {
       const d = state.live[pair] || {};
       const change = Number(d.priceChangePercent || 0);
       const bias = biasFromChange(change);
-      return {
+      return asfxScannerMergeFinalPacketV5({
         symbol: pair,
         price: Number(d.lastPrice || 0),
         change,
@@ -109,11 +144,11 @@
         confidence: Math.min(88, Math.max(55, Math.round(58 + Math.abs(change) * 6))),
         risk: riskFromChange(change),
         market: "Crypto Live",
-        setup: bias === "BUY" ? "Momentum continuation" : bias === "SELL" ? "Pullback pressure" : "Waiting confirmation"
-      };
+        setup: "Open Detail for final score"
+      }, pair);
     }
 
-    return { symbol: pair, ...(refData[pair] || refData.XAUUSD) };
+    return asfxScannerMergeFinalPacketV5({ symbol: pair, ...(refData[pair] || refData.XAUUSD) }, pair);
   }
 
   function biasClass(bias) {
@@ -164,7 +199,7 @@
     const price = fmt(data.price);
     const displayPrice = safe(price);
     const change = Number(data.change || 0);
-    const status = data.bias === "WAIT" ? "Waiting" : "Preview";
+    const status = data.status || (data.bias === "WAIT" ? "Waiting" : "Preview");
     const rows = summaryRows();
 
     el.innerHTML = `
@@ -2808,11 +2843,22 @@
       setupType = "Middle Range No Trade";
       next.bias = "WAIT";
       detail = "Middle Range No Trade: harga berada di tengah range support-resistance. Sistem menahan entry untuk menghindari overtrade.";
-    } else if (nearDemand && bias !== "SELL") {
+    } else if (nearDemand && bias === "SELL") {
+      /* ASFX_RISK_GUARD_WORDING_CONFLICT_FIX_V5 */
+      signalStatus = "Zone Conflict";
+      setupType = "Demand Conflict Watch";
+      next.bias = "WAIT";
+      detail = "SELL bias terdeteksi, tetapi harga berada dekat demand/support. Jangan SELL langsung ke support. Tunggu breakdown bersih lalu retest sebelum SELL valid.";
+    } else if (nearSupply && bias === "BUY") {
+      signalStatus = "Zone Conflict";
+      setupType = "Supply Conflict Watch";
+      next.bias = "WAIT";
+      detail = "BUY bias terdeteksi, tetapi harga berada dekat supply/resistance. Jangan BUY langsung ke resistance. Tunggu breakout bersih lalu retest sebelum BUY valid.";
+    } else if (nearDemand) {
       signalStatus = "Support Reaction";
       setupType = "Support Reaction Watch";
       detail = "Support Reaction Watch: harga dekat area support/demand. BUY belum final; tunggu rejection atau bullish confirmation.";
-    } else if (nearSupply && bias !== "BUY") {
+    } else if (nearSupply) {
       signalStatus = "Resistance Reaction";
       setupType = "Resistance Rejection Watch";
       detail = "Resistance Rejection Watch: harga dekat area resistance/supply. SELL belum final; tunggu rejection atau bearish confirmation.";
@@ -3236,7 +3282,7 @@ function signalHtml(d){
       <div class="asfx-bridge-head">
         <div class="asfx-bridge-kicker">AiSignal Execution</div>
         <div class="asfx-bridge-title ${verdictClass}">${verdict}</div>
-        <div class="asfx-bridge-sub">${d.pair} � ${d.tf} � ${bias} Bias � ${risk} Risk � ${confidence}%</div>
+        <div class="asfx-bridge-sub">${d.pair} | ${d.tf} | ${bias} Bias | ${risk} Risk | ${confidence}%</div>
       </div>
 
       <div class="asfx-bridge-box" style="border-color:rgba(56,189,248,.28);background:linear-gradient(135deg,rgba(2,6,23,.82),rgba(14,165,233,.10));">
@@ -3346,7 +3392,7 @@ function riskHtml(d){
       <div class="asfx-bridge-head">
         <div class="asfx-bridge-kicker">Risk Dashboard</div>
         <div class="asfx-bridge-title">${guard}</div>
-        <div class="asfx-bridge-sub">${d.pair} � ${d.tf} � ${bias} Bias � ${risk} Risk � ${confidence}%</div>
+        <div class="asfx-bridge-sub">${d.pair} | ${d.tf} | ${bias} Bias | ${risk} Risk | ${confidence}%</div>
       </div>
 
       <div class="asfx-bridge-grid">
@@ -3418,7 +3464,7 @@ function chatHtml(d){
       <div class="asfx-bridge-head">
         <div class="asfx-bridge-kicker">AI Insight</div>
         <div class="asfx-bridge-title">${setup}</div>
-        <div class="asfx-bridge-sub">${d.pair} � ${d.tf} � ${phase} � ${confidence}% Confidence</div>
+        <div class="asfx-bridge-sub">${d.pair} | ${d.tf} | ${phase} | ${confidence}% Confidence</div>
       </div>
 
       <div class="asfx-bridge-box">
@@ -3443,7 +3489,7 @@ function chatHtml(d){
 
       <div class="asfx-bridge-box">
         <b style="color:#fff;">Technical Method</b><br>
-        <span style="opacity:.86;">SNR � RBS/SBR � SND � BRN � Candle Context</span>
+        <span style="opacity:.86;">SNR | RBS/SBR | SND | BRN | Candle Context</span>
       </div>
 
       <details class="asfx-bridge-box">
@@ -8817,4 +8863,470 @@ document.addEventListener("click", function(e){
       if (wrapBuild() || tries > 30) clearInterval(timer);
     }, 500);
   }
+})();
+
+
+/* ASFX_SCANNER_COMPLETE_PACK_V5 */
+(function(){
+  if (window.__ASFX_SCANNER_COMPLETE_PACK_V5__) return;
+  window.__ASFX_SCANNER_COMPLETE_PACK_V5__ = true;
+  window.__ASFX_DISABLE_SIGNAL_HISTORY_IN_SIGNAL_ROOM__ = true;
+
+  const VERSION = "5.0.0";
+  const FINAL_HOLD_MS = 12000;
+
+  const txt = (v, fallback = "-") => {
+    if (v === undefined || v === null || v === "") return fallback;
+    const s = String(v).replace(/�/g, " | ").trim();
+    return s || fallback;
+  };
+  const upper = (v, fb="WAIT") => txt(v, fb).toUpperCase();
+  const num = (v, fallback = 0) => {
+    const n = Number(String(v ?? "").replace(/[^0-9.-]/g, ""));
+    return Number.isFinite(n) ? n : fallback;
+  };
+  const nowIso = () => new Date().toISOString();
+  const isPending = (v) => /pending|waiting|calculating|invalid|belum|tunggu|observation|no trade|-$/i.test(String(v || ""));
+  const hasNumber = (v) => /-?\d+(?:,\d{3})*(?:\.\d+)?/.test(String(v || ""));
+
+  function basePacket(){
+    const sources = [
+      window.ASFX_SIGNAL_PACKET_QUALITY_GUARD_V1?.get?.(),
+      window.__ASFX_STABLE_SIGNAL_PACKET_V1__,
+      window.__ASFX_LAST_SIGNAL_PACKET_V1__,
+      window.__ASFX_LAST_SMZ_ANALYSIS__,
+      window.__ASFX_LAST_SIGNAL_ANALYSIS__,
+      {}
+    ];
+    return Object.assign({}, ...sources.filter(Boolean));
+  }
+
+  function panelText(){
+    return [
+      document.querySelector('[data-asfx-bridge-rendered="signal"]')?.innerText,
+      document.querySelector('[data-asfx-bridge-rendered="risk"]')?.innerText,
+      document.querySelector('[data-asfx-bridge-rendered="chat"]')?.innerText
+    ].filter(Boolean).join("\n");
+  }
+
+  function readLine(text, label){
+    const m = String(text || "").match(new RegExp(label + "\\s*:\\s*([^\\n]+)", "i"));
+    return m ? txt(m[1], "") : "";
+  }
+
+  function readDetailMeta(){
+    const h = document.querySelector('.asfx-detail-title h2')?.textContent || document.querySelector('[data-detail-room] h2')?.textContent || "";
+    const m = h.match(/([A-Z0-9]{5,20}).*?(1m|5m|15m|30m|1h|4h|1d|1w)/i);
+    return { pair:m?.[1], timeframe:m?.[2] };
+  }
+
+  function normalizeStatus(raw, p){
+    const text = [raw, p.signalStatus, p.signalStatusLabel, p.actionStatus, p.setupType, p.zoneState, p.reason, p.statusDetail, p.lifecycleStatus].filter(Boolean).join(" ").toLowerCase();
+    const bias = upper(p.bias, "WAIT");
+    const risk = txt(p.risk, "Medium").toLowerCase();
+    const confidence = num(p.confidence ?? p.score, 0);
+    const entry = txt(p.entryZone || p.activeZone || p.zoneState || p.zone, "");
+    const sl = txt(p.stopLossGuide || p.slGuide, "");
+    const tp1 = txt(p.tp1Guide, "");
+    const activeStatus = /signal active|official buy|official sell/i.test(text);
+    const touched = /zone touched|touched/i.test(text) || (typeof window.asfxZoneTouchedV1 === "function" && window.asfxZoneTouchedV1(p));
+
+    if (/sl hit|stop loss hit/i.test(text)) return "SL HIT";
+    if (/tp2 hit|take profit 2 hit/i.test(text)) return "TP2 HIT";
+    if (/tp1 hit|take profit 1 hit/i.test(text)) return "TP1 HIT";
+    if (/invalid|expired|stale|conflict/i.test(text)) return "INVALID";
+    if (/no trade|middle range/i.test(text) || bias === "WAIT") return "NO TRADE";
+
+    const executable =
+      (bias === "BUY" || bias === "SELL") &&
+      !risk.includes("high") &&
+      confidence >= 65 &&
+      !isPending(entry) && hasNumber(entry) &&
+      !isPending(sl) && hasNumber(sl) &&
+      !isPending(tp1) && hasNumber(tp1) &&
+      (activeStatus || touched || (typeof window.asfxSignalActiveTriggerV1 === "function" && window.asfxSignalActiveTriggerV1(p)));
+
+    if (executable) return "SIGNAL ACTIVE";
+    if (/zone watch|zone touched|support|resistance|demand|supply|breakout|breakdown|brn|watch/i.test(text)) return "ZONE WATCH";
+    if (/setup|risk|observation|waiting/i.test(text)) return "SETUP WATCH";
+    return (bias === "BUY" || bias === "SELL") ? "SETUP WATCH" : "NO TRADE";
+  }
+
+  function applyExecutionGate(p){
+    const next = Object.assign({}, p);
+    next.pair = upper(next.pair || next.symbol || readDetailMeta().pair || "BTCUSDT", "BTCUSDT");
+    next.symbol = next.pair;
+    next.timeframe = txt(next.timeframe || next.tf || readDetailMeta().timeframe || "15m", "15m");
+    next.tf = next.timeframe;
+    next.bias = upper(next.bias, "WAIT");
+    if (!["BUY","SELL","WAIT"].includes(next.bias)) next.bias = next.bias.includes("BUY") ? "BUY" : next.bias.includes("SELL") ? "SELL" : "WAIT";
+    next.risk = /high/i.test(next.risk) ? "High" : /low/i.test(next.risk) ? "Low" : "Medium";
+    next.confidence = Math.max(0, Math.min(100, Math.round(num(next.confidence ?? next.score, 0))));
+    next.score = next.confidence;
+    next.currentPrice = next.currentPrice || next.price || next.livePrice || "-";
+    next.price = next.price || next.currentPrice || next.livePrice || "-";
+    next.livePrice = next.livePrice || next.currentPrice || next.price || "-";
+
+    next.activeZone = txt(next.activeZone || next.entryZone || next.zoneState || next.zone, "Waiting valid zone");
+    next.entryZone = txt(next.entryZone || next.activeZone, "Pending - watch zone only");
+    next.stopLossGuide = txt(next.stopLossGuide || next.slGuide, "Pending - waiting invalidation");
+    next.slGuide = next.stopLossGuide;
+    next.tp1Guide = txt(next.tp1Guide, "Pending - waiting valid target");
+    next.tp2Guide = txt(next.tp2Guide, "Pending - waiting extended target");
+
+    const finalStatus = normalizeStatus(next.signalStatus || next.actionStatus || next.status, next);
+    next.finalStatus = finalStatus;
+    next.status = finalStatus;
+    next.actionStatus = finalStatus;
+    next.lifecycleStatus = finalStatus;
+    next.signalStatus = finalStatus;
+    next.signalStatusLabel = finalStatus;
+    next.canExecute = finalStatus === "SIGNAL ACTIVE";
+
+    if (!next.canExecute) {
+      if (!["TP1 HIT","TP2 HIT","SL HIT"].includes(finalStatus)) {
+        next.entryZone = finalStatus === "NO TRADE" ? "Pending - no trade area" : "Pending - watch zone only";
+        next.stopLossGuide = "Pending - waiting invalidation";
+        next.slGuide = next.stopLossGuide;
+        next.tp1Guide = "Pending - waiting valid target";
+        next.tp2Guide = "Pending - waiting extended target";
+      }
+      next.officialSignal = finalStatus;
+      next.decision = finalStatus;
+    } else {
+      next.officialSignal = next.bias === "BUY" ? "OFFICIAL BUY" : next.bias === "SELL" ? "OFFICIAL SELL" : "SIGNAL ACTIVE";
+      next.decision = next.officialSignal;
+    }
+
+    next.reason = txt(next.reason || next.statusDetail || next.executionNote, "Final scanner packet normalized.");
+    next.statusDetail = next.reason;
+    next.executionNote = next.canExecute
+      ? "Setup valid. Execute only inside entry zone with defined risk plan."
+      : `${finalStatus}: sistem menahan entry sampai zona, candle, risk, dan target valid.`;
+    next.finalPacketVersion = "ASFX_SCANNER_COMPLETE_PACK_V5";
+    next.lastUpdated = nowIso();
+    return next;
+  }
+
+  function stabilizeFinal(p){
+    const prev = window.__ASFX_FINAL_SIGNAL_PACKET_V5__;
+    let next = applyExecutionGate(p || basePacket());
+    if (prev && prev.pair === next.pair && String(prev.timeframe).toLowerCase() === String(next.timeframe).toLowerCase()) {
+      const young = Date.now() - Number(prev.__asfxFinalChangedAt || 0) < FINAL_HOLD_MS;
+      const major = /SIGNAL ACTIVE|TP1 HIT|TP2 HIT|SL HIT|INVALID/.test(next.finalStatus);
+      if (young && !major && prev.finalStatus && prev.finalStatus !== next.finalStatus) {
+        next.finalStatus = prev.finalStatus;
+        next.status = prev.status;
+        next.actionStatus = prev.actionStatus;
+        next.lifecycleStatus = prev.lifecycleStatus;
+        next.signalStatus = prev.signalStatus;
+        next.signalStatusLabel = prev.signalStatusLabel;
+        next.canExecute = prev.canExecute;
+        next.officialSignal = prev.officialSignal;
+        next.decision = prev.decision;
+      } else if (prev.finalStatus !== next.finalStatus) {
+        next.__asfxFinalChangedAt = Date.now();
+      } else {
+        next.__asfxFinalChangedAt = prev.__asfxFinalChangedAt || Date.now();
+      }
+    } else {
+      next.__asfxFinalChangedAt = Date.now();
+    }
+    window.__ASFX_FINAL_SIGNAL_PACKET_V5__ = next;
+    window.__ASFX_STABLE_SIGNAL_PACKET_V1__ = next;
+    window.__ASFX_LAST_SIGNAL_PACKET_V1__ = next;
+    window.__ASFX_LAST_SMZ_ANALYSIS__ = Object.assign({}, window.__ASFX_LAST_SMZ_ANALYSIS__ || {}, next);
+    window.__ASFX_LAST_SIGNAL_ANALYSIS__ = Object.assign({}, window.__ASFX_LAST_SIGNAL_ANALYSIS__ || {}, next);
+    return next;
+  }
+
+  function buildFromPanel(){
+    const text = panelText();
+    const meta = readDetailMeta();
+    const raw = Object.assign({}, basePacket(), {
+      pair: meta.pair || readLine(text, "Pair") || basePacket().pair,
+      timeframe: meta.timeframe || readLine(text, "Timeframe") || basePacket().timeframe,
+      bias: readLine(text, "Bias") || basePacket().bias,
+      risk: readLine(text, "Risk") || basePacket().risk,
+      confidence: readLine(text, "Confidence") || readLine(text, "Score") || basePacket().confidence,
+      activeZone: readLine(text, "Zone") || readLine(text, "Active Zone") || basePacket().activeZone,
+      entryZone: readLine(text, "Entry") || readLine(text, "Entry Zone") || basePacket().entryZone,
+      stopLossGuide: readLine(text, "SL") || basePacket().stopLossGuide,
+      tp1Guide: readLine(text, "TP1") || basePacket().tp1Guide,
+      tp2Guide: readLine(text, "TP2") || basePacket().tp2Guide,
+      reason: readLine(text, "Reason") || readLine(text, "AI Reason") || basePacket().reason
+    });
+    return stabilizeFinal(raw);
+  }
+
+  function wrapPublisher(){
+    const pub = window.ASFX_PUBLISH_SIGNAL_PACKET_V1;
+    if (typeof pub !== "function" || pub.__asfxScannerCompleteV5) return false;
+    const wrapped = function(raw = {}){
+      const packet = pub(raw) || raw || {};
+      return stabilizeFinal(packet);
+    };
+    wrapped.__asfxScannerCompleteV5 = true;
+    window.ASFX_PUBLISH_SIGNAL_PACKET_V1 = wrapped;
+    return true;
+  }
+
+  function wrapQualityGuard(){
+    const api = window.ASFX_SIGNAL_PACKET_QUALITY_GUARD_V1;
+    if (!api || typeof api.get !== "function" || api.__asfxScannerCompleteV5) return false;
+    const originalGet = api.get.bind(api);
+    api.get = function(){
+      const raw = originalGet() || {};
+      const final = window.__ASFX_FINAL_SIGNAL_PACKET_V5__;
+      return final || stabilizeFinal(raw);
+    };
+    if (typeof api.stabilize === "function") {
+      const originalStabilize = api.stabilize.bind(api);
+      api.stabilize = function(raw = {}){
+        return stabilizeFinal(originalStabilize(raw) || raw || {});
+      };
+    }
+    api.__asfxScannerCompleteV5 = true;
+    return true;
+  }
+
+  function wrapSnapshot(){
+    const api = window.ASFX_FIREBASE_SIGNAL_SNAPSHOT_V1;
+    if (!api || typeof api.build !== "function" || api.__asfxScannerCompleteV5) return false;
+    const originalBuild = api.build.bind(api);
+    api.build = function(...args){
+      const base = originalBuild(...args) || {};
+      const final = buildFromPanel() || stabilizeFinal(base);
+      const snapshot = Object.assign({}, base, final, {
+        type: "scanner_signal_snapshot",
+        source: "Signal Scanner Complete V5",
+        finalPacketVersion: "ASFX_SCANNER_COMPLETE_PACK_V5",
+        createdAtClient: base.createdAtClient || nowIso()
+      });
+      snapshot.snapshotKey = [
+        snapshot.pair,
+        snapshot.timeframe,
+        snapshot.finalStatus || snapshot.status,
+        snapshot.lifecycleStatus,
+        snapshot.bias,
+        snapshot.confidence,
+        snapshot.activeZone,
+        snapshot.entryZone,
+        snapshot.stopLossGuide,
+        snapshot.tp1Guide,
+        snapshot.tp2Guide
+      ].join("|");
+      return snapshot;
+    };
+    api.__asfxScannerCompleteV5 = true;
+    return true;
+  }
+
+  function bootWraps(){
+    wrapPublisher();
+    wrapQualityGuard();
+    wrapSnapshot();
+  }
+
+  window.ASFX_SCANNER_COMPLETE_V5 = {
+    version: VERSION,
+    buildPacket: buildFromPanel,
+    stabilize: stabilizeFinal,
+    getPacket: () => window.__ASFX_FINAL_SIGNAL_PACKET_V5__ || buildFromPanel(),
+    canExecute: () => !!(window.__ASFX_FINAL_SIGNAL_PACKET_V5__?.canExecute)
+  };
+
+  bootWraps();
+  let tries = 0;
+  const wrapTimer = setInterval(() => {
+    tries += 1;
+    bootWraps();
+    if (tries > 30) clearInterval(wrapTimer);
+  }, 500);
+
+  setTimeout(buildFromPanel, 1200);
+  setInterval(buildFromPanel, 2500);
+  document.addEventListener("click", () => setTimeout(buildFromPanel, 300), true);
+  console.info("ASFX Scanner Complete Pack V5 active.");
+})();
+
+/* ASFX_SCANNER_HISTORY_MODULE_V5 */
+(function(){
+  if (window.__ASFX_SCANNER_HISTORY_MODULE_V5__) return;
+  window.__ASFX_SCANNER_HISTORY_MODULE_V5__ = true;
+
+  const styleId = "asfx-scanner-history-v5-style";
+  const drawerId = "asfx-scanner-history-v5";
+  const clean = (v, fb="-") => {
+    const t = String(v ?? "").replace(/�/g, " | ").trim();
+    return t || fb;
+  };
+  const upper = (v, fb="-") => clean(v, fb).toUpperCase();
+  const timeValue = (row) => {
+    const raw = row.createdAtClient || row.createdAt || row.updatedAtClient || row.updatedAt || row.lastUpdated || "";
+    if (raw && typeof raw === "object" && typeof raw.seconds === "number") return raw.seconds * 1000;
+    const n = Date.parse(String(raw));
+    return Number.isFinite(n) ? n : 0;
+  };
+  const fmtTime = (row) => {
+    const t = timeValue(row);
+    if (!t) return "recent";
+    try { return new Date(t).toLocaleString("id-ID", { day:"2-digit", month:"short", hour:"2-digit", minute:"2-digit" }); }
+    catch (_) { return "recent"; }
+  };
+
+  let cache = [];
+  let filter = { pair:"ALL", tf:"ALL", status:"ALL" };
+
+  function injectStyle(){
+    if (document.getElementById(styleId)) return;
+    const s = document.createElement("style");
+    s.id = styleId;
+    s.textContent = `
+      .asfx-history-v5-open{border:1px solid rgba(96,165,250,.28);background:rgba(15,23,42,.78);color:#dbeafe;border-radius:999px;padding:8px 12px;font-weight:950;font-size:12px;}
+      .asfx-history-v5-drawer{position:fixed;inset:auto 8px 8px 8px;z-index:999999;max-height:80vh;overflow:auto;border:1px solid rgba(148,163,184,.24);border-radius:24px;background:linear-gradient(180deg,#020617,#0f172a);color:#e5e7eb;box-shadow:0 30px 90px rgba(0,0,0,.6);padding:14px;display:none;}
+      .asfx-history-v5-drawer.open{display:block;}
+      .asfx-history-v5-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px;}
+      .asfx-history-v5-title{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#93c5fd;font-weight:950;}
+      .asfx-history-v5-sub{font-size:11px;color:rgba(226,232,240,.68);margin-top:2px;}
+      .asfx-history-v5-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;}
+      .asfx-history-v5-actions button,.asfx-history-v5-filter button{border:1px solid rgba(96,165,250,.28);background:rgba(15,23,42,.72);color:#e0f2fe;border-radius:999px;padding:7px 10px;font-weight:850;font-size:11px;}
+      .asfx-history-v5-filter{display:flex;gap:8px;overflow:auto;padding:4px 0 10px;margin-bottom:4px;}
+      .asfx-history-v5-filter button.active{background:rgba(56,189,248,.18);border-color:rgba(56,189,248,.5);color:#fff;}
+      .asfx-history-v5-list{display:grid;gap:9px;}
+      .asfx-history-v5-item{border:1px solid rgba(148,163,184,.16);border-radius:18px;background:rgba(15,23,42,.62);padding:11px;}
+      .asfx-history-v5-top{display:flex;justify-content:space-between;gap:8px;margin-bottom:5px;}
+      .asfx-history-v5-status{font-weight:950;color:#fff;font-size:12px;}
+      .asfx-history-v5-meta,.asfx-history-v5-line{font-size:11px;color:rgba(226,232,240,.74);line-height:1.48;}
+      .asfx-history-v5-line b{color:#fff;}
+      .asfx-history-v5-empty{font-size:12px;color:rgba(226,232,240,.72);padding:14px 2px;}
+      .asfx-history-v5-stat{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-bottom:10px;}
+      .asfx-history-v5-stat div{border:1px solid rgba(148,163,184,.14);border-radius:14px;background:rgba(2,6,23,.34);padding:8px;}
+      .asfx-history-v5-stat small{display:block;font-size:10px;color:rgba(226,232,240,.55);}
+      .asfx-history-v5-stat b{font-size:13px;color:#fff;}
+    `;
+    document.head.appendChild(s);
+  }
+
+  function ensureButton(){
+    injectStyle();
+    const scanner = document.querySelector("#scanner");
+    if (!scanner) return;
+    if (scanner.querySelector("[data-asfx-history-open-v5]")) return;
+    const actions = scanner.querySelector(".asfx-actions") || scanner.querySelector(".asfx-mode-rail") || scanner;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "asfx-history-v5-open";
+    btn.setAttribute("data-asfx-history-open-v5", "true");
+    btn.textContent = "History";
+    actions.appendChild(btn);
+  }
+
+  function drawer(){
+    injectStyle();
+    let d = document.getElementById(drawerId);
+    if (d) return d;
+    d = document.createElement("div");
+    d.id = drawerId;
+    d.className = "asfx-history-v5-drawer";
+    document.body.appendChild(d);
+    return d;
+  }
+
+  function skeleton(message){
+    drawer().innerHTML = `<div class="asfx-history-v5-head"><div><div class="asfx-history-v5-title">Scanner Signal History</div><div class="asfx-history-v5-sub">Riwayat resmi dari signalSnapshots scanner.</div></div><div class="asfx-history-v5-actions"><button data-asfx-history-refresh-v5>Refresh</button><button data-asfx-history-close-v5>Close</button></div></div><div class="asfx-history-v5-empty">${message}</div>`;
+  }
+
+  function filteredRows(){
+    return cache.filter(row => {
+      const pair = upper(row.pair || row.symbol, "-");
+      const tf = clean(row.timeframe || row.tf, "-").toLowerCase();
+      const status = upper(row.finalStatus || row.lifecycleStatus || row.status || row.signalStatus, "-");
+      if (filter.pair !== "ALL" && pair !== filter.pair) return false;
+      if (filter.tf !== "ALL" && tf !== filter.tf.toLowerCase()) return false;
+      if (filter.status !== "ALL" && !status.includes(filter.status)) return false;
+      return true;
+    });
+  }
+
+  function filterButton(group, value, label){
+    const active = filter[group] === value ? "active" : "";
+    return `<button class="${active}" data-asfx-history-filter-v5="${group}" data-value="${value}">${label}</button>`;
+  }
+
+  function renderRows(){
+    const rows = filteredRows();
+    const d = drawer();
+    const active = rows.filter(r => /SIGNAL ACTIVE/i.test(clean(r.finalStatus || r.status || r.signalStatus))).length;
+    const watch = rows.filter(r => /WATCH/i.test(clean(r.finalStatus || r.status || r.signalStatus))).length;
+    const noTrade = rows.filter(r => /NO TRADE/i.test(clean(r.finalStatus || r.status || r.signalStatus))).length;
+
+    const filters = `
+      <div class="asfx-history-v5-filter">
+        ${filterButton("pair","ALL","All Pair")}${[...new Set(cache.map(r => upper(r.pair || r.symbol, "-")).filter(x => x !== "-").slice(0,10))].map(p => filterButton("pair", p, p)).join("")}
+      </div>
+      <div class="asfx-history-v5-filter">
+        ${filterButton("tf","ALL","All TF")}${["1m","5m","15m","30m","1h","4h","1d","1w"].map(tf => filterButton("tf", tf, tf)).join("")}
+      </div>
+      <div class="asfx-history-v5-filter">
+        ${filterButton("status","ALL","All Status")}${["SIGNAL ACTIVE","ZONE WATCH","SETUP WATCH","NO TRADE","TP1 HIT","TP2 HIT","SL HIT","INVALID"].map(s => filterButton("status", s, s)).join("")}
+      </div>`;
+
+    const list = rows.slice(0,50).map(row => {
+      const status = clean(row.finalStatus || row.lifecycleStatus || row.status || row.signalStatus, "NO TRADE");
+      const pair = upper(row.pair || row.symbol, "-");
+      const tf = clean(row.timeframe || row.tf, "-");
+      const conf = clean(row.confidence ?? row.score, "-");
+      const risk = clean(row.risk, "-");
+      const zone = clean(row.activeZone || row.entryZone || row.demandZone || row.supplyZone, "-");
+      const entry = clean(row.entryZone || row.entryGuide, "Pending");
+      const sl = clean(row.stopLossGuide || row.slGuide, "Pending");
+      const tp1 = clean(row.tp1Guide, "Pending");
+      const tp2 = clean(row.tp2Guide, "Pending");
+      return `<div class="asfx-history-v5-item"><div class="asfx-history-v5-top"><div class="asfx-history-v5-status">${status}</div><div class="asfx-history-v5-meta">${fmtTime(row)}</div></div><div class="asfx-history-v5-line"><b>${pair}</b> | ${tf} | Confidence ${conf}% | Risk ${risk}</div><div class="asfx-history-v5-line">Zone: <b>${zone}</b></div><div class="asfx-history-v5-line">Entry: <b>${entry}</b></div><div class="asfx-history-v5-line">SL: <b>${sl}</b> | TP1: <b>${tp1}</b> | TP2: <b>${tp2}</b></div></div>`;
+    }).join("");
+
+    d.innerHTML = `<div class="asfx-history-v5-head"><div><div class="asfx-history-v5-title">Scanner Signal History</div><div class="asfx-history-v5-sub">Full history scanner, bukan dashboard utama.</div></div><div class="asfx-history-v5-actions"><button data-asfx-history-refresh-v5>Refresh</button><button data-asfx-history-close-v5>Close</button></div></div><div class="asfx-history-v5-stat"><div><small>Total</small><b>${cache.length}</b></div><div><small>Active</small><b>${active}</b></div><div><small>Watch/No Trade</small><b>${watch + noTrade}</b></div></div>${filters}<div class="asfx-history-v5-list">${list || `<div class="asfx-history-v5-empty">Tidak ada history sesuai filter.</div>`}</div>`;
+  }
+
+  async function load(){
+    const fb = window.AiSignalFirebase;
+    skeleton("Loading scanner history...");
+    try {
+      let rows = [];
+      if (fb && typeof fb.getCollectionDocs === "function") rows = await fb.getCollectionDocs("signalSnapshots");
+      if (!Array.isArray(rows)) rows = [];
+      const local = window.__ASFX_FINAL_SIGNAL_PACKET_V5__;
+      if (local && local.pair && !rows.some(r => String(r.snapshotKey || "") === String(local.snapshotKey || "local-current"))) {
+        rows.unshift(Object.assign({ createdAtClient:new Date().toISOString(), snapshotKey:"local-current" }, local));
+      }
+      cache = rows.sort((a,b) => timeValue(b) - timeValue(a));
+      renderRows();
+    } catch (err) {
+      console.warn("ASFX scanner history v5 failed:", err);
+      skeleton("History belum bisa dibaca. Cek login/Firebase rules, lalu refresh.");
+    }
+  }
+
+  function open(){ drawer().classList.add("open"); load(); }
+  function close(){ drawer().classList.remove("open"); }
+
+  window.ASFX_SCANNER_HISTORY_V5 = { open, close, load, getRows:() => cache.slice() };
+
+  document.addEventListener("click", (e) => {
+    const openBtn = e.target.closest("[data-asfx-history-open-v5]");
+    if (openBtn) { e.preventDefault(); open(); return; }
+    if (e.target.closest("[data-asfx-history-close-v5]")) { e.preventDefault(); close(); return; }
+    if (e.target.closest("[data-asfx-history-refresh-v5]")) { e.preventDefault(); load(); return; }
+    const f = e.target.closest("[data-asfx-history-filter-v5]");
+    if (f) { e.preventDefault(); filter[f.dataset.asfxHistoryFilterV5] = f.dataset.value; renderRows(); return; }
+    const saveBtn = e.target.closest("[data-action='save'], button, a, [role='button']");
+    if (saveBtn && /save/i.test(saveBtn.textContent || "")) setTimeout(() => { if (drawer().classList.contains("open")) load(); }, 1400);
+  }, true);
+
+  const boot = () => setTimeout(ensureButton, 500);
+  boot();
+  document.addEventListener("click", boot, true);
+  setInterval(ensureButton, 2500);
+  console.info("ASFX Scanner History Module V5 ready.");
 })();
