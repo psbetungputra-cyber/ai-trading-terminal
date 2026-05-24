@@ -863,8 +863,14 @@
       `;
     }).join("");
 
+    const priceScale = Array.from({ length: 9 }, (_, i) => {
+      const p = i / 8;
+      const yy = padT + chartH * p;
+      const priceLevel = max - ((max - min) * p);
+      return `<text x="${w-padR+10}" y="${yy+4}" fill="rgba(226,232,240,.72)" font-size="10" font-weight="800">${fmt(priceLevel)}</text>`;
+    }).join("");
     const candleSvg = visible.map((c, i) => {
-      const x = padL + i * step;
+      const x = padL + ((i + 0.5) * step);
       const up = c.c >= c.o;
       const color = up ? "#22c55e" : "#ef4444";
       const highY = y(c.h);
@@ -2724,8 +2730,8 @@
     const h = 420;
     const padL = 38;
     const padR = 98;
-    const padT = 42;
-    const padB = 44;
+    const padT = 30;
+    const padB = 32;
     const chartW = w - padL - padR;
     const chartH = h - padT - padB;
 
@@ -2733,29 +2739,36 @@
     const lows = visible.map(c => Number(c.l));
     const asfxPlan = asfxBuildIndicatorPlan(visible, visible[visible.length - 1] || {});
     const asfxPlanPrices = Array.isArray(asfxPlan.prices) ? asfxPlan.prices.filter(Number.isFinite) : [];
-    const max = Math.max(...highs, ...asfxPlanPrices);
-    const min = Math.min(...lows, ...asfxPlanPrices);
+    const scalePrices = [...highs, ...lows, ...asfxPlanPrices].filter(Number.isFinite);
+    const rawMax = Math.max(...scalePrices);
+    const rawMin = Math.min(...scalePrices);
+    const rawRange = Math.max(rawMax - rawMin, Math.abs(rawMax || 1) * 0.0015, 1e-9);
+    const scalePad = rawRange * 0.08;
+    const max = rawMax + scalePad;
+    const min = rawMin - scalePad;
     const range = Math.max(1e-9, max - min);
-    const rightGapBars = 7;
+    const rightGapBars = 4;
     const step = chartW / Math.max(visible.length - 1 + rightGapBars, 1);
     const bodyW = Math.max(4, Math.min(10, step * .55));
 
-    const grid = [1/6,2/6,3/6,4/6,5/6].map(p => {
+    const grid = Array.from({ length: 9 }, (_, i) => i / 8).map((p) => {
       const y = padT + chartH * p;
-      const price = max - range * p;
-      return `
-        <line x1="${padL}" y1="${y}" x2="${w-padR+8}" y2="${y}" stroke="rgba(148,163,184,.14)"/>
-        <text x="${w-padR+18}" y="${y+5}" fill="#94a3b8" font-size="12" font-weight="800">${fmt(price)}</text>
-      `;
+      return `<line x1="0" y1="${y}" x2="${w-padR}" y2="${y}" stroke="rgba(148,163,184,.12)" stroke-width="1"/>`;
     }).join("");
 
-    const vgrid = [0,1,2,3,4].map(i => {
-      const x = padL + (chartW/4) * i;
-      return `<line x1="${x}" y1="${padT}" x2="${x}" y2="${padT+chartH}" stroke="rgba(148,163,184,.08)"/>`;
+    const vgrid = Array.from({ length: 5 }, (_, i) => {
+      const x = padL + (chartW / 4) * i;
+      return `<line x1="${x}" y1="${padT}" x2="${x}" y2="${padT+chartH}" stroke="rgba(148,163,184,.055)" stroke-width="1"/>`;
     }).join("");
 
+    const priceScale = Array.from({ length: 9 }, (_, i) => {
+      const p = i / 8;
+      const yy = padT + chartH * p;
+      const priceLevel = max - ((max - min) * p);
+      return `<text x="${w-padR+10}" y="${yy+4}" fill="rgba(226,232,240,.72)" font-size="10" font-weight="800">${fmt(priceLevel)}</text>`;
+    }).join("");
     const candleSvg = visible.map((c, i) => {
-      const x = padL + i * step;
+      const x = padL + ((i + 0.5) * step);
       const up = Number(c.c) >= Number(c.o);
       const color = up ? "#22c55e" : "#ef4444";
       const highY = yFor(Number(c.h), min, max, padT, chartH);
@@ -2783,6 +2796,11 @@
     return `
       <svg class="asfx-room-chart-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
         <defs>
+          <clipPath id="asfxChartClipV1">
+            <rect x="${padL}" y="${padT}" width="${chartW}" height="${chartH}" rx="0"/>
+          </clipPath>
+        </defs>
+        <defs>
           <linearGradient id="asfxStandaloneBg" x1="0" x2="0" y1="0" y2="1">
             <stop offset="0%" stop-color="#0f172a" stop-opacity=".72"/>
             <stop offset="100%" stop-color="#020617" stop-opacity=".72"/>
@@ -2791,13 +2809,14 @@
         <rect x="0" y="0" width="${w}" height="${h}" fill="url(#asfxStandaloneBg)" rx="24"/>
         ${grid}
         ${vgrid}
+        ${priceScale}
         <text x="${padL}" y="28" fill="#93c5fd" font-size="13" font-weight="900">${safe(pair)} Â· ${safe(tf)}</text>
-        <g>${candleSvg}</g>
+        <g clip-path="url(#asfxChartClipV1)">${candleSvg}</g>
         ${asfxIndicatorSvg}
         <line x1="${padL}" y1="${lastY}" x2="${w-padR+8}" y2="${lastY}" stroke="${lineColor}" stroke-dasharray="3 5" stroke-width="2"/>
         <rect x="${w-padR+8}" y="${lastY-25}" width="${padR-12}" height="50" rx="8" fill="${tagColor}" opacity=".72"/>
         <text x="${w-padR+16}" y="${lastY-5}" fill="#fff" font-size="12" font-weight="950">${fmt(last.c)}</text>
-        <text x="${w-padR+16}" y="${lastY+14}" fill="rgba(255,255,255,.86)" font-size="12" font-weight="800">${leftText()}</text>
+
       </svg>
     `;
   }
@@ -9660,6 +9679,13 @@ document.addEventListener("click", function(e){
   setInterval(ensureButton, 2500);
   console.info("ASFX Scanner History Module V5 ready.");
 })();
+
+
+
+
+
+
+
 
 
 
