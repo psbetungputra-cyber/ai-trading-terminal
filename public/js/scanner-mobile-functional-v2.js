@@ -9725,3 +9725,18 @@ document.addEventListener("click", function(e){
   document.head.appendChild(style);
 })();
 
+/* ASFX_HIDE_PRICE_CARD_TIMER_FINAL */
+(function hidePriceCardTimerFinal(){
+  if (document.getElementById("asfx-hide-price-card-timer-final")) return;
+  const style = document.createElement("style");
+  style.id = "asfx-hide-price-card-timer-final";
+  style.textContent = `
+    .asfx-chart-info-strip div:first-child em,
+    .asfx-chart-info-strip div:first-child .asfx-price-countdown-v1 {
+      display: none !important;
+    }
+  `;
+  document.head.appendChild(style);
+})();
+
+
