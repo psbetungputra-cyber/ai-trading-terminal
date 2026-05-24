@@ -2362,7 +2362,32 @@
     return padT + ((max - price) / Math.max(1e-9, max - min)) * chartH;
   }
 
-  /* ASFX_INDICATOR_LAYER_V1 */
+  
+  /* ASFX_CHART_COUNTDOWN_V1B */
+  function asfxChartTfMsV1B(tf){
+    const value = String(tf || "15m").trim().toLowerCase();
+    if (value === "1m") return 60 * 1000;
+    if (value === "5m") return 5 * 60 * 1000;
+    if (value === "15m") return 15 * 60 * 1000;
+    if (value === "30m") return 30 * 60 * 1000;
+    if (value === "1h") return 60 * 60 * 1000;
+    if (value === "4h") return 4 * 60 * 60 * 1000;
+    if (value === "1d") return 24 * 60 * 60 * 1000;
+    if (value === "1w") return 7 * 24 * 60 * 60 * 1000;
+    return 15 * 60 * 1000;
+  }
+
+  function asfxChartCountdownTextV1B(tf){
+    const interval = asfxChartTfMsV1B(tf);
+    const left = Math.max(0, interval - (Date.now() % interval));
+    const total = Math.floor(left / 1000);
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const s = total % 60;
+    const two = (n) => String(n).padStart(2, "0");
+    if (h > 0) return `${h}:${two(m)}:${two(s)}`;
+    return `${two(m)}:${two(s)}`;
+  }/* ASFX_INDICATOR_LAYER_V1 */
   const asfxIndicatorStateV1 = window.__ASFX_INDICATOR_STATE_V1__ || (window.__ASFX_INDICATOR_STATE_V1__ = {});
 
   const asfxIndicatorNums = (value) => {
@@ -2788,6 +2813,12 @@
     const prev = visible[visible.length - 2] || last;
     const down = Number(last.c) < Number(prev.c);
     const lastY = yFor(Number(last.c), min, max, padT, chartH);
+    const asfxChartCountdownValueV1B = asfxChartCountdownTextV1B(tf);
+    const asfxChartCountdownSvgV1B = `
+      <g data-asfx-chart-countdown-v1b="1">
+        <text x="${w-padR+26}" y="${lastY+20}" fill="rgba(255,255,255,.86)" font-size="10" font-weight="900">${asfxChartCountdownValueV1B}</text>
+      </g>
+    `;
     const asfxIndicatorSvg = asfxRenderIndicatorSvg(asfxPlan, min, max, padT, chartH, w, padL, padR);
     asfxSyncSignalTabFromIndicator(asfxPlan);
     const tagColor = down ? "#ef4444" : "#2563eb";
@@ -2813,6 +2844,7 @@
         <text x="${padL}" y="28" fill="#93c5fd" font-size="13" font-weight="900">${safe(pair)} Â· ${safe(tf)}</text>
         <g clip-path="url(#asfxChartClipV1)">${candleSvg}</g>
         ${asfxIndicatorSvg}
+        ${asfxChartCountdownSvgV1B}
         <line x1="${padL}" y1="${lastY}" x2="${w-padR+8}" y2="${lastY}" stroke="${lineColor}" stroke-dasharray="3 5" stroke-width="2"/>
         <rect x="${w-padR+8}" y="${lastY-25}" width="${padR-12}" height="50" rx="8" fill="${tagColor}" opacity=".72"/>
         <text x="${w-padR+16}" y="${lastY-5}" fill="#fff" font-size="12" font-weight="950">${fmt(last.c)}</text>
@@ -9680,13 +9712,16 @@ document.addEventListener("click", function(e){
   console.info("ASFX Scanner History Module V5 ready.");
 })();
 
-
-
-
-
-
-
-
-
-
+/* ASFX_HIDE_BOTTOM_COUNTDOWN_V1B */
+(function hideBottomCountdownV1B(){
+  if (document.getElementById("asfx-hide-bottom-countdown-v1b")) return;
+  const style = document.createElement("style");
+  style.id = "asfx-hide-bottom-countdown-v1b";
+  style.textContent = `
+    .asfx-price-countdown-v1 {
+      display: none !important;
+    }
+  `;
+  document.head.appendChild(style);
+})();
 
