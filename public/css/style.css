@@ -4939,3 +4939,91 @@ body.v31-chart-mode .chart-terminal-compact-top {
     margin-bottom: 82px !important;
   }
 }
+
+/* ASFX_AUTH_MOBILE_COMPACT_V1 */
+@media (max-width: 760px) {
+  #login-screen.login-screen {
+    place-items: start center !important;
+    align-items: start !important;
+    padding: 12px 12px 18px !important;
+    overflow-y: auto !important;
+    min-height: 100svh !important;
+  }
+
+  #login-screen .login-card {
+    width: min(100%, 390px) !important;
+    max-height: calc(100svh - 24px) !important;
+    overflow-y: auto !important;
+    border-radius: 26px !important;
+    padding: 22px 18px !important;
+    overscroll-behavior: contain !important;
+  }
+
+  #login-screen .login-card:has(#register-form:not(.hidden)) {
+    padding-top: 18px !important;
+    padding-bottom: 16px !important;
+  }
+
+  #login-screen .logo-mark {
+    width: 62px !important;
+    height: 62px !important;
+    border-radius: 20px !important;
+    margin-bottom: 12px !important;
+  }
+
+  #login-screen .login-card h1 {
+    font-size: 27px !important;
+    line-height: 1.1 !important;
+  }
+
+  #login-screen .login-card p {
+    font-size: 9px !important;
+    letter-spacing: 2px !important;
+    line-height: 1.35 !important;
+  }
+
+  #login-screen .login-card small {
+    margin-top: 6px !important;
+    font-size: 11px !important;
+  }
+
+  #login-screen .auth-tabs {
+    margin-top: 14px !important;
+    border-radius: 15px !important;
+  }
+
+  #login-screen .auth-tab {
+    padding: 10px 8px !important;
+    font-size: 11px !important;
+  }
+
+  #login-screen .login-card input {
+    margin-top: 10px !important;
+    padding: 13px 14px !important;
+    border-radius: 15px !important;
+    font-size: 16px !important;
+  }
+
+  #register-form.register-preview:not(.hidden) {
+    max-height: calc(100svh - 265px) !important;
+    overflow-y: auto !important;
+    padding-right: 2px !important;
+    overscroll-behavior: contain !important;
+  }
+
+  #register-form .primary-btn {
+    margin-top: 12px !important;
+    padding: 13px 14px !important;
+  }
+
+  #register-form .auth-note {
+    margin-top: 10px !important;
+    font-size: 10px !important;
+    line-height: 1.45 !important;
+  }
+
+  #login-screen .login-help {
+    display: none !important;
+  }
+}
+/* END ASFX_AUTH_MOBILE_COMPACT_V1 */
