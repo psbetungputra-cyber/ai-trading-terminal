@@ -1,4 +1,4 @@
-/* AiSignalFx PRO - Scanner Mobile Functional v2 */
+﻿/* AiSignalFx PRO - Scanner Mobile Functional v2 */
 (function () {
   const cryptoPairs = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "DOGEUSDT", "ADAUSDT", "AVAXUSDT"];
   const refPairs = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "GBPJPY"];
@@ -69,7 +69,7 @@
   function updateMainScannerCountdown() {
     const node = document.querySelector("[data-main-tf-countdown]");
     if (!node) return;
-    node.textContent = " · next " + tfCountdown(state.tf);
+    node.textContent = " Â· next " + tfCountdown(state.tf);
   }
 
   function safe(v) {
@@ -227,7 +227,7 @@
         <article class="asfx-focus-card">
           <div class="asfx-focus-top">
             <div>
-              <small>${safe(data.market)} · ${safe(state.tf)}<span data-main-tf-countdown> · next ${safe(tfCountdown(state.tf))}</span></small>
+              <small>${safe(data.market)} Â· ${safe(state.tf)}<span data-main-tf-countdown> Â· next ${safe(tfCountdown(state.tf))}</span></small>
               <h2>${safe(data.symbol)}</h2>
             </div>
             <b class="asfx-badge ${biasClass(data.bias)}">${safe(data.bias)}</b>
@@ -335,11 +335,11 @@
         </div>
 
         <div class="asfx-vip-list">
-          <span>✓ Full chart analysis room</span>
-          <span>✓ AI chat signal explanation</span>
-          <span>✓ Entry zone, Stop Loss, Take Profit</span>
-          <span>✓ Risk plan and invalidation level</span>
-          <span>✓ Full institutional reasoning</span>
+          <span>âœ“ Full chart analysis room</span>
+          <span>âœ“ AI chat signal explanation</span>
+          <span>âœ“ Entry zone, Stop Loss, Take Profit</span>
+          <span>âœ“ Risk plan and invalidation level</span>
+          <span>âœ“ Full institutional reasoning</span>
         </div>
 
         <div class="asfx-vip-actions">
@@ -674,10 +674,10 @@
     room.className = "asfx-detail-room";
     room.innerHTML = `
       <div class="asfx-detail-top">
-        <button class="asfx-detail-back" data-close-detail="1">← Back</button>
+        <button class="asfx-detail-back" data-close-detail="1">â† Back</button>
         <div class="asfx-detail-title">
           <small>SIGNAL DETAIL ROOM</small>
-          <h2>${safe(data.symbol)} · ${safe(state.tf)}</h2>
+          <h2>${safe(data.symbol)} Â· ${safe(state.tf)}</h2>
         </div>
       </div>
 
@@ -888,8 +888,8 @@
       <svg class="asfx-room-chart-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
         <defs>
           <linearGradient id="asfxRoomBg" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stop-color="#0f172a" stop-opacity=".98"/>
-            <stop offset="100%" stop-color="#020617" stop-opacity=".98"/>
+            <stop offset="0%" stop-color="#0f172a" stop-opacity=".72"/>
+            <stop offset="100%" stop-color="#020617" stop-opacity=".72"/>
           </linearGradient>
         </defs>
 
@@ -908,7 +908,7 @@
         <rect x="${w-padR+18}" y="${lastY-16}" width="74" height="31" rx="8" fill="rgba(37,99,235,.95)"/>
         <text x="${w-padR+26}" y="${lastY+5}" fill="#fff" font-size="12" font-weight="900">${lastPrice}</text>
 
-        <text x="${padL}" y="22" fill="#93c5fd" font-size="12" font-weight="900">${safe(state.pair)} · ${safe(state.tf)}</text>
+        <text x="${padL}" y="22" fill="#93c5fd" font-size="12" font-weight="900">${safe(state.pair)} Â· ${safe(state.tf)}</text>
       </svg>
     `;
   }
@@ -918,7 +918,7 @@
       <div class="asfx-room-ref-chart">
         <div>
           <small>Reference Mode</small>
-          <b>${safe(data.symbol)} · ${safe(state.tf)}</b>
+          <b>${safe(data.symbol)} Â· ${safe(state.tf)}</b>
           <p>Forex/gold masih reference mode. Real broker/provider feed akan ditambahkan tahap berikutnya.</p>
         </div>
       </div>
@@ -942,8 +942,8 @@
     } catch (_) {}
       const last = candles.length ? candles[candles.length - 1] : null;
       const price = last && last.c ? Number(last.c).toLocaleString("en-US", { maximumFractionDigits: 2 }) : "Loading";
-      const high = candles.length ? Math.max(...candles.map(c => Number(c.h || 0))).toLocaleString("en-US", { maximumFractionDigits: 2 }) : "—";
-      const low = candles.length ? Math.min(...candles.map(c => Number(c.l || 0))).toLocaleString("en-US", { maximumFractionDigits: 2 }) : "—";
+      const high = candles.length ? Math.max(...candles.map(c => Number(c.h || 0))).toLocaleString("en-US", { maximumFractionDigits: 2 }) : "â€”";
+      const low = candles.length ? Math.min(...candles.map(c => Number(c.l || 0))).toLocaleString("en-US", { maximumFractionDigits: 2 }) : "â€”";
       return `
         <div class="asfx-room-chart asfx-room-chart-v1" data-room-chart>
           ${isCrypto ? detailChartHTML() : referenceChartHTML(data)}
@@ -965,7 +965,7 @@
           </div>
           <div>
             <small>Status</small>
-            <b class="live-dot">● Live</b>
+            <b class="live-dot">â— Live</b>
           </div>
         </div>
 
@@ -978,8 +978,8 @@
           <button class="${state.tf === "4h" ? "active" : ""}">4H</button>
           <button class="${state.tf === "1d" ? "active" : ""}">1D</button>
           <button class="${state.tf === "1w" ? "active" : ""}">1W</button>
-          <button class="icon">▥</button>
-          <button class="icon">ƒx</button>
+          <button class="icon">â–¥</button>
+          <button class="icon">Æ’x</button>
         </div>
       `;
     }
@@ -2262,7 +2262,7 @@
   }
 
   function ctx(){
-    const title = document.querySelector(".asfx-detail-title h2")?.textContent || "BTCUSDT · 15m";
+    const title = document.querySelector(".asfx-detail-title h2")?.textContent || "BTCUSDT Â· 15m";
     const pairMatch = title.match(/([A-Z0-9]{5,20})/);
     const tfMatch = title.match(/(1m|3m|5m|15m|30m|1h|4h|1d|1w)/i);
 
@@ -2282,7 +2282,7 @@
 
   function fmt(n){
     const x = Number(n);
-    if (!Number.isFinite(x)) return "—";
+    if (!Number.isFinite(x)) return "â€”";
     return x.toLocaleString("en-US", { maximumFractionDigits: x > 100 ? 2 : 5 });
   }
 
@@ -2319,7 +2319,7 @@
       <span>
         <i class="asfx-standalone-dot"></i>
         Scanner <strong class="${ok ? "asfx-standalone-live" : "asfx-standalone-wait"}">${safe(status)}</strong>
-        · ${safe(ctx().tf)} ${safe(leftText())}
+        Â· ${safe(ctx().tf)} ${safe(leftText())}
       </span>
     `;
   }
@@ -2356,6 +2356,362 @@
     return padT + ((max - price) / Math.max(1e-9, max - min)) * chartH;
   }
 
+  /* ASFX_INDICATOR_LAYER_V1 */
+  const asfxIndicatorStateV1 = window.__ASFX_INDICATOR_STATE_V1__ || (window.__ASFX_INDICATOR_STATE_V1__ = {});
+
+  const asfxIndicatorNums = (value) => {
+    return String(value ?? "")
+      .replace(/,/g, "")
+      .match(/-?\d+(?:\.\d+)?/g)
+      ?.map(Number)
+      .filter(Number.isFinite) || [];
+  };
+
+  const asfxIndicatorLastNum = (value) => {
+    const nums = asfxIndicatorNums(value);
+    return nums.length ? nums[nums.length - 1] : null;
+  };
+
+  const asfxIndicatorRange = (value) => {
+    const nums = asfxIndicatorNums(value);
+    if (nums.length >= 2) {
+      const a = nums[0];
+      const b = nums[1];
+      return {
+        low: Math.min(a, b),
+        high: Math.max(a, b),
+        mid: (a + b) / 2
+      };
+    }
+    if (nums.length === 1) {
+      return { low: nums[0], high: nums[0], mid: nums[0] };
+    }
+    return null;
+  };
+
+  const asfxIndicatorFmt = (value) => {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return "-";
+    return n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  };
+
+  const asfxIndicatorEsc = (value) => String(value ?? "")
+    .replace(/[&<>"']/g, (m) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#039;"
+    }[m]));
+
+  function asfxIndicatorSource(){
+    try {
+      const sources = [
+        window.AiSignalSMZCandleReaderV1?.last?.(),
+        window.AiSignalSMZStatusFlowV1?.last?.(),
+        window.ASFXSignalRoomDataHydratorV1?.latest?.()
+      ].filter((x) => x && typeof x === "object");
+
+      return sources[0] || {};
+    } catch (err) {
+      return {};
+    }
+  }
+
+  function asfxBuildIndicatorPlan(visible = [], last = {}){
+    const d = asfxIndicatorSource();
+    const livePrice = Number(last?.c ?? last?.close ?? d.currentPrice ?? d.price ?? d.livePrice ?? 0);
+
+    const bias = String(d.bias || "").toUpperCase();
+    const side = bias.includes("SELL") ? "SELL" : bias.includes("BUY") ? "BUY" : "WAIT";
+
+    const demand = asfxIndicatorRange(d.demandZone);
+    const supply = asfxIndicatorRange(d.supplyZone);
+
+    let entry = asfxIndicatorRange(d.entryZone || d.activeZone || d.zoneState || d.zone);
+    if (!entry && side === "BUY") entry = demand;
+    if (!entry && side === "SELL") entry = supply;
+
+    const sl = asfxIndicatorLastNum(d.stopLossGuide || d.slGuide || d.invalidationLevel);
+    const tp1 = asfxIndicatorLastNum(d.tp1Guide);
+    const tp2 = asfxIndicatorLastNum(d.tp2Guide);
+
+    const rawStatusText = [
+      d.signalStatus,
+      d.statusFlow,
+      d.actionStatus,
+      d.status,
+      d.statusDetail,
+      d.reason
+    ].filter(Boolean).join(" ").toLowerCase();
+
+    const blocked =
+      side === "WAIT" ||
+      /no trade|invalid|stale|expired|middle range|risk alert/i.test(rawStatusText);
+
+    const hasPlan =
+      !blocked &&
+      Number.isFinite(livePrice) &&
+      side !== "WAIT" &&
+      entry &&
+      Number.isFinite(entry.low) &&
+      Number.isFinite(entry.high) &&
+      Number.isFinite(sl) &&
+      Number.isFinite(tp1) &&
+      Number.isFinite(tp2);
+
+    const confidence = Number(String(d.confidence || 0).replace(/[^0-9.]/g, "")) || 0;
+    const risk = String(d.risk || "Medium");
+    const pair = ctx().pair;
+    const tf = ctx().tf;
+
+    const base = {
+      hasPlan,
+      side,
+      pair,
+      tf,
+      price: livePrice,
+      entry,
+      sl,
+      tp1,
+      tp2,
+      risk,
+      confidence,
+      source: d,
+      status: hasPlan ? "SIGNAL READY" : "NO TRADE",
+      closed: false,
+      prices: Number.isFinite(livePrice) ? [livePrice] : []
+    };
+
+    if (!hasPlan) {
+      window.__ASFX_INDICATOR_LAST_V1__ = base;
+      window.ASFXIndicatorLayerV1 = {
+        version: "1.0.0",
+        latest: () => window.__ASFX_INDICATOR_LAST_V1__ || null
+      };
+      return base;
+    }
+
+    const key = [
+      pair,
+      tf,
+      side,
+      Math.round(entry.low * 100) / 100,
+      Math.round(entry.high * 100) / 100,
+      Math.round(sl * 100) / 100,
+      Math.round(tp1 * 100) / 100,
+      Math.round(tp2 * 100) / 100
+    ].join("|");
+
+    const state = asfxIndicatorStateV1[key] || {
+      status: "SIGNAL READY",
+      touched: false,
+      tp1Hit: false,
+      closed: false,
+      createdAt: Date.now()
+    };
+
+    const entryTouched = livePrice >= entry.low && livePrice <= entry.high;
+
+    const slHit = side === "BUY"
+      ? livePrice <= sl
+      : livePrice >= sl;
+
+    const tp1Hit = side === "BUY"
+      ? livePrice >= tp1
+      : livePrice <= tp1;
+
+    const tp2Hit = side === "BUY"
+      ? livePrice >= tp2
+      : livePrice <= tp2;
+
+    if (!state.closed) {
+      if (entryTouched) {
+        state.touched = true;
+        state.status = "ENTRY TOUCHED";
+      }
+
+      if (state.touched) {
+        if (slHit) {
+          state.status = "SL HIT";
+          state.closed = true;
+        } else if (tp2Hit) {
+          state.status = "TP2 HIT";
+          state.tp1Hit = true;
+          state.closed = true;
+        } else if (tp1Hit) {
+          state.status = "TP1 HIT";
+          state.tp1Hit = true;
+        }
+      }
+    }
+
+    asfxIndicatorStateV1[key] = state;
+
+    base.status = state.status;
+    base.touched = state.touched;
+    base.tp1Hit = state.tp1Hit;
+    base.closed = state.closed;
+    base.key = key;
+
+    base.prices = state.closed
+      ? [livePrice]
+      : [livePrice, entry.low, entry.high, sl, tp1, tp2].filter(Number.isFinite);
+
+    window.__ASFX_INDICATOR_LAST_V1__ = base;
+    window.ASFXIndicatorLayerV1 = {
+      version: "1.0.0",
+      latest: () => window.__ASFX_INDICATOR_LAST_V1__ || null
+    };
+
+    return base;
+  }
+
+  function asfxRenderIndicatorSvg(plan, min, max, padT, chartH, w, padL, padR){
+    if (!plan || !Number.isFinite(plan.price)) return "";
+
+    const chartRight = w - padR;
+    const chartW = chartRight - padL;
+    const y = (price) => yFor(Number(price), min, max, padT, chartH);
+
+    const line = (price, label, color, dash = "6 5") => {
+      if (!Number.isFinite(Number(price))) return "";
+      const yy = y(price);
+      if (!Number.isFinite(yy) || yy < -20 || yy > padT + chartH + 20) return "";
+      return `
+        <g data-asfx-indicator-line="${label}">
+          <line x1="${padL}" y1="${yy}" x2="${chartRight}" y2="${yy}" stroke="${color}" stroke-width="1.7" stroke-dasharray="${dash}" opacity=".72"/>
+          <rect x="${chartRight - 78}" y="${yy - 10}" width="76" height="18" rx="7" fill="rgba(2,6,23,.82)" stroke="${color}" opacity=".72"/>
+          <text x="${chartRight - 72}" y="${yy + 4}" fill="#fff" font-size="9" font-weight="900">${label} ${asfxIndicatorFmt(price)}</text>
+        </g>
+      `;
+    };
+
+    let out = "";
+
+    /* Chart Indicator Clean V1.2:
+       Live price tetap dipakai engine di belakang layar.
+       Garis/label LIVE indikator tidak ditampilkan agar chart bersih. */
+
+    if (!plan.hasPlan) return out;
+
+    if (plan.closed) {
+      const statusY = padT + 18;
+      return out + `
+        <g data-asfx-indicator-closed="1">
+          <rect x="${padL}" y="${statusY - 14}" width="178" height="24" rx="10" fill="rgba(15,23,42,.88)" stroke="rgba(148,163,184,.32)"/>
+          <text x="${padL + 10}" y="${statusY + 2}" fill="#fff" font-size="11" font-weight="900">${plan.side} ${plan.status}</text>
+        </g>
+      `;
+    }
+
+    const entryTop = Math.min(y(plan.entry.low), y(plan.entry.high));
+    const entryBottom = Math.max(y(plan.entry.low), y(plan.entry.high));
+    const entryH = Math.max(2, entryBottom - entryTop);
+
+    out += `
+      <g data-asfx-indicator-zone="entry">
+        <rect x="${padL}" y="${entryTop}" width="${chartW}" height="${entryH}" rx="4" fill="rgba(56,189,248,.08)" stroke="rgba(56,189,248,.38)" stroke-width="1"/>
+        <text x="${padL + 8}" y="${entryTop - 5}" fill="#38bdf8" font-size="10" font-weight="900">${plan.side} ENTRY ZONE</text>
+      </g>
+    `;
+
+    out += line(plan.entry.low, "ENTRY", "rgba(56,189,248,.96)", "8 4");
+    if (Math.abs(plan.entry.high - plan.entry.low) > 0) {
+      out += line(plan.entry.high, "ENTRY", "rgba(56,189,248,.96)", "8 4");
+    }
+
+    out += line(plan.sl, "SL", "rgba(248,113,113,.96)", "5 4");
+
+    if (!plan.tp1Hit) {
+      out += line(plan.tp1, "TP1", "rgba(34,197,94,.96)", "5 4");
+    }
+
+    out += line(plan.tp2, "TP2", "rgba(34,197,94,.96)", "5 4");
+
+    const badgeY = padT + 18;
+    out += `
+      <g data-asfx-indicator-status="1">
+        <rect x="${padL}" y="${badgeY - 14}" width="190" height="24" rx="10" fill="rgba(15,23,42,.88)" stroke="rgba(56,189,248,.32)"/>
+        <text x="${padL + 10}" y="${badgeY + 2}" fill="#fff" font-size="11" font-weight="900">${plan.side} ${plan.status}</text>
+      </g>
+    `;
+
+    return out;
+  }
+
+  function asfxSyncSignalTabFromIndicator(plan){
+    const panel = document.querySelector('[data-asfx-bridge-rendered="signal"]');
+    if (!panel || !plan) return;
+
+    const status = plan.hasPlan ? `${plan.side} ${plan.status}` : "NO TRADE";
+    const key = [
+      status,
+      plan.price,
+      plan.entry?.low,
+      plan.entry?.high,
+      plan.sl,
+      plan.tp1,
+      plan.tp2,
+      plan.closed
+    ].join("|");
+
+    if (panel.dataset.asfxIndicatorKey === key) return;
+    panel.dataset.asfxIndicatorKey = key;
+
+    const titleColor = plan.side === "BUY"
+      ? "#22c55e"
+      : plan.side === "SELL"
+        ? "#ef4444"
+        : "#e5e7eb";
+
+    const planHtml = plan.hasPlan
+      ? `
+        <div class="asfx-bridge-box" style="border-color:rgba(56,189,248,.28);background:linear-gradient(135deg,rgba(2,6,23,.84),rgba(14,165,233,.10));">
+          <small>Indicator Status</small><br>
+          <b style="color:#fff;font-size:18px;">${asfxIndicatorEsc(plan.status)}</b><br>
+          <span style="opacity:.78;">Chart indicator is tracking real live price against Entry, SL, TP1, and TP2.</span>
+        </div>
+
+        <div class="asfx-bridge-box">
+          <small>Entry Zone</small><br>
+          <b style="color:#fff;font-size:18px;">${asfxIndicatorFmt(plan.entry.low)} - ${asfxIndicatorFmt(plan.entry.high)}</b>
+        </div>
+
+        <div class="asfx-bridge-grid">
+          <div class="asfx-bridge-mini"><small>SL</small><b>${asfxIndicatorFmt(plan.sl)}</b></div>
+          <div class="asfx-bridge-mini"><small>TP1</small><b>${plan.tp1Hit ? "TP1 HIT" : asfxIndicatorFmt(plan.tp1)}</b></div>
+          <div class="asfx-bridge-mini"><small>TP2</small><b>${asfxIndicatorFmt(plan.tp2)}</b></div>
+        </div>
+      `
+      : `
+        <div class="asfx-bridge-box">
+          <small>Indicator Status</small><br>
+          <b style="color:#fff;font-size:18px;">NO TRADE</b><br>
+          <span style="opacity:.78;">No active AiSignal indicator for this market condition.</span>
+        </div>
+      `;
+
+    panel.innerHTML = `
+      <div class="asfx-bridge-head">
+        <div class="asfx-bridge-kicker">AiSignal Indicator</div>
+        <div class="asfx-bridge-title" style="color:${titleColor};">${asfxIndicatorEsc(status)}</div>
+        <div class="asfx-bridge-sub">${asfxIndicatorEsc(plan.pair)} | ${asfxIndicatorEsc(plan.tf)} | Live Price ${asfxIndicatorFmt(plan.price)} | ${asfxIndicatorEsc(plan.risk)} Risk | ${asfxIndicatorEsc(plan.confidence)}%</div>
+      </div>
+
+      ${planHtml}
+
+      <div class="asfx-bridge-lock">Indicator only. Not broker execution. Educational analysis remains user responsibility.</div>
+    `;
+  }
+
+  if (!window.__ASFX_INDICATOR_SIGNAL_SYNC_TIMER_V1__) {
+    window.__ASFX_INDICATOR_SIGNAL_SYNC_TIMER_V1__ = setInterval(() => {
+      if (window.__ASFX_INDICATOR_LAST_V1__) {
+        asfxSyncSignalTabFromIndicator(window.__ASFX_INDICATOR_LAST_V1__);
+      }
+    }, 900);
+  }
   function chartSvg(){
     const { pair, tf } = ctx();
     const visible = candles.slice(-48);
@@ -2375,10 +2731,13 @@
 
     const highs = visible.map(c => Number(c.h));
     const lows = visible.map(c => Number(c.l));
-    const max = Math.max(...highs);
-    const min = Math.min(...lows);
+    const asfxPlan = asfxBuildIndicatorPlan(visible, visible[visible.length - 1] || {});
+    const asfxPlanPrices = Array.isArray(asfxPlan.prices) ? asfxPlan.prices.filter(Number.isFinite) : [];
+    const max = Math.max(...highs, ...asfxPlanPrices);
+    const min = Math.min(...lows, ...asfxPlanPrices);
     const range = Math.max(1e-9, max - min);
-    const step = chartW / Math.max(visible.length - 1, 1);
+    const rightGapBars = 7;
+    const step = chartW / Math.max(visible.length - 1 + rightGapBars, 1);
     const bodyW = Math.max(4, Math.min(10, step * .55));
 
     const grid = [1/6,2/6,3/6,4/6,5/6].map(p => {
@@ -2416,6 +2775,8 @@
     const prev = visible[visible.length - 2] || last;
     const down = Number(last.c) < Number(prev.c);
     const lastY = yFor(Number(last.c), min, max, padT, chartH);
+    const asfxIndicatorSvg = asfxRenderIndicatorSvg(asfxPlan, min, max, padT, chartH, w, padL, padR);
+    asfxSyncSignalTabFromIndicator(asfxPlan);
     const tagColor = down ? "#ef4444" : "#2563eb";
     const lineColor = down ? "rgba(239,68,68,.82)" : "rgba(96,165,250,.86)";
 
@@ -2423,17 +2784,18 @@
       <svg class="asfx-room-chart-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
         <defs>
           <linearGradient id="asfxStandaloneBg" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stop-color="#0f172a" stop-opacity=".96"/>
-            <stop offset="100%" stop-color="#020617" stop-opacity=".98"/>
+            <stop offset="0%" stop-color="#0f172a" stop-opacity=".72"/>
+            <stop offset="100%" stop-color="#020617" stop-opacity=".72"/>
           </linearGradient>
         </defs>
         <rect x="0" y="0" width="${w}" height="${h}" fill="url(#asfxStandaloneBg)" rx="24"/>
         ${grid}
         ${vgrid}
-        <text x="${padL}" y="28" fill="#93c5fd" font-size="13" font-weight="900">${safe(pair)} · ${safe(tf)}</text>
+        <text x="${padL}" y="28" fill="#93c5fd" font-size="13" font-weight="900">${safe(pair)} Â· ${safe(tf)}</text>
         <g>${candleSvg}</g>
+        ${asfxIndicatorSvg}
         <line x1="${padL}" y1="${lastY}" x2="${w-padR+8}" y2="${lastY}" stroke="${lineColor}" stroke-dasharray="3 5" stroke-width="2"/>
-        <rect x="${w-padR+8}" y="${lastY-25}" width="${padR-12}" height="50" rx="8" fill="${tagColor}" opacity=".98"/>
+        <rect x="${w-padR+8}" y="${lastY-25}" width="${padR-12}" height="50" rx="8" fill="${tagColor}" opacity=".72"/>
         <text x="${w-padR+16}" y="${lastY-5}" fill="#fff" font-size="12" font-weight="950">${fmt(last.c)}</text>
         <text x="${w-padR+16}" y="${lastY+14}" fill="rgba(255,255,255,.86)" font-size="12" font-weight="800">${leftText()}</text>
       </svg>
@@ -2474,7 +2836,7 @@
       </div>
       <div>
         <small>Status</small>
-        <b class="asfx-price-up">● Live</b>
+        <b class="asfx-price-up">â— Live</b>
       </div>
     `;
   }
@@ -2563,7 +2925,7 @@
     const current = ctx();
 
     if (title) {
-      title.textContent = `${current.pair} · ${displayTf(tf)}`;
+      title.textContent = `${current.pair} Â· ${displayTf(tf)}`;
     }
 
     candles = [];
@@ -2719,7 +3081,7 @@
   }
 
   function ctx(){
-    const title = document.querySelector(".asfx-detail-title h2")?.textContent || "BTCUSDT · 15m";
+    const title = document.querySelector(".asfx-detail-title h2")?.textContent || "BTCUSDT Â· 15m";
     const pair = (title.match(/([A-Z0-9]{5,20})/) || [,"BTCUSDT"])[1];
     const tf = (title.match(/(1m|3m|5m|15m|30m|1h|4h|1d|1w)/i) || [,"15m"])[1];
 
@@ -3125,179 +3487,147 @@ function signalHtml(d){
   const smz = readSmz();
   const readiness = smz.readiness || d.readiness || {};
 
+  const pair = smzText(d.pair || d.symbol || smz.pair || smz.symbol, "Market");
+  const tf = smzText(d.tf || d.timeframe || smz.tf || smz.timeframe, "15m");
+
   const bias = smzText(smz.bias || d.bias, "WAIT").toUpperCase();
   const risk = smzText(smz.risk || d.risk, "Medium");
-  const confidence = String(smzText(smz.confidence || d.confidence || readiness.score, "0")).replace(/%/g, "");
+  const confidenceRaw = smzText(smz.confidence || d.confidence || readiness.score, "0");
+  const confidenceNum = Number(String(confidenceRaw).replace(/[^0-9.]/g, "")) || 0;
+  const confidence = String(confidenceRaw).replace(/%/g, "");
+
   const setup = smzText(smz.signalStatusLabel || smz.setupType || smz.signalStatus || readiness.label, "Market Observation");
   const action = smzText(smz.actionStatus || smz.signalStatus || "Observation", "Observation");
 
   const activeZone = smzText(smz.activeZone || smz.zoneState || smz.zone, "Waiting valid zone");
-  const entry = smzText(smz.entryZone || smz.activeZone || smz.zoneState || smz.zone, "Waiting valid zone");
+  const entryRaw = smzText(smz.entryZone || smz.activeZone || smz.zoneState || smz.zone, "Waiting valid zone");
+
   const demand = smzText(smz.demandZone, "Calculating");
   const supply = smzText(smz.supplyZone, "Calculating");
   const distance = smzText(smz.distanceToZoneText, "Waiting distance");
 
-  const sl = smzText(smz.stopLossGuide || smz.slGuide, "Waiting invalidation level");
-  const tp1 = smzText(smz.tp1Guide, "Waiting target area");
-  const tp2 = smzText(smz.tp2Guide, "Waiting extended target");
+  const slRaw = smzText(smz.stopLossGuide || smz.slGuide, "Waiting invalidation level");
+  const tp1Raw = smzText(smz.tp1Guide, "Waiting target area");
+  const tp2Raw = smzText(smz.tp2Guide, "Waiting extended target");
 
+  const structure = smzText(smz.structure, "Reading");
+  const liquidity = smzText(smz.liquidity, "Waiting");
+  const imbalance = smzText(smz.imbalance, "Waiting");
   const reason = smzText(smz.statusDetail || smz.reason, "Market context is still being calculated.");
-  const lower = `${setup} ${action} ${activeZone} ${reason}`.toLowerCase();
 
-  const isWaiting = (value) => /waiting|calculating|menunggu|observation|belum|tunggu/i.test(String(value || ""));
-  const hasEntry = !isWaiting(entry) && entry !== "-";
+  const isWaiting = (value) => /waiting|calculating|menunggu|observation|belum|tunggu|pending|none|-$/i.test(String(value || "").trim());
+  const hasZone = !isWaiting(activeZone) && activeZone !== "-";
+  const hasEntry = !isWaiting(entryRaw) && entryRaw !== "-";
+
   const isBuy = bias.includes("BUY") || bias.includes("BULL");
   const isSell = bias.includes("SELL") || bias.includes("BEAR");
-  const isHighRisk = String(risk).toLowerCase().includes("high") || lower.includes("overtrade");
+  const side = isSell ? "SELL" : isBuy ? "BUY" : "WAIT";
 
-  let verdict = "NO TRADE";
-  let verdictClass = "";
-  let execution = "Tidak ada eksekusi. Harga belum berada di zona valid.";
-
-  if (lower.includes("middle range") || lower.includes("no trade")) {
-    verdict = "NO TRADE";
-    execution = "Harga berada di area lemah. Hindari entry paksa.";
-  } else if (isHighRisk) {
-    verdict = "SETUP WATCH";
-    execution = "Setup terbaca, tapi risk masih tinggi. Tunggu area lebih bersih.";
-  } else if (hasEntry && isBuy) {
-    verdict = "OFFICIAL BUY";
-    verdictClass = biasClass("BUY");
-    execution = "Eksekusi hanya di dalam entry zone.";
-  } else if (hasEntry && isSell) {
-    verdict = "OFFICIAL SELL";
-    verdictClass = biasClass("SELL");
-    execution = "Eksekusi hanya di dalam entry zone.";
-  } else if (isBuy || isSell) {
-    verdict = "SETUP WATCH";
-    execution = "Bias terbaca. Tunggu harga masuk zona eksekusi terbaik.";
-  }
-  /* __ASFX_SIGNAL_INTEGRITY_PACK_V1__ */
-  const asfxNums = (value) => String(value || '').replace(/,/g, '').match(/-?\d+(?:\.\d+)?/g)?.map(Number).filter(Number.isFinite) || [];
-  const asfxLastNum = (value) => { const nums = asfxNums(value); return nums.length ? nums[nums.length - 1] : null; };
-  const asfxRange = (value) => {
-    const nums = asfxNums(value);
-    if (nums.length >= 2) {
-      const a = nums[0];
-      const b = nums[1];
-      return { low: Math.min(a, b), high: Math.max(a, b), mid: (a + b) / 2 };
-    }
-    if (nums.length === 1) return { low: nums[0], high: nums[0], mid: nums[0] };
-    return null;
-  };
-  const asfxFmt = (value) => {
-    const n = Number(value);
-    if (!Number.isFinite(n)) return 'Waiting';
-    return n.toLocaleString('en-US', { maximumFractionDigits: 2 });
-  };
-
-  const statusSeed = `${setup} ${action} ${activeZone} ${reason} ${smz.signalStatus || ''} ${smz.actionStatus || ''}`.toLowerCase();
-  const side = isSell ? 'SELL' : isBuy ? 'BUY' : 'WAIT';
-  const blockedForExecution = /no trade|wait|waiting|zone watch|setup watch|risk watch|observation|invalid|stale|expired|pending|middle range/i.test(statusSeed);
-  const confirmedForExecution = /signal active/i.test(statusSeed);
-
-  let compactStatus = verdict;
-  compactStatus = window.asfxCoreStatusV1({
-    signalStatus: smz.signalStatus,
-    actionStatus: smz.actionStatus,
-    status: compactStatus,
-    setupType: setup,
-    statusDetail: reason,
-    reason,
-    bias,
-    risk,
-    confidence,
+  const rawSeed = [
+    setup,
+    action,
     activeZone,
-    entryZone: entry,
-    price: d.price || d.currentPrice || d.livePrice || smz.price || smz.currentPrice || ""
-  });
+    entryRaw,
+    reason,
+    smz.signalStatus,
+    smz.actionStatus,
+    smz.status,
+    d.signalStatus,
+    d.actionStatus,
+    d.status
+  ].filter(Boolean).join(" ").toLowerCase();
 
-  if (!hasEntry || lower.includes('no trade') || lower.includes('middle range')) compactStatus = 'NO TRADE';
-  else if (!window.asfxCanExecuteV1(compactStatus) || blockedForExecution || isHighRisk) {
-    compactStatus = compactStatus === 'NO TRADE' ? 'NO TRADE' : 'ZONE WATCH';
+  const isHighRisk = String(risk).toLowerCase().includes("high") || rawSeed.includes("overtrade");
+  const blocked = /no trade|middle range|invalid|stale|expired|risk alert|risk watch/i.test(rawSeed);
+
+  const normalizedStatus = typeof window.asfxCoreStatusV1 === "function"
+    ? window.asfxCoreStatusV1({
+        signalStatus: smz.signalStatus || d.signalStatus,
+        actionStatus: smz.actionStatus || d.actionStatus,
+        status: smz.status || d.status,
+        setupType: setup,
+        statusDetail: reason,
+        reason,
+        bias,
+        risk,
+        confidence,
+        activeZone,
+        entryZone: entryRaw,
+        price: d.price || d.currentPrice || d.livePrice || smz.price || smz.currentPrice || ""
+      })
+    : "NO TRADE";
+
+  const signalActive =
+    normalizedStatus === "SIGNAL ACTIVE" ||
+    /signal active/i.test(rawSeed);
+
+  const canExecute =
+    typeof window.asfxCanExecuteV1 === "function"
+      ? window.asfxCanExecuteV1(normalizedStatus)
+      : signalActive;
+
+  let engineStatus = "NO TRADE";
+  let engineNote = "Tidak ada eksekusi. Harga belum berada di zona valid.";
+
+  if (blocked || side === "WAIT") {
+    engineStatus = "NO TRADE";
+    engineNote = "Sistem menahan entry karena struktur belum valid atau area terlalu lemah.";
+  } else if (signalActive && canExecute && hasEntry && !isHighRisk && confidenceNum >= 65 && side === "BUY") {
+    engineStatus = "OFFICIAL BUY";
+    engineNote = "Signal aktif. Eksekusi hanya di dalam entry zone.";
+  } else if (signalActive && canExecute && hasEntry && !isHighRisk && confidenceNum >= 65 && side === "SELL") {
+    engineStatus = "OFFICIAL SELL";
+    engineNote = "Signal aktif. Eksekusi hanya di dalam entry zone.";
+  } else if (hasZone && (isBuy || isSell)) {
+    engineStatus = "ZONE WATCH";
+    engineNote = "Zona terbaca. Tunggu status Signal Active sebelum entry.";
+  } else if (isBuy || isSell) {
+    engineStatus = "SETUP WATCH";
+    engineNote = "Bias terbaca, tapi zona eksekusi belum siap.";
   }
 
-  let displayEntry = entry;
-  let displaySl = sl;
-  let displayTp1 = tp1;
-  let displayTp2 = tp2;
-
-  const entryRange = asfxRange(entry) || asfxRange(activeZone);
-  const entryMid = entryRange ? entryRange.mid : null;
-  const demandRange = asfxRange(demand);
-  const supplyRange = asfxRange(supply);
-
-  const setPendingPlan = () => {
-    displayEntry = 'Pending - watch zone only';
-    displaySl = 'Pending - waiting invalidation';
-    displayTp1 = 'Pending - waiting valid target';
-    displayTp2 = 'Pending - waiting extended target';
-  };
-
-  if (compactStatus !== 'SIGNAL ACTIVE' || !entryMid || side === 'WAIT') {
-    setPendingPlan();
-    if (/^OFFICIAL/i.test(verdict)) {
-      verdict = compactStatus === 'NO TRADE' ? 'NO TRADE' : compactStatus;
-      verdictClass = '';
-      execution = compactStatus === 'NO TRADE'
-        ? 'Tidak ada eksekusi. Zona hanya dipantau.'
-        : 'Zona terbaca. Entry, SL, dan TP menunggu validasi signal.';
-    }
-  } else if (side === 'SELL') {
-    const slNum = asfxLastNum(sl);
-    const tp1Num = asfxLastNum(tp1);
-    const tp2Num = asfxLastNum(tp2);
-
-    if (!(Number.isFinite(slNum) && slNum > entryMid)) {
-      displaySl = supplyRange && supplyRange.high > entryMid ? `Above supply invalidation ${asfxFmt(supplyRange.high)}` : 'Pending - invalidation not valid';
-    }
-    if (!(Number.isFinite(tp1Num) && tp1Num < entryMid)) {
-      displayTp1 = demandRange && demandRange.high < entryMid ? `First target near ${asfxFmt(demandRange.high)}` : 'Pending - waiting valid SELL target';
-    }
-    const fixedTp1 = asfxLastNum(displayTp1);
-    if (!(Number.isFinite(tp2Num) && tp2Num < (Number.isFinite(fixedTp1) ? fixedTp1 : entryMid))) {
-      displayTp2 = demandRange && demandRange.low < entryMid ? `Extended target near ${asfxFmt(demandRange.low)}` : 'Pending - waiting extended SELL target';
-    }
-  } else if (side === 'BUY') {
-    const slNum = asfxLastNum(sl);
-    const tp1Num = asfxLastNum(tp1);
-    const tp2Num = asfxLastNum(tp2);
-
-    if (!(Number.isFinite(slNum) && slNum < entryMid)) {
-      displaySl = demandRange && demandRange.low < entryMid ? `Below demand invalidation ${asfxFmt(demandRange.low)}` : 'Pending - invalidation not valid';
-    }
-    if (!(Number.isFinite(tp1Num) && tp1Num > entryMid)) {
-      displayTp1 = supplyRange && supplyRange.low > entryMid ? `First target near ${asfxFmt(supplyRange.low)}` : 'Pending - waiting valid BUY target';
-    }
-    const fixedTp1 = asfxLastNum(displayTp1);
-    if (!(Number.isFinite(tp2Num) && tp2Num > (Number.isFinite(fixedTp1) ? fixedTp1 : entryMid))) {
-      displayTp2 = supplyRange && supplyRange.high > entryMid ? `Extended target near ${asfxFmt(supplyRange.high)}` : 'Pending - waiting extended BUY target';
-    }
+  if (isHighRisk && engineStatus !== "NO TRADE") {
+    engineStatus = "SETUP WATCH";
+    engineNote = "Setup terbaca, tapi risk masih tinggi. Jangan entry paksa.";
   }
 
-  const compactValidity = compactStatus === 'SIGNAL ACTIVE' ? 'Fresh / Active' : compactStatus === 'NO TRADE' ? 'No Trade' : 'Waiting Validation';
+  const showExecutionPlan = engineStatus === "OFFICIAL BUY" || engineStatus === "OFFICIAL SELL";
+  const titleClass = showExecutionPlan ? biasClass(side) : "";
+
+  const displayEntry = showExecutionPlan ? entryRaw : "Pending - watch zone only";
+  const displaySl = showExecutionPlan ? slRaw : "Pending - waiting Signal Active";
+  const displayTp1 = showExecutionPlan ? tp1Raw : "Pending - waiting Signal Active";
+  const displayTp2 = showExecutionPlan ? tp2Raw : "Pending - waiting Signal Active";
+
+  const validity = showExecutionPlan
+    ? "Fresh / Active"
+    : engineStatus === "NO TRADE"
+      ? "No Trade"
+      : "Waiting Validation";
+
+  const planLabel = showExecutionPlan ? "Execution Plan" : "Watch Plan";
 
   return `
     <div class="asfx-bridge-wrap" data-asfx-bridge-rendered="signal">
       <div class="asfx-bridge-head">
-        <div class="asfx-bridge-kicker">AiSignal Execution</div>
-        <div class="asfx-bridge-title ${verdictClass}">${verdict}</div>
-        <div class="asfx-bridge-sub">${d.pair} | ${d.tf} | ${bias} Bias | ${risk} Risk | ${confidence}%</div>
+        <div class="asfx-bridge-kicker">AiSignal Engine</div>
+        <div class="asfx-bridge-title ${titleClass}">${engineStatus}</div>
+        <div class="asfx-bridge-sub">${pair} | ${tf} | ${bias} Bias | ${risk} Risk | ${confidence}%</div>
       </div>
 
       <div class="asfx-bridge-box" style="border-color:rgba(56,189,248,.28);background:linear-gradient(135deg,rgba(2,6,23,.82),rgba(14,165,233,.10));">
-        <div style="font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#38bdf8;font-weight:950;margin-bottom:8px;">AiSignal Engine</div>
+        <div style="font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#38bdf8;font-weight:950;margin-bottom:8px;">Scanner Decision</div>
         <div class="asfx-bridge-grid">
-          <div class="asfx-bridge-mini"><small>Status</small><b>${compactStatus}</b></div>
+          <div class="asfx-bridge-mini"><small>Status</small><b>${engineStatus}</b></div>
           <div class="asfx-bridge-mini"><small>Zone</small><b>${activeZone}</b></div>
-          <div class="asfx-bridge-mini"><small>Validity</small><b>${compactValidity}</b></div>
+          <div class="asfx-bridge-mini"><small>Validity</small><b>${validity}</b></div>
         </div>
       </div>
 
       <div class="asfx-bridge-box">
-        <small>Entry Zone</small><br>
+        <small>${planLabel}</small><br>
         <b style="color:#fff;font-size:18px;">${displayEntry}</b><br>
-        <span style="opacity:.78;">${execution}</span>
+        <span style="opacity:.78;">${engineNote}</span>
       </div>
 
       <div class="asfx-bridge-grid">
@@ -3321,12 +3651,12 @@ function signalHtml(d){
           <b>${setup}</b>
         </div>
         <div class="asfx-bridge-mini">
-          <small>Zone</small>
-          <b>${activeZone}</b>
-        </div>
-        <div class="asfx-bridge-mini">
           <small>Distance</small>
           <b>${distance}</b>
+        </div>
+        <div class="asfx-bridge-mini">
+          <small>Confidence</small>
+          <b>${confidence}%</b>
         </div>
       </div>
 
@@ -3335,9 +3665,9 @@ function signalHtml(d){
         <br>
         Demand: <b style="color:#fff;">${demand}</b><br>
         Supply: <b style="color:#fff;">${supply}</b><br>
-        Structure: <b style="color:#fff;">${smzText(smz.structure, "Reading")}</b><br>
-        Liquidity: <b style="color:#fff;">${smzText(smz.liquidity, "Waiting")}</b><br>
-        FVG / Imbalance: <b style="color:#fff;">${smzText(smz.imbalance, "Waiting")}</b><br>
+        Structure: <b style="color:#fff;">${structure}</b><br>
+        Liquidity: <b style="color:#fff;">${liquidity}</b><br>
+        FVG / Imbalance: <b style="color:#fff;">${imbalance}</b><br>
         Reason: <b style="color:#fff;">${reason}</b>
       </details>
 
@@ -5493,7 +5823,7 @@ document.addEventListener("click", function(e){
       : (price > zone.high ? "above demand" : "below demand");
     return {
       state: pct <= nearPct ? "Zone Watch" : "Waiting Zone",
-      text: `${pct.toFixed(2)}% ${relation} (${fmt(price)} → ${fmt(target)})`,
+      text: `${pct.toFixed(2)}% ${relation} (${fmt(price)} â†’ ${fmt(target)})`,
       pct
     };
   }
@@ -5951,7 +6281,7 @@ document.addEventListener("click", function(e){
     if (price >= zone.low && price <= zone.high) return { inside:true, pct:0, text:"Price inside active zone" };
     const target = price > zone.high ? zone.high : zone.low;
     const pct = Math.abs(price - target) / price * 100;
-    return { inside:false, pct, text:`${pct.toFixed(2)}% from active zone (${fmt(price)} → ${fmt(target)})` };
+    return { inside:false, pct, text:`${pct.toFixed(2)}% from active zone (${fmt(price)} â†’ ${fmt(target)})` };
   }
 
   function buildPacket(payload = {}){
@@ -6070,7 +6400,7 @@ document.addEventListener("click", function(e){
       tp2Guide = `Extended target near ${fmt(supply.high)}`;
     }
 
-    const liquidity = `Buy-side liquidity near ${fmt(swingHigh)} · Sell-side liquidity near ${fmt(swingLow)}`;
+    const liquidity = `Buy-side liquidity near ${fmt(swingHigh)} Â· Sell-side liquidity near ${fmt(swingLow)}`;
 
     const statusDetail = zoneBiasConflict
       ? bias === "BUY"
@@ -7059,9 +7389,9 @@ document.addEventListener("click", function(e){
         </p>
 
         <div class="asfx-access-gate-list-v1">
-          <div>✅ Public: bias/status preview & Sentinel AI limited.</div>
-          <div>🔒 VIP: full Signal Detail Room, entry zone, SL/TP, dan full reasoning.</div>
-          <div>👑 Owner/Admin: full access untuk testing dan kontrol sistem.</div>
+          <div>âœ… Public: bias/status preview & Sentinel AI limited.</div>
+          <div>ðŸ”’ VIP: full Signal Detail Room, entry zone, SL/TP, dan full reasoning.</div>
+          <div>ðŸ‘‘ Owner/Admin: full access untuk testing dan kontrol sistem.</div>
         </div>
 
         <div class="asfx-access-gate-actions-v1">
@@ -7428,9 +7758,9 @@ document.addEventListener("click", function(e){
       actionStatus,
       executionNote: note,
       statusDetail: note,
-      displayHeadline: `${cleanStatus} · ${b} · ${r} Risk`,
-      publicSummary: `${packet.pair || packet.symbol || "BTCUSDT"} · ${packet.timeframe || packet.tf || "15m"} · ${b} · ${cleanStatus}`,
-      vipSummary: `${b} setup · ${r} Risk · ${cleanStatus}`
+      displayHeadline: `${cleanStatus} Â· ${b} Â· ${r} Risk`,
+      publicSummary: `${packet.pair || packet.symbol || "BTCUSDT"} Â· ${packet.timeframe || packet.tf || "15m"} Â· ${b} Â· ${cleanStatus}`,
+      vipSummary: `${b} setup Â· ${r} Risk Â· ${cleanStatus}`
     });
 
     window.__ASFX_LAST_SIGNAL_PACKET_V1__ = next;
@@ -7811,15 +8141,15 @@ document.addEventListener("click", function(e){
       pick(/\bBTCUSDT\s+([\d,]+(?:\.\d+)?)/i, "");
 
     const demand =
-      pick(/Demand\s*:\s*([\d,]+(?:\.\d+)?\s*[–-]\s*[\d,]+(?:\.\d+)?)/i, "") ||
-      pick(/Active Zone\s+Demand\s+([\d,]+(?:\.\d+)?\s*[–-]\s*[\d,]+(?:\.\d+)?)/i, "");
+      pick(/Demand\s*:\s*([\d,]+(?:\.\d+)?\s*[â€“-]\s*[\d,]+(?:\.\d+)?)/i, "") ||
+      pick(/Active Zone\s+Demand\s+([\d,]+(?:\.\d+)?\s*[â€“-]\s*[\d,]+(?:\.\d+)?)/i, "");
 
     const supply =
-      pick(/Supply\s*:\s*([\d,]+(?:\.\d+)?\s*[–-]\s*[\d,]+(?:\.\d+)?)/i, "") ||
-      pick(/Active Zone\s+Supply\s+([\d,]+(?:\.\d+)?\s*[–-]\s*[\d,]+(?:\.\d+)?)/i, "");
+      pick(/Supply\s*:\s*([\d,]+(?:\.\d+)?\s*[â€“-]\s*[\d,]+(?:\.\d+)?)/i, "") ||
+      pick(/Active Zone\s+Supply\s+([\d,]+(?:\.\d+)?\s*[â€“-]\s*[\d,]+(?:\.\d+)?)/i, "");
 
     const activeZone =
-      pick(/Active Zone\s+((?:Demand|Supply)\s+[\d,]+(?:\.\d+)?\s*[–-]\s*[\d,]+(?:\.\d+)?)/i, "");
+      pick(/Active Zone\s+((?:Demand|Supply)\s+[\d,]+(?:\.\d+)?\s*[â€“-]\s*[\d,]+(?:\.\d+)?)/i, "");
 
     const structure =
       pick(/Structure\s*:\s*([^\n]+)/i, "");
@@ -8109,12 +8439,12 @@ document.addEventListener("click", function(e){
   function readDetailHeader(){
     const text = bodyText();
 
-    // Prefer header: SIGNAL DETAIL ROOM BTCUSDT · 15m
-    let m = text.match(/SIGNAL DETAIL ROOM\s+([A-Z0-9]{5,14})\s*[·\-.]\s*(5m|15m|1H|4H|1D|1W)/i);
+    // Prefer header: SIGNAL DETAIL ROOM BTCUSDT Â· 15m
+    let m = text.match(/SIGNAL DETAIL ROOM\s+([A-Z0-9]{5,14})\s*[Â·\-.]\s*(5m|15m|1H|4H|1D|1W)/i);
     if (m) return { pair: m[1].toUpperCase(), timeframe: displayTf(m[2]) };
 
-    // Fallback: BTCUSDT · 15m anywhere in detail room.
-    m = text.match(/\b([A-Z0-9]{5,14})\s*[·\-.]\s*(5m|15m|1H|4H|1D|1W)\b/i);
+    // Fallback: BTCUSDT Â· 15m anywhere in detail room.
+    m = text.match(/\b([A-Z0-9]{5,14})\s*[Â·\-.]\s*(5m|15m|1H|4H|1D|1W)\b/i);
     if (m) return { pair: m[1].toUpperCase(), timeframe: displayTf(m[2]) };
 
     return {};
@@ -8149,15 +8479,15 @@ document.addEventListener("click", function(e){
       pick(/\bBTCUSDT\s+([\d,]+(?:\.\d+)?)/i, "");
 
     const demand =
-      pick(/Demand\s*:\s*([\d,]+(?:\.\d+)?\s*[–-]\s*[\d,]+(?:\.\d+)?)/i, "") ||
-      pick(/Active Zone\s+Demand\s+([\d,]+(?:\.\d+)?\s*[–-]\s*[\d,]+(?:\.\d+)?)/i, "");
+      pick(/Demand\s*:\s*([\d,]+(?:\.\d+)?\s*[â€“-]\s*[\d,]+(?:\.\d+)?)/i, "") ||
+      pick(/Active Zone\s+Demand\s+([\d,]+(?:\.\d+)?\s*[â€“-]\s*[\d,]+(?:\.\d+)?)/i, "");
 
     const supply =
-      pick(/Supply\s*:\s*([\d,]+(?:\.\d+)?\s*[–-]\s*[\d,]+(?:\.\d+)?)/i, "") ||
-      pick(/Active Zone\s+Supply\s+([\d,]+(?:\.\d+)?\s*[–-]\s*[\d,]+(?:\.\d+)?)/i, "");
+      pick(/Supply\s*:\s*([\d,]+(?:\.\d+)?\s*[â€“-]\s*[\d,]+(?:\.\d+)?)/i, "") ||
+      pick(/Active Zone\s+Supply\s+([\d,]+(?:\.\d+)?\s*[â€“-]\s*[\d,]+(?:\.\d+)?)/i, "");
 
     const activeZone =
-      pick(/Active Zone\s+((?:Demand|Supply)\s+[\d,]+(?:\.\d+)?\s*[–-]\s*[\d,]+(?:\.\d+)?)/i, "");
+      pick(/Active Zone\s+((?:Demand|Supply)\s+[\d,]+(?:\.\d+)?\s*[â€“-]\s*[\d,]+(?:\.\d+)?)/i, "");
 
     const structure = pick(/Structure\s*:\s*([^\n]+)/i, "");
     const liquidity = pick(/Liquidity\s*:\s*([^\n]+)/i, "");
@@ -8731,29 +9061,29 @@ document.addEventListener("click", function(e){
     }
 
     let state = "SIGNAL ACTIVE";
-    let note = side + " active · price " + fmt(price);
+    let note = side + " active Â· price " + fmt(price);
 
     if (side === "BUY") {
       if (price <= sl) {
         state = "SL HIT";
-        note = "BUY invalidated · SL touched at " + fmt(price);
+        note = "BUY invalidated Â· SL touched at " + fmt(price);
       } else if (Number.isFinite(tp2) && price >= tp2) {
         state = "TP2 HIT";
-        note = "BUY target 2 reached · price " + fmt(price);
+        note = "BUY target 2 reached Â· price " + fmt(price);
       } else if (price >= tp1) {
         state = "TP1 HIT";
-        note = "BUY target 1 reached · price " + fmt(price);
+        note = "BUY target 1 reached Â· price " + fmt(price);
       }
     } else {
       if (price >= sl) {
         state = "SL HIT";
-        note = "SELL invalidated · SL touched at " + fmt(price);
+        note = "SELL invalidated Â· SL touched at " + fmt(price);
       } else if (Number.isFinite(tp2) && price <= tp2) {
         state = "TP2 HIT";
-        note = "SELL target 2 reached · price " + fmt(price);
+        note = "SELL target 2 reached Â· price " + fmt(price);
       } else if (price <= tp1) {
         state = "TP1 HIT";
-        note = "SELL target 1 reached · price " + fmt(price);
+        note = "SELL target 1 reached Â· price " + fmt(price);
       }
     }
 
@@ -8877,7 +9207,7 @@ document.addEventListener("click", function(e){
 
   const txt = (v, fallback = "-") => {
     if (v === undefined || v === null || v === "") return fallback;
-    const s = String(v).replace(/�/g, " | ").trim();
+    const s = String(v).replace(/ï¿½/g, " | ").trim();
     return s || fallback;
   };
   const upper = (v, fb="WAIT") => txt(v, fb).toUpperCase();
@@ -9158,7 +9488,7 @@ document.addEventListener("click", function(e){
   const styleId = "asfx-scanner-history-v5-style";
   const drawerId = "asfx-scanner-history-v5";
   const clean = (v, fb="-") => {
-    const t = String(v ?? "").replace(/�/g, " | ").trim();
+    const t = String(v ?? "").replace(/ï¿½/g, " | ").trim();
     return t || fb;
   };
   const upper = (v, fb="-") => clean(v, fb).toUpperCase();
@@ -9330,3 +9660,7 @@ document.addEventListener("click", function(e){
   setInterval(ensureButton, 2500);
   console.info("ASFX Scanner History Module V5 ready.");
 })();
+
+
+
+
