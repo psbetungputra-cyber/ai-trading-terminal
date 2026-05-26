@@ -769,10 +769,75 @@
     return packet;
   };
 
-  const update = () => buildPacket();
+
+  /* ASFX_DECISIVE_ZONE_V401
+     Small safe normalizer only.
+     Does not touch chart renderer, indicator source, or UI layout.
+  */
+  const asfxDecisiveZoneV401 = (packet) => {
+    if (!packet || typeof packet !== "object") return packet;
+
+    const p = { ...packet };
+    const finite = (v) => Number.isFinite(Number(v));
+    const hasEntry =
+      p.entryPrimary &&
+      finite(p.entryPrimary.low) &&
+      finite(p.entryPrimary.high) &&
+      finite(p.entryPrimary.mid);
+
+    const hasPlan =
+      hasEntry &&
+      finite(p.sl) &&
+      finite(p.tp1) &&
+      finite(p.tp2);
+
+    const cleanSide =
+      p.side === "BUY" || p.side === "SELL"
+        ? p.side
+        : finite(p.tp1) && finite(p.entryPrimary?.mid)
+          ? Number(p.tp1) >= Number(p.entryPrimary.mid)
+            ? "BUY"
+            : "SELL"
+          : "SCAN";
+
+    p.version = "4.0.1-decisive-zone";
+
+    if (hasPlan && (cleanSide === "BUY" || cleanSide === "SELL")) {
+      p.valid = true;
+      p.side = cleanSide;
+      p.zoneType = cleanSide === "BUY" ? "BUY ZONE" : "SELL ZONE";
+
+      const decisionText = String(p.decision || "").toUpperCase();
+      if (!decisionText.includes("OFFICIAL")) {
+        p.decision = p.zoneType + " READY";
+      }
+
+      const lifeText = String(p.lifecycle || "").toUpperCase();
+      if (!lifeText || lifeText.includes("WAIT") || lifeText.includes("NO TRADE") || lifeText.includes("SCAN")) {
+        p.lifecycle = p.zoneType + " READY";
+      }
+
+      p.reason = String(p.reason || "") + " Decisive Zone V4.0.1: zona valid ditampilkan langsung; detail keamanan tetap di Risk dan AI Insight.";
+    } else {
+      p.valid = false;
+      p.side = cleanSide === "BUY" || cleanSide === "SELL" ? cleanSide : "SCAN";
+      p.decision = "ZONE SCAN";
+      p.lifecycle = "SCANNING ZONE";
+      p.zoneType = p.zoneType || "ZONE SCAN";
+      p.reason = String(p.reason || "Candle belum cukup untuk membentuk zona eksekusi bersih.")
+        .replace(/NO TRADE/gi, "ZONE SCAN")
+        .replace(/WAIT/gi, "SCANNING ZONE");
+    }
+
+    STATE.last = p;
+    window.__ASFX_PLAN_PACKET_LAST_V1__ = p;
+    return p;
+  };
+
+  const update = () => asfxDecisiveZoneV401(buildPacket());
 
   window.ASFXPlanPacketV1 = {
-    version: "4.0.0-zone-brain",
+    version: "4.0.1-decisive-zone",
     build: update,
     latest: () => window.__ASFX_PLAN_PACKET_LAST_V1__ || update(),
     state: STATE
@@ -781,6 +846,6 @@
   update();
   setInterval(update, 1200);
 
-  console.info("ASFX Zone Brain V4 ready.");
+  console.info("ASFX Zone Brain V4.0.1 Decisive ready.");
 })();
 
