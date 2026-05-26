@@ -1,4 +1,4 @@
-﻿/* AiSignalFx PRO - Scanner Mobile Functional v2 */
+/* AiSignalFx PRO - Scanner Mobile Functional v2 */
 (function () {
   const cryptoPairs = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "DOGEUSDT", "ADAUSDT", "AVAXUSDT"];
   const refPairs = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY", "GBPJPY"];
@@ -2261,6 +2261,29 @@
   let busy = false;
   let status = "WAIT";
 
+
+  /* ASFX_DETAIL_CANDLES_EXPORT_V4
+     Exposes current chart candles to Zone Brain without touching chart render.
+  */
+  function asfxExportDetailCandlesV4(){
+    try {
+      const now = ctx();
+      window.__ASFX_DETAIL_CANDLES_V1__ = (candles || []).map((c) => ({
+        t: Number(c.t),
+        o: Number(c.o),
+        h: Number(c.h),
+        l: Number(c.l),
+        c: Number(c.c),
+        v: Number(c.v || 0)
+      }));
+      window.__ASFX_DETAIL_CONTEXT_V1__ = {
+        pair: now.pair,
+        timeframe: now.tf,
+        updatedAt: Date.now()
+      };
+    } catch (_) {}
+  }
+
   function safe(v){
     return String(v ?? "").replace(/[&<>"']/g, c => ({
       "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
@@ -2356,6 +2379,7 @@
 
     lastLoad = Date.now();
     lastCtxKey = `${ctx().pair}_${ctx().tf}`;
+    asfxExportDetailCandlesV4();
   }
 
   function yFor(price, min, max, padT, chartH){
@@ -2435,8 +2459,52 @@
       "'": "&#039;"
     }[m]));
 
+  /* ASFX_INDICATOR_PACKET_SOURCE_V4
+     Chart indicator now uses Zone Brain packet first.
+     Old SMZ source is fallback only, not the main writer.
+  */
   function asfxIndicatorSource(){
     try {
+      const packet = window.ASFXPlanPacketV1 && typeof window.ASFXPlanPacketV1.latest === "function"
+        ? window.ASFXPlanPacketV1.latest()
+        : null;
+
+      if (packet && packet.entryPrimary && Number.isFinite(Number(packet.sl)) && Number.isFinite(Number(packet.tp1)) && Number.isFinite(Number(packet.tp2))) {
+        const zoneText = packet.entryPrimary.low + " - " + packet.entryPrimary.high;
+        return {
+          pair: packet.pair,
+          symbol: packet.pair,
+          tf: packet.timeframe,
+          timeframe: packet.timeframe,
+          bias: packet.side,
+          risk: packet.risk || "Medium",
+          confidence: packet.score || packet.confidence || 70,
+          price: packet.price,
+          currentPrice: packet.price,
+          livePrice: packet.price,
+          signalStatus: packet.lifecycle || packet.zoneType || "ZONE READY",
+          status: packet.lifecycle || "ZONE READY",
+          actionStatus: packet.decision || packet.zoneType || "ZONE READY",
+          setupType: packet.zoneType || packet.decision || "ZONE SETUP",
+          activeZone: zoneText,
+          entryZone: zoneText,
+          zoneState: packet.zoneType || "ZONE SETUP",
+          stopLossGuide: String(packet.sl),
+          slGuide: String(packet.sl),
+          tp1Guide: String(packet.tp1),
+          tp2Guide: String(packet.tp2),
+          tp3Guide: String(packet.tp3 || ""),
+          demandZone: packet.mtfContext?.demandZone
+            ? packet.mtfContext.demandZone.low + " - " + packet.mtfContext.demandZone.high
+            : "",
+          supplyZone: packet.mtfContext?.supplyZone
+            ? packet.mtfContext.supplyZone.low + " - " + packet.mtfContext.supplyZone.high
+            : "",
+          reason: packet.reason || "Zone Brain V4 generated signal zone.",
+          statusDetail: packet.reason || "Zone Brain V4 generated signal zone."
+        };
+      }
+
       const sources = [
         window.AiSignalSMZCandleReaderV1?.last?.(),
         window.AiSignalSMZStatusFlowV1?.last?.(),
@@ -2674,6 +2742,94 @@
   function asfxSyncSignalTabFromIndicator(plan){
     const panel = document.querySelector('[data-asfx-bridge-rendered="signal"]');
     if (!panel || !plan) return;
+
+
+    /* ASFX_PLAN_PACKET_SIGNAL_DIRECT_V2 */
+    try {
+      const packet = window.ASFXPlanPacketV1 && typeof window.ASFXPlanPacketV1.latest === "function"
+        ? window.ASFXPlanPacketV1.latest()
+        : null;
+
+      if (packet && typeof packet === "object") {
+        const esc = typeof asfxIndicatorEsc === "function" ? asfxIndicatorEsc : (value) => String(value ?? "");
+        const fmt = (v, fb = "—") => {
+          const n = Number(v);
+          if (!Number.isFinite(n)) return fb;
+          return n.toLocaleString("en-US", { maximumFractionDigits: Math.abs(n) >= 1000 ? 2 : 5 });
+        };
+        const range = (r, fb = "—") => {
+          if (!r || typeof r !== "object") return fb;
+          const low = Number(r.low);
+          const high = Number(r.high);
+          if (!Number.isFinite(low) || !Number.isFinite(high)) return fb;
+          return fmt(Math.min(low, high)) + " - " + fmt(Math.max(low, high));
+        };
+
+        const decision = String(packet.decision || "ZONE SCAN").toUpperCase();
+        const side = String(packet.side || "WAIT").toUpperCase();
+        const isOfficial = decision === "OFFICIAL BUY" || decision === "OFFICIAL SELL";
+        const pair = String(packet.pair || plan.pair || ctx().pair || "Market").toUpperCase();
+        const tf = String(packet.timeframe || plan.tf || ctx().tf || "15m");
+
+        const title = isOfficial ? decision : "ZONE SCAN";
+        const subtitle = isOfficial
+          ? pair + " | " + tf + " | Zone signal ready"
+          : pair + " | " + tf + " | No active zone on this pair/timeframe";
+
+        const entry = isOfficial ? range(packet.entryPrimary, "Calculating zone") : "No active zone";
+        const sl = isOfficial ? fmt(packet.sl) : "—";
+        const tp1 = isOfficial ? fmt(packet.tp1) : "—";
+        const tp2 = isOfficial ? fmt(packet.tp2) : "—";
+        const tp3 = isOfficial ? fmt(packet.tp3) : "—";
+
+        const key = [
+          "clean-zone-signal-ui-v1",
+          title,
+          pair,
+          tf,
+          entry,
+          sl,
+          tp1,
+          tp2,
+          tp3,
+          packet.valid
+        ].join("|");
+
+        if (panel.dataset.asfxCleanZoneSignalKey === key) return;
+        panel.dataset.asfxCleanZoneSignalKey = key;
+
+        const titleColor = side === "BUY"
+          ? "#22c55e"
+          : side === "SELL"
+            ? "#ef4444"
+            : "#e5e7eb";
+
+        panel.innerHTML =
+          '<div class="asfx-bridge-head">' +
+            '<div class="asfx-bridge-kicker">Signal Zone</div>' +
+            '<div class="asfx-bridge-title" style="color:' + titleColor + ';">' + esc(title) + '</div>' +
+            '<div class="asfx-bridge-sub">' + esc(subtitle) + '</div>' +
+          '</div>' +
+
+          '<div class="asfx-bridge-box">' +
+            '<small>Entry Zone</small><br>' +
+            '<b style="color:#fff;font-size:20px;">' + esc(entry) + '</b>' +
+          '</div>' +
+
+          '<div class="asfx-bridge-grid">' +
+            '<div class="asfx-bridge-mini"><small>SL</small><b>' + esc(sl) + '</b></div>' +
+            '<div class="asfx-bridge-mini"><small>TP1</small><b>' + esc(tp1) + '</b></div>' +
+            '<div class="asfx-bridge-mini"><small>TP2</small><b>' + esc(tp2) + '</b></div>' +
+            '<div class="asfx-bridge-mini"><small>TP3</small><b>' + esc(tp3) + '</b></div>' +
+          '</div>' +
+
+          '<div class="asfx-bridge-lock">Risk detail ada di Risk tab. Alasan teknikal ada di AI Insight.</div>';
+
+        return;
+      }
+    } catch (err) {
+      console.warn("ASFX clean zone signal skipped:", err);
+    }
 
     const status = plan.hasPlan ? `${plan.side} ${plan.status}` : "NO TRADE";
     const key = [
@@ -2931,6 +3087,7 @@
       last.h = Math.max(Number(last.h || live), live);
       last.l = Math.min(Number(last.l || live), live);
 
+      asfxExportDetailCandlesV4();
       render();
       ensureWorkspace("LIVE");
     } catch(e) {
@@ -3904,7 +4061,150 @@ function vipHtml(d){
     `;
   }
 
-  function renderBridge(tab){
+  
+/* ASFX_PLAN_PACKET_RISK_AI_RENDER_BRIDGE_V2 */
+function asfxPlanPacketBridgeEscV2(value){
+  if (typeof asfxIndicatorEsc === "function") return asfxIndicatorEsc(value);
+  return String(value ?? "").replace(/[&<>"']/g, function(m){
+    return ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#039;" })[m] || m;
+  });
+}
+
+function asfxPlanPacketBridgeFmtV2(value, fallback = "Pending"){
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return n.toLocaleString("en-US", { maximumFractionDigits: Math.abs(n) >= 1000 ? 2 : 5 });
+}
+
+function asfxPlanPacketBridgeRangeV2(range, fallback = "Pending"){
+  if (!range || typeof range !== "object") return fallback;
+  const low = Number(range.low);
+  const high = Number(range.high);
+  if (!Number.isFinite(low) || !Number.isFinite(high)) return fallback;
+  return asfxPlanPacketBridgeFmtV2(Math.min(low, high)) + " - " + asfxPlanPacketBridgeFmtV2(Math.max(low, high));
+}
+
+function asfxPlanPacketBridgeViewV2(d = {}, smz = {}){
+  try {
+    const packet = window.ASFXPlanPacketV1 && typeof window.ASFXPlanPacketV1.latest === "function"
+      ? window.ASFXPlanPacketV1.latest()
+      : null;
+
+    if (!packet || typeof packet !== "object") return null;
+
+    return {
+      decision: String(packet.decision || "NO TRADE").toUpperCase(),
+      lifecycle: String(packet.lifecycle || packet.decision || "WATCH").toUpperCase(),
+      valid: !!packet.valid,
+      side: String(packet.side || "WAIT").toUpperCase(),
+      pair: String(packet.pair || d.pair || d.symbol || "Market").toUpperCase(),
+      tf: String(packet.timeframe || d.tf || d.timeframe || "15m"),
+      risk: String(packet.risk || d.risk || smz.risk || "Medium"),
+      score: Number(packet.score ?? packet.confidence ?? d.confidence ?? 0) || 0,
+      price: asfxPlanPacketBridgeFmtV2(packet.price, "Reading"),
+      entry: asfxPlanPacketBridgeRangeV2(packet.entryPrimary, packet.valid ? "Calculating entry" : "Pending - no valid entry zone"),
+      secondary: asfxPlanPacketBridgeRangeV2(packet.entrySecondary, "Pending"),
+      sl: asfxPlanPacketBridgeFmtV2(packet.sl, "Pending"),
+      tp1: asfxPlanPacketBridgeFmtV2(packet.tp1, "Pending"),
+      tp2: asfxPlanPacketBridgeFmtV2(packet.tp2, "Pending"),
+      tp3: asfxPlanPacketBridgeFmtV2(packet.tp3, "Pending"),
+      rr: String(packet.rr || "-"),
+      minTarget: asfxPlanPacketBridgeFmtV2(packet.minTarget, "-"),
+      reason: String(packet.reason || "AiSignal Plan Packet sedang membaca struktur market."),
+      activeZone: String(packet.mtfContext?.activeZone || smz.activeZone || smz.zoneState || "Reading active zone"),
+      higherBias: String(packet.mtfContext?.higherBias || smz.structure || "Reading structure"),
+      demand: packet.mtfContext?.demandZone ? asfxPlanPacketBridgeRangeV2(packet.mtfContext.demandZone, "Calculating") : String(smz.demandZone || "Calculating"),
+      supply: packet.mtfContext?.supplyZone ? asfxPlanPacketBridgeRangeV2(packet.mtfContext.supplyZone, "Calculating") : String(smz.supplyZone || "Calculating"),
+      session: String(packet.session?.label || packet.session?.name || "Session reading"),
+      sessionNote: String(packet.session?.note || "Session guard aktif di belakang layar."),
+      volume: String(packet.volumeFlow?.label || packet.volumeFlow?.bias || "Volume reading"),
+      volumeNote: String(packet.volumeFlow?.note || "Volume confirmation sedang dibaca.")
+    };
+  } catch (_) {
+    return null;
+  }
+}
+
+function asfxPlanPacketRiskBridgeHtmlV2(d, smz){
+  const v = asfxPlanPacketBridgeViewV2(d, smz);
+  if (!v) return "";
+
+  const esc = asfxPlanPacketBridgeEscV2;
+  const guard = v.valid ? "PLAN RISK READY" : v.decision === "NO TRADE" ? "NO TRADE GUARD" : "WATCH RISK";
+  const safety = /high/i.test(v.risk) ? "Caution" : v.valid ? "Execution Guard" : "Protected Watch";
+
+  return '' +
+    '<div class="asfx-bridge-wrap" data-asfx-bridge-rendered="risk" data-asfx-plan-packet-risk="v2">' +
+      '<div class="asfx-bridge-head">' +
+        '<div class="asfx-bridge-kicker">Risk Dashboard</div>' +
+        '<div class="asfx-bridge-title">' + esc(guard) + '</div>' +
+        '<div class="asfx-bridge-sub">' + esc(v.pair) + ' | ' + esc(v.tf) + ' | ' + esc(v.risk) + ' Risk | Score ' + esc(v.score) + '%</div>' +
+      '</div>' +
+
+      '<div class="asfx-bridge-grid">' +
+        '<div class="asfx-bridge-mini"><small>Risk Tier</small><b>' + esc(v.risk) + '</b></div>' +
+        '<div class="asfx-bridge-mini"><small>Safety</small><b>' + esc(safety) + '</b></div>' +
+        '<div class="asfx-bridge-mini"><small>Min Target</small><b>' + esc(v.minTarget) + '</b></div>' +
+      '</div>' +
+
+      '<div class="asfx-bridge-box"><b style="color:#fff;">Risk Reading</b><br>' + esc(v.sessionNote) + ' ' + esc(v.volumeNote) + '</div>' +
+
+      '<div class="asfx-bridge-grid">' +
+        '<div class="asfx-bridge-mini"><small>Entry Zone</small><b>' + esc(v.entry) + '</b></div>' +
+        '<div class="asfx-bridge-mini"><small>SL</small><b>' + esc(v.sl) + '</b></div>' +
+        '<div class="asfx-bridge-mini"><small>RR</small><b>' + esc(v.rr) + '</b></div>' +
+      '</div>' +
+
+      '<details class="asfx-bridge-box">' +
+        '<summary style="cursor:pointer;color:#fff;font-weight:900;">Zone Context</summary><br>' +
+        'Demand: <b style="color:#fff;">' + esc(v.demand) + '</b><br>' +
+        'Supply: <b style="color:#fff;">' + esc(v.supply) + '</b><br>' +
+        'Active Zone: <b style="color:#fff;">' + esc(v.activeZone) + '</b>' +
+      '</details>' +
+
+      '<div class="asfx-bridge-lock">Risk tab sekarang membaca AiSignal Plan Packet yang sama dengan Signal tab.</div>' +
+    '</div>';
+}
+
+function asfxPlanPacketAiBridgeHtmlV2(d, smz){
+  const v = asfxPlanPacketBridgeViewV2(d, smz);
+  if (!v) return "";
+
+  const esc = asfxPlanPacketBridgeEscV2;
+  const titleClass = typeof biasClass === "function" ? biasClass(v.side) : "";
+
+  return '' +
+    '<div class="asfx-bridge-wrap" data-asfx-bridge-rendered="chat" data-asfx-plan-packet-ai="v2">' +
+      '<div class="asfx-bridge-head">' +
+        '<div class="asfx-bridge-kicker">AI Insight</div>' +
+        '<div class="asfx-bridge-title ' + titleClass + '">' + esc(v.decision) + '</div>' +
+        '<div class="asfx-bridge-sub">' + esc(v.pair) + ' | ' + esc(v.tf) + ' | ' + esc(v.session) + ' | Score ' + esc(v.score) + '%</div>' +
+      '</div>' +
+
+      '<div class="asfx-bridge-box"><small>AI Reason</small><br><b style="color:#fff;">' + esc(v.reason) + '</b></div>' +
+
+      '<div class="asfx-bridge-grid">' +
+        '<div class="asfx-bridge-mini"><small>Bias</small><b class="' + titleClass + '">' + esc(v.side) + '</b></div>' +
+        '<div class="asfx-bridge-mini"><small>Volume</small><b>' + esc(v.volume) + '</b></div>' +
+        '<div class="asfx-bridge-mini"><small>Method</small><b>Hybrid SMZ</b></div>' +
+      '</div>' +
+
+      '<div class="asfx-bridge-box"><b style="color:#fff;">Technical Method</b><br><span style="opacity:.86;">SNR | RBS/SBR | SND | BRN | Session Guard | Volume Flow</span></div>' +
+
+      '<details class="asfx-bridge-box">' +
+        '<summary style="cursor:pointer;color:#fff;font-weight:900;">Market Context</summary><br>' +
+        'Higher Bias: <b style="color:#fff;">' + esc(v.higherBias) + '</b><br>' +
+        'Active Zone: <b style="color:#fff;">' + esc(v.activeZone) + '</b><br>' +
+        'Demand: <b style="color:#fff;">' + esc(v.demand) + '</b><br>' +
+        'Supply: <b style="color:#fff;">' + esc(v.supply) + '</b>' +
+      '</details>' +
+
+      '<div class="asfx-bridge-lock">AI Insight sekarang menjelaskan plan dari sumber packet yang sama.</div>' +
+    '</div>';
+}
+
+
+function renderBridge(tab){
   const p = panel();
   if (!p || tab === "chart") return;
 
@@ -3913,8 +4213,8 @@ function vipHtml(d){
 
   let html = "";
   if (tab === "signal") html = signalHtml(d);
-  if (tab === "risk") html = riskHtml(d);
-  if (tab === "chat") html = chatHtml(d);
+  if (tab === "risk") html = asfxPlanPacketRiskBridgeHtmlV2(d, smz) || riskHtml(d);
+  if (tab === "chat") html = asfxPlanPacketAiBridgeHtmlV2(d, smz) || chatHtml(d);
   if (tab === "vip") html = vipHtml(d);
   if (!html) return;
 
