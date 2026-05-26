@@ -2459,9 +2459,10 @@
       "'": "&#039;"
     }[m]));
 
-  /* ASFX_INDICATOR_PACKET_SOURCE_V4
-     Chart indicator now uses Zone Brain packet first.
-     Old SMZ source is fallback only, not the main writer.
+  /* ASFX_SIGNAL_CHART_PACKET_SYNC_V41
+     Chart indicator must follow ASFXPlanPacketV1 as the single decision source.
+     Fresh entry draws Entry/SL/TP.
+     TP AREA / RUNNING / WATCH / REACTION does not draw fresh signal lines.
   */
   function asfxIndicatorSource(){
     try {
@@ -2469,26 +2470,66 @@
         ? window.ASFXPlanPacketV1.latest()
         : null;
 
-      if (packet && packet.entryPrimary && Number.isFinite(Number(packet.sl)) && Number.isFinite(Number(packet.tp1)) && Number.isFinite(Number(packet.tp2))) {
-        const zoneText = packet.entryPrimary.low + " - " + packet.entryPrimary.high;
-        return {
+      if (packet && typeof packet === "object" && (packet.version || packet.entryPrimary || packet.decision)) {
+        const decision = String(packet.decision || "").toUpperCase();
+        const lifecycle = String(packet.lifecycle || "").toUpperCase();
+        const side = String(packet.side || "").toUpperCase();
+        const statusText = [decision, lifecycle].filter(Boolean).join(" — ");
+
+        const entry = packet.entryPrimary || null;
+        const hasEntry =
+          entry &&
+          Number.isFinite(Number(entry.low)) &&
+          Number.isFinite(Number(entry.high));
+
+        const noFresh =
+          packet.freshEntry === false ||
+          packet.noFreshEntry === true ||
+          /TP AREA|RUNNING|REACTION|WATCH|ZONE SCAN|NO FRESH|TP HIT|SL HIT|INVALID/.test(statusText);
+
+        const freshEntry =
+          packet.valid === true &&
+          noFresh === false &&
+          hasEntry &&
+          Number.isFinite(Number(packet.sl)) &&
+          Number.isFinite(Number(packet.tp1)) &&
+          Number.isFinite(Number(packet.tp2)) &&
+          (decision === "OFFICIAL BUY" || decision === "OFFICIAL SELL" || decision === "BUY ZONE" || decision === "SELL ZONE");
+
+        const base = {
           pair: packet.pair,
           symbol: packet.pair,
           tf: packet.timeframe,
           timeframe: packet.timeframe,
-          bias: packet.side,
+          bias: freshEntry ? side : "WAIT",
           risk: packet.risk || "Medium",
-          confidence: packet.score || packet.confidence || 70,
+          confidence: packet.score || packet.confidence || 0,
           price: packet.price,
           currentPrice: packet.price,
           livePrice: packet.price,
-          signalStatus: packet.lifecycle || packet.zoneType || "ZONE READY",
-          status: packet.lifecycle || "ZONE READY",
-          actionStatus: packet.decision || packet.zoneType || "ZONE READY",
-          setupType: packet.zoneType || packet.decision || "ZONE SETUP",
+          signalStatus: freshEntry ? "SIGNAL READY" : (statusText || "NO FRESH ENTRY"),
+          status: freshEntry ? "SIGNAL READY" : (statusText || "NO FRESH ENTRY"),
+          actionStatus: freshEntry ? (packet.decision || packet.zoneType || "SIGNAL READY") : (statusText || "NO FRESH ENTRY"),
+          setupType: freshEntry ? (packet.zoneType || packet.decision || "ZONE SETUP") : (statusText || "NO FRESH ENTRY"),
+          reason: packet.reason || "Zone Brain packet synced.",
+          statusDetail: packet.reason || "Zone Brain packet synced.",
+          asfxPacketDecision: decision,
+          asfxPacketLifecycle: lifecycle,
+          asfxPacketFreshEntry: freshEntry,
+          noFreshEntry: !freshEntry
+        };
+
+        if (!freshEntry) {
+          return base;
+        }
+
+        const zoneText = entry.low + " - " + entry.high;
+
+        return {
+          ...base,
           activeZone: zoneText,
           entryZone: zoneText,
-          zoneState: packet.zoneType || "ZONE SETUP",
+          zoneState: packet.zoneType || packet.decision || "ZONE SETUP",
           stopLossGuide: String(packet.sl),
           slGuide: String(packet.sl),
           tp1Guide: String(packet.tp1),
@@ -2499,9 +2540,7 @@
             : "",
           supplyZone: packet.mtfContext?.supplyZone
             ? packet.mtfContext.supplyZone.low + " - " + packet.mtfContext.supplyZone.high
-            : "",
-          reason: packet.reason || "Zone Brain V4 generated signal zone.",
-          statusDetail: packet.reason || "Zone Brain V4 generated signal zone."
+            : ""
         };
       }
 
@@ -2757,33 +2796,56 @@
           if (!Number.isFinite(n)) return fb;
           return n.toLocaleString("en-US", { maximumFractionDigits: Math.abs(n) >= 1000 ? 2 : 5 });
         };
+        const hasRange = (r) => {
+          if (!r || typeof r !== "object") return false;
+          return Number.isFinite(Number(r.low)) && Number.isFinite(Number(r.high));
+        };
         const range = (r, fb = "—") => {
-          if (!r || typeof r !== "object") return fb;
+          if (!hasRange(r)) return fb;
           const low = Number(r.low);
           const high = Number(r.high);
-          if (!Number.isFinite(low) || !Number.isFinite(high)) return fb;
           return fmt(Math.min(low, high)) + " - " + fmt(Math.max(low, high));
         };
 
-        const decision = String(packet.decision || "ZONE SCAN").toUpperCase();
-        const side = String(packet.side || "WAIT").toUpperCase();
-        const isOfficial = decision === "OFFICIAL BUY" || decision === "OFFICIAL SELL";
         const pair = String(packet.pair || plan.pair || ctx().pair || "Market").toUpperCase();
         const tf = String(packet.timeframe || plan.tf || ctx().tf || "15m");
+        const side = String(packet.side || "WAIT").toUpperCase();
+        const decision = String(packet.decision || "ZONE SCAN").toUpperCase();
+        const lifecycle = String(packet.lifecycle || decision).toUpperCase();
+        const statusText = [decision, lifecycle].filter(Boolean).join(" — ");
 
-        const title = isOfficial ? decision : "ZONE SCAN";
-        const subtitle = isOfficial
-          ? pair + " | " + tf + " | Zone signal ready"
-          : pair + " | " + tf + " | No active zone on this pair/timeframe";
+        const noFresh =
+          packet.freshEntry === false ||
+          packet.noFreshEntry === true ||
+          /TP AREA|RUNNING|REACTION|WATCH|ZONE SCAN|NO FRESH|TP HIT|SL HIT|INVALID/.test(statusText);
 
-        const entry = isOfficial ? range(packet.entryPrimary, "Calculating zone") : "No active zone";
-        const sl = isOfficial ? fmt(packet.sl) : "—";
-        const tp1 = isOfficial ? fmt(packet.tp1) : "—";
-        const tp2 = isOfficial ? fmt(packet.tp2) : "—";
-        const tp3 = isOfficial ? fmt(packet.tp3) : "—";
+        const freshEntry =
+          packet.valid === true &&
+          noFresh === false &&
+          hasRange(packet.entryPrimary) &&
+          Number.isFinite(Number(packet.sl)) &&
+          Number.isFinite(Number(packet.tp1)) &&
+          Number.isFinite(Number(packet.tp2)) &&
+          (decision === "OFFICIAL BUY" || decision === "OFFICIAL SELL" || decision === "BUY ZONE" || decision === "SELL ZONE");
+
+        const title = freshEntry
+          ? decision
+          : decision && decision !== "NO TRADE"
+            ? decision
+            : lifecycle || "ZONE SCAN";
+
+        const subtitle = freshEntry
+          ? pair + " | " + tf + " | Fresh entry zone ready"
+          : pair + " | " + tf + " | No fresh entry. Wait pullback/SBR, break-retest, or new valid zone.";
+
+        const entry = freshEntry ? range(packet.entryPrimary, "Calculating zone") : "No fresh entry";
+        const sl = freshEntry ? fmt(packet.sl, "Calculating") : "—";
+        const tp1 = freshEntry ? fmt(packet.tp1, "Calculating") : "—";
+        const tp2 = freshEntry ? fmt(packet.tp2, "Calculating") : "—";
+        const tp3 = freshEntry ? fmt(packet.tp3, "Calculating") : "—";
 
         const key = [
-          "clean-zone-signal-ui-v1",
+          "signal-chart-sync-v41",
           title,
           pair,
           tf,
@@ -2792,11 +2854,12 @@
           tp1,
           tp2,
           tp3,
-          packet.valid
+          freshEntry,
+          lifecycle
         ].join("|");
 
-        if (panel.dataset.asfxCleanZoneSignalKey === key) return;
-        panel.dataset.asfxCleanZoneSignalKey = key;
+        if (panel.dataset.asfxSignalChartSyncV41Key === key) return;
+        panel.dataset.asfxSignalChartSyncV41Key = key;
 
         const titleColor = side === "BUY"
           ? "#22c55e"
@@ -2823,12 +2886,12 @@
             '<div class="asfx-bridge-mini"><small>TP3</small><b>' + esc(tp3) + '</b></div>' +
           '</div>' +
 
-          '<div class="asfx-bridge-lock">Risk detail ada di Risk tab. Alasan teknikal ada di AI Insight.</div>';
+          '<div class="asfx-bridge-lock">Chart dan Signal sekarang membaca packet yang sama. Risk detail ada di Risk tab.</div>';
 
         return;
       }
     } catch (err) {
-      console.warn("ASFX clean zone signal skipped:", err);
+      console.warn("ASFX signal chart sync skipped:", err);
     }
 
     const status = plan.hasPlan ? `${plan.side} ${plan.status}` : "NO TRADE";

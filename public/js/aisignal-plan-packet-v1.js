@@ -834,9 +834,507 @@
     return p;
   };
 
-  const update = () => asfxDecisiveZoneV401(buildPacket());
+  /* ASFX_TECHNICAL_SOP_ENGINE_V41
+     Full SOP layer: swing, trendline, SNR/RBS/SBR, BRN, EMA/RSI/ATR/volume,
+     active zone selector, TP area guard, continuation zone, and hit flags.
+     This upgrades the brain only; chart/UI render is untouched.
+  */
+  function asfxTechnicalSopV41(packet) {
+    const finite = (value) => Number.isFinite(Number(value));
+    const num = (...values) => {
+      for (const value of values) {
+        const n = Number(value);
+        if (Number.isFinite(n)) return n;
+      }
+      return null;
+    };
+    const round = (value, digits = 5) => {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return null;
+      const f = Math.pow(10, digits);
+      return Math.round(n * f) / f;
+    };
+    const zone = (value) => {
+      if (!value || typeof value !== "object") return null;
+      const low = num(value.low, value.min, value.from);
+      const high = num(value.high, value.max, value.to);
+      if (!Number.isFinite(low) || !Number.isFinite(high)) return null;
+      const lo = Math.min(low, high);
+      const hi = Math.max(low, high);
+      return { low: round(lo), high: round(hi), mid: round((lo + hi) / 2) };
+    };
+    const text = (value, fallback = "") => String(value || fallback || "");
+    const candle = (c, i) => {
+      const o = num(c?.o, c?.open);
+      const h = num(c?.h, c?.high);
+      const l = num(c?.l, c?.low);
+      const close = num(c?.c, c?.close);
+      if (![o, h, l, close].every(Number.isFinite)) return null;
+      return { i, t: num(c?.t, c?.time) || i, o, h, l, c: close, v: num(c?.v, c?.volume) || 0 };
+    };
 
-  window.ASFXPlanPacketV1 = {
+    const rawCandles = Array.isArray(window.__ASFX_DETAIL_CANDLES_V1__) && window.__ASFX_DETAIL_CANDLES_V1__.length
+      ? window.__ASFX_DETAIL_CANDLES_V1__
+      : Array.isArray(packet?.source?.candles)
+        ? packet.source.candles
+        : Array.isArray(packet?.source?.klines)
+          ? packet.source.klines
+          : [];
+
+    const candles = rawCandles.map(candle).filter(Boolean).slice(-240);
+    const price = num(packet?.price, packet?.source?.currentPrice, packet?.source?.price, candles[candles.length - 1]?.c);
+    const out = Object.assign({}, packet || {});
+
+    const atr = (list, period = 14) => {
+      const src = list.slice(-period - 1);
+      if (src.length < 2) return 0;
+      let total = 0;
+      let count = 0;
+      for (let i = 1; i < src.length; i += 1) {
+        const prevClose = src[i - 1].c;
+        const tr = Math.max(src[i].h - src[i].l, Math.abs(src[i].h - prevClose), Math.abs(src[i].l - prevClose));
+        if (Number.isFinite(tr)) {
+          total += tr;
+          count += 1;
+        }
+      }
+      return count ? total / count : 0;
+    };
+
+    const ema = (list, period) => {
+      const closes = list.map((c) => c.c).filter(Number.isFinite);
+      if (!closes.length) return null;
+      const k = 2 / (period + 1);
+      let value = closes[0];
+      for (let i = 1; i < closes.length; i += 1) value = closes[i] * k + value * (1 - k);
+      return value;
+    };
+
+    const rsi = (list, period = 14) => {
+      const closes = list.map((c) => c.c).filter(Number.isFinite);
+      if (closes.length <= period) return 50;
+      let gain = 0;
+      let loss = 0;
+      const start = closes.length - period;
+      for (let i = start; i < closes.length; i += 1) {
+        const d = closes[i] - closes[i - 1];
+        if (d >= 0) gain += d;
+        else loss += Math.abs(d);
+      }
+      const avgGain = gain / period;
+      const avgLoss = loss / period;
+      if (avgLoss === 0) return 100;
+      const rs = avgGain / avgLoss;
+      return 100 - (100 / (1 + rs));
+    };
+
+    const swings = (list, span = 2) => {
+      const highs = [];
+      const lows = [];
+      for (let i = span; i < list.length - span; i += 1) {
+        let isHigh = true;
+        let isLow = true;
+        for (let j = i - span; j <= i + span; j += 1) {
+          if (j === i) continue;
+          if (list[i].h <= list[j].h) isHigh = false;
+          if (list[i].l >= list[j].l) isLow = false;
+        }
+        if (isHigh) highs.push({ i, t: list[i].t, price: list[i].h });
+        if (isLow) lows.push({ i, t: list[i].t, price: list[i].l });
+      }
+      return { highs, lows };
+    };
+
+    const cluster = (values, tolerance) => {
+      const clean = values.filter(Number.isFinite).sort((a, b) => a - b);
+      if (!clean.length) return null;
+      let best = [clean[0]];
+      let cur = [clean[0]];
+      for (let i = 1; i < clean.length; i += 1) {
+        const avg = cur.reduce((s, v) => s + v, 0) / cur.length;
+        if (Math.abs(clean[i] - avg) <= tolerance) cur.push(clean[i]);
+        else {
+          if (cur.length > best.length) best = cur.slice();
+          cur = [clean[i]];
+        }
+      }
+      if (cur.length > best.length) best = cur.slice();
+      const level = best.reduce((s, v) => s + v, 0) / best.length;
+      return { level, touches: best.length };
+    };
+
+    const makeZone = (level, buffer) => zone({ low: level - buffer, high: level + buffer });
+
+    const trendLine = (points, currentIndex, tolerance) => {
+      const pts = points.slice(-4);
+      if (pts.length < 2) return null;
+      const a = pts[pts.length - 2];
+      const b = pts[pts.length - 1];
+      if (a.i === b.i) return null;
+      const slope = (b.price - a.price) / (b.i - a.i);
+      const value = b.price + slope * (currentIndex - b.i);
+      let touches = 0;
+      for (const p of pts) {
+        const lineAtP = b.price + slope * (p.i - b.i);
+        if (Math.abs(p.price - lineAtP) <= tolerance) touches += 1;
+      }
+      return { value, slope, touches, anchorA: a, anchorB: b, distance: Math.abs(price - value) };
+    };
+
+    const brn = (px) => {
+      if (!Number.isFinite(px)) return null;
+      const step = px >= 10000 ? 500 : px >= 1000 ? 100 : px >= 100 ? 10 : px >= 10 ? 1 : px >= 1 ? 0.1 : 0.01;
+      const level = Math.round(px / step) * step;
+      return { level, step, distance: Math.abs(px - level) };
+    };
+
+    const levelsFor = (side, entryZone, atrValue, minTarget, oppositeZone) => {
+      const z = zone(entryZone);
+      if (!z) return { entryPrimary: null, sl: null, tp1: null, tp2: null, tp3: null };
+      const width = Math.max(Math.abs(z.high - z.low), atrValue * 0.5);
+      const riskDist = Math.max(width * 1.25, atrValue * 0.85, minTarget * 0.28);
+      const target1 = Math.max(riskDist * 1.2, minTarget, atrValue * 1.4);
+
+      let tp1 = side === "BUY" ? z.mid + target1 : z.mid - target1;
+      let tp2 = side === "BUY" ? z.mid + target1 * 1.85 : z.mid - target1 * 1.85;
+      let tp3 = side === "BUY" ? z.mid + target1 * 2.75 : z.mid - target1 * 2.75;
+
+      if (oppositeZone) {
+        if (side === "BUY" && oppositeZone.mid > z.mid) tp1 = Math.max(tp1, oppositeZone.low);
+        if (side === "SELL" && oppositeZone.mid < z.mid) tp1 = Math.min(tp1, oppositeZone.high);
+      }
+
+      return {
+        entryPrimary: z,
+        sl: round(side === "BUY" ? z.low - riskDist : z.high + riskDist),
+        tp1: round(tp1),
+        tp2: round(tp2),
+        tp3: round(tp3)
+      };
+    };
+
+    if (!Number.isFinite(price) || candles.length < 30) {
+      out.version = "4.1.0-technical-sop";
+      out.sopStatus = "INSUFFICIENT_CANDLES";
+      out.reason = text(out.reason, "Candle history belum cukup untuk SOP Engine V4.1.");
+      return out;
+    }
+
+    const recent = candles.slice(-180);
+    const last = recent[recent.length - 1];
+    const prev = recent[recent.length - 2] || last;
+    const atrValue = atr(recent, 14) || Math.max(price * 0.002, 1);
+    const buffer = Math.max(atrValue * 0.45, price * 0.0008);
+    const tolerance = Math.max(atrValue * 0.65, buffer);
+
+    const swing = swings(recent, 2);
+    const lowCluster = cluster(swing.lows.slice(-16).map((p) => p.price), tolerance) || cluster(recent.slice(-80).map((c) => c.l), tolerance);
+    const highCluster = cluster(swing.highs.slice(-16).map((p) => p.price), tolerance) || cluster(recent.slice(-80).map((c) => c.h), tolerance);
+
+    const packetDemand = zone(out?.mtfContext?.demandZone);
+    const packetSupply = zone(out?.mtfContext?.supplyZone);
+    const demand = packetDemand || (lowCluster ? makeZone(lowCluster.level, buffer) : null);
+    const supply = packetSupply || (highCluster ? makeZone(highCluster.level, buffer) : null);
+
+    const ema21 = ema(recent, 21);
+    const ema50 = ema(recent, 50);
+    const ema200 = ema(recent, Math.min(200, recent.length));
+    const rsi14 = rsi(recent, 14);
+    const tSupport = trendLine(swing.lows, recent.length - 1, tolerance);
+    const tResistance = trendLine(swing.highs, recent.length - 1, tolerance);
+    const roundNumber = brn(price);
+
+    const baseVol = recent.slice(-20, -5);
+    const lastVol = recent.slice(-5);
+    const lastVolAvg = baseVol.reduce((s, c) => s + (c.v || 0), 0) / Math.max(1, baseVol.length);
+    const currentVolAvg = lastVol.reduce((s, c) => s + (c.v || 0), 0) / Math.max(1, lastVol.length);
+    const volumePressure = currentVolAvg > lastVolAvg * 1.15
+      ? (last.c >= last.o ? "BUYER PRESSURE" : "SELLER PRESSURE")
+      : "NORMAL";
+
+    const structureUp =
+      swing.lows.length >= 2 &&
+      swing.highs.length >= 2 &&
+      swing.lows[swing.lows.length - 1].price > swing.lows[swing.lows.length - 2].price &&
+      swing.highs[swing.highs.length - 1].price > swing.highs[swing.highs.length - 2].price;
+
+    const structureDown =
+      swing.lows.length >= 2 &&
+      swing.highs.length >= 2 &&
+      swing.lows[swing.lows.length - 1].price < swing.lows[swing.lows.length - 2].price &&
+      swing.highs[swing.highs.length - 1].price < swing.highs[swing.highs.length - 2].price;
+
+    const emaBias = Number.isFinite(ema21) && Number.isFinite(ema50)
+      ? (ema21 >= ema50 ? "BUY" : "SELL")
+      : text(out.side, "WAIT").toUpperCase();
+
+    const structureBias = structureUp ? "BUY" : structureDown ? "SELL" : emaBias;
+
+    let side = text(out.side, structureBias).toUpperCase();
+    if (side !== "BUY" && side !== "SELL") side = structureBias === "SELL" ? "SELL" : "BUY";
+
+    const nearDemand = !!demand && price <= demand.high + atrValue * 0.85;
+    const nearSupply = !!supply && price >= supply.low - atrValue * 0.85;
+    const inDemand = !!demand && price >= demand.low - buffer && price <= demand.high + buffer;
+    const inSupply = !!supply && price >= supply.low - buffer && price <= supply.high + buffer;
+
+    const demandReject = !!demand && last.l <= demand.high + buffer && last.c > last.o && last.c > demand.mid;
+    const supplyReject = !!supply && last.h >= supply.low - buffer && last.c < last.o && last.c < supply.mid;
+
+    const demandBreak = !!demand && last.c < demand.low - buffer && prev.c >= demand.low;
+    const supplyBreak = !!supply && last.c > supply.high + buffer && prev.c <= supply.high;
+
+    const demandRetestAfterBreak =
+      !!demand &&
+      price <= demand.high + atrValue * 0.65 &&
+      price >= demand.low - atrValue * 0.65 &&
+      recent.slice(-8).some((c) => c.c < demand.low - buffer);
+
+    const supplyRetestAfterBreak =
+      !!supply &&
+      price >= supply.low - atrValue * 0.65 &&
+      price <= supply.high + atrValue * 0.65 &&
+      recent.slice(-8).some((c) => c.c > supply.high + buffer);
+
+    const oldEntry = zone(out.entryPrimary);
+
+    const reachedTp1 = side === "SELL"
+      ? finite(out.tp1) && price <= Number(out.tp1) + atrValue * 0.4
+      : finite(out.tp1) && price >= Number(out.tp1) - atrValue * 0.4;
+
+    const reachedTp2 = side === "SELL"
+      ? finite(out.tp2) && price <= Number(out.tp2) + atrValue * 0.4
+      : finite(out.tp2) && price >= Number(out.tp2) - atrValue * 0.4;
+
+    const reachedTp3 = side === "SELL"
+      ? finite(out.tp3) && price <= Number(out.tp3) + atrValue * 0.4
+      : finite(out.tp3) && price >= Number(out.tp3) - atrValue * 0.4;
+
+    const touchedEntry = oldEntry && price >= oldEntry.low - buffer && price <= oldEntry.high + buffer;
+
+    const slHit = side === "SELL"
+      ? finite(out.sl) && price >= Number(out.sl) - buffer
+      : finite(out.sl) && price <= Number(out.sl) + buffer;
+
+    let lifecycle = text(out.lifecycle, "ZONE READY");
+    let decision = text(out.decision, side === "BUY" ? "OFFICIAL BUY" : "OFFICIAL SELL");
+    let activeZoneRole = "FRESH_ENTRY_ZONE";
+    let freshEntry = true;
+    let risk = text(out.risk, "Medium");
+    let activeZone = oldEntry || (side === "BUY" ? demand : supply) || (nearDemand ? demand : supply);
+    let reason = "SOP Engine V4.1 membaca bias, zona terdekat, trendline, SNR, BRN, RSI, volume, dan posisi harga sebelum memberi status.";
+
+    if (side === "SELL") {
+      if (slHit) {
+        lifecycle = "SL HIT / INVALID";
+        decision = "INVALID";
+        freshEntry = false;
+        activeZoneRole = "INVALIDATION";
+      } else if (reachedTp3) {
+        lifecycle = "TP3 HIT / SELL COMPLETED";
+        decision = "SELL COMPLETED";
+        freshEntry = false;
+        activeZoneRole = "TP_COMPLETED";
+      } else if (reachedTp2) {
+        lifecycle = "TP2 HIT / SELL RUNNING";
+        decision = "SELL RUNNING";
+        freshEntry = false;
+        activeZoneRole = "TP_AREA";
+      } else if (reachedTp1 || nearDemand) {
+        lifecycle = "SELL RUNNING — TP AREA";
+        decision = "SELL TP AREA";
+        freshEntry = false;
+        activeZoneRole = "DEMAND_REACTION_TP_AREA";
+        activeZone = demand || oldEntry;
+        reason = "Bias sell masih ada, tetapi harga sudah dekat demand/TP area. SOP tidak mengejar sell baru; tunggu demand break dan retest untuk continuation.";
+      } else if (demandBreak || demandRetestAfterBreak) {
+        lifecycle = "SELL CONTINUATION ZONE";
+        decision = "OFFICIAL SELL";
+        freshEntry = true;
+        activeZoneRole = "SBR_CONTINUATION";
+        activeZone = demand || oldEntry;
+        reason = "Demand/support ditembus atau sedang retest sebagai SBR. SOP mengizinkan sell continuation.";
+      } else if (inSupply || nearSupply || supplyReject) {
+        lifecycle = touchedEntry ? "ENTRY TOUCHED / SELL ACTIVE" : "SELL ZONE READY";
+        decision = "OFFICIAL SELL";
+        freshEntry = true;
+        activeZoneRole = "SUPPLY_ENTRY_ZONE";
+        activeZone = supply || oldEntry;
+      } else if (demandReject && rsi14 <= 45) {
+        side = "BUY";
+        lifecycle = "BUY WATCH — HIGH RISK COUNTER-TREND";
+        decision = "BUY WATCH";
+        freshEntry = false;
+        activeZoneRole = "COUNTER_TREND_DEMAND_REACTION";
+        activeZone = demand || oldEntry;
+        risk = "High";
+        reason = "Harga reject demand saat bias besar masih sell. SOP hanya memberi BUY WATCH high risk, bukan official buy.";
+      }
+    } else {
+      if (slHit) {
+        lifecycle = "SL HIT / INVALID";
+        decision = "INVALID";
+        freshEntry = false;
+        activeZoneRole = "INVALIDATION";
+      } else if (reachedTp3) {
+        lifecycle = "TP3 HIT / BUY COMPLETED";
+        decision = "BUY COMPLETED";
+        freshEntry = false;
+        activeZoneRole = "TP_COMPLETED";
+      } else if (reachedTp2) {
+        lifecycle = "TP2 HIT / BUY RUNNING";
+        decision = "BUY RUNNING";
+        freshEntry = false;
+        activeZoneRole = "TP_AREA";
+      } else if (reachedTp1 || nearSupply) {
+        lifecycle = "BUY RUNNING — TP AREA";
+        decision = "BUY TP AREA";
+        freshEntry = false;
+        activeZoneRole = "SUPPLY_REACTION_TP_AREA";
+        activeZone = supply || oldEntry;
+        reason = "Bias buy masih ada, tetapi harga sudah dekat supply/TP area. SOP tidak mengejar buy baru; tunggu supply break dan retest untuk continuation.";
+      } else if (supplyBreak || supplyRetestAfterBreak) {
+        lifecycle = "BUY CONTINUATION ZONE";
+        decision = "OFFICIAL BUY";
+        freshEntry = true;
+        activeZoneRole = "RBS_CONTINUATION";
+        activeZone = supply || oldEntry;
+        reason = "Supply/resistance ditembus atau sedang retest sebagai RBS. SOP mengizinkan buy continuation.";
+      } else if (inDemand || nearDemand || demandReject) {
+        lifecycle = touchedEntry ? "ENTRY TOUCHED / BUY ACTIVE" : "BUY ZONE READY";
+        decision = "OFFICIAL BUY";
+        freshEntry = true;
+        activeZoneRole = "DEMAND_ENTRY_ZONE";
+        activeZone = demand || oldEntry;
+      } else if (supplyReject && rsi14 >= 55) {
+        side = "SELL";
+        lifecycle = "SELL WATCH — HIGH RISK COUNTER-TREND";
+        decision = "SELL WATCH";
+        freshEntry = false;
+        activeZoneRole = "COUNTER_TREND_SUPPLY_REACTION";
+        activeZone = supply || oldEntry;
+        risk = "High";
+        reason = "Harga reject supply saat bias besar masih buy. SOP hanya memberi SELL WATCH high risk, bukan official sell.";
+      }
+    }
+
+    const minTarget = num(out.minTarget) || Math.max(atrValue * 1.5, price * 0.002);
+    const recompute = activeZone && (!oldEntry || activeZoneRole.includes("CONTINUATION") || activeZoneRole.includes("COUNTER_TREND"));
+
+    if (recompute) {
+      const levels = levelsFor(side, activeZone, atrValue, minTarget, side === "BUY" ? supply : demand);
+      out.entryPrimary = levels.entryPrimary || out.entryPrimary;
+      out.sl = levels.sl || out.sl;
+      out.tp1 = levels.tp1 || out.tp1;
+      out.tp2 = levels.tp2 || out.tp2;
+      out.tp3 = levels.tp3 || out.tp3;
+    }
+
+    let score = num(out.score, out.confidence, 60) || 60;
+
+    if ((side === "BUY" && structureBias === "BUY") || (side === "SELL" && structureBias === "SELL")) score += 8;
+    else score -= 7;
+
+    if ((side === "BUY" && nearDemand) || (side === "SELL" && nearSupply)) score += 9;
+    if (activeZoneRole.includes("TP_AREA")) score -= 12;
+    if (activeZoneRole.includes("COUNTER_TREND")) score -= 15;
+    if (roundNumber && roundNumber.distance <= atrValue * 0.35) score += 3;
+    if (tSupport && side === "BUY" && tSupport.distance <= atrValue) score += 5;
+    if (tResistance && side === "SELL" && tResistance.distance <= atrValue) score += 5;
+    if ((side === "BUY" && rsi14 < 35) || (side === "SELL" && rsi14 > 65)) score += 4;
+    if ((side === "BUY" && volumePressure === "BUYER PRESSURE") || (side === "SELL" && volumePressure === "SELLER PRESSURE")) score += 4;
+
+    score = Math.max(20, Math.min(98, Math.round(score)));
+
+    out.version = "4.1.0-technical-sop";
+    out.valid = !!out.entryPrimary && !!out.sl && !!out.tp1 && decision !== "INVALID";
+    out.side = side;
+    out.zoneType = side === "BUY" ? "BUY ZONE" : "SELL ZONE";
+    out.decision = decision;
+    out.lifecycle = lifecycle;
+    out.risk = risk;
+    out.score = score;
+    out.confidence = Math.max(num(out.confidence, score) || score, Math.min(score, 96));
+    out.freshEntry = freshEntry;
+    out.activeZoneRole = activeZoneRole;
+    out.hit = {
+      entry: !!touchedEntry,
+      sl: !!slHit,
+      tp1: !!reachedTp1,
+      tp2: !!reachedTp2,
+      tp3: !!reachedTp3
+    };
+
+    out.sop = {
+      name: "AiSignal Technical SOP Engine V4.1",
+      status: activeZoneRole,
+      structureBias,
+      emaBias,
+      swing: {
+        highs: swing.highs.slice(-4),
+        lows: swing.lows.slice(-4),
+        structureUp,
+        structureDown
+      },
+      trendline: {
+        support: tSupport ? {
+          value: round(tSupport.value),
+          slope: round(tSupport.slope, 8),
+          touches: tSupport.touches,
+          distance: round(tSupport.distance)
+        } : null,
+        resistance: tResistance ? {
+          value: round(tResistance.value),
+          slope: round(tResistance.slope, 8),
+          touches: tResistance.touches,
+          distance: round(tResistance.distance)
+        } : null
+      },
+      snr: {
+        demand,
+        supply,
+        demandTouches: lowCluster?.touches || 0,
+        supplyTouches: highCluster?.touches || 0
+      },
+      indicator: {
+        ema21: round(ema21),
+        ema50: round(ema50),
+        ema200: round(ema200),
+        rsi14: round(rsi14, 2),
+        atr14: round(atrValue),
+        volumePressure,
+        brn: roundNumber ? {
+          level: round(roundNumber.level),
+          distance: round(roundNumber.distance),
+          step: round(roundNumber.step)
+        } : null
+      },
+      rules: {
+        nearDemand,
+        nearSupply,
+        demandReject,
+        supplyReject,
+        demandBreak,
+        supplyBreak,
+        demandRetestAfterBreak,
+        supplyRetestAfterBreak
+      }
+    };
+
+    out.reason = reason + " Score SOP: " + score + ".";
+
+    try {
+      STATE.last = out;
+      window.__ASFX_PLAN_PACKET_LAST_V1__ = out;
+      window.dispatchEvent(new CustomEvent("asfx:plan-packet:v1", { detail: out }));
+    } catch (_) {}
+
+    return out;
+  }
+
+
+  const update = () => asfxTechnicalSopV41(asfxDecisiveZoneV401(buildPacket()));
+window.ASFXPlanPacketV1 = {
     version: "4.0.1-decisive-zone",
     build: update,
     latest: () => window.__ASFX_PLAN_PACKET_LAST_V1__ || update(),
