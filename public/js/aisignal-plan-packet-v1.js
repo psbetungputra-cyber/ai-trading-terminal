@@ -1333,9 +1333,288 @@
   }
 
 
-  const update = () => asfxTechnicalSopV41(asfxDecisiveZoneV401(buildPacket()));
+
+
+  /* ASFX_SOP_ENGINE_FINAL_V5
+     Final packet normalizer for the active web engine.
+     This keeps the existing SOP reader, then forces one clean output contract:
+     FRESH_ENTRY, WAITING_ZONE, REACTION_ZONE, TP/PROTECT, or SETUP_CLOSED.
+  */
+  const asfxSopEngineFinalV5 = (packet) => {
+    if (!packet || typeof packet !== "object") return packet;
+
+    const finite = (value) => Number.isFinite(Number(value));
+    const num = (...values) => {
+      for (const value of values) {
+        const n = Number(value);
+        if (Number.isFinite(n)) return n;
+      }
+      return null;
+    };
+    const roundV5 = (value, digits = 5) => {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return null;
+      const f = 10 ** digits;
+      return Math.round(n * f) / f;
+    };
+    const zoneV5 = (z) => {
+      if (!z || typeof z !== "object") return null;
+      const low = num(z.low, z.min, z.from);
+      const high = num(z.high, z.max, z.to);
+      if (!Number.isFinite(low) || !Number.isFinite(high)) return null;
+      const a = Math.min(low, high);
+      const b = Math.max(low, high);
+      return { low: roundV5(a), high: roundV5(b), mid: roundV5((a + b) / 2) };
+    };
+    const normalizeCandleV5 = (c, i) => {
+      if (!c) return null;
+      const o = num(c.o, c.open, Array.isArray(c) ? c[1] : null);
+      const h = num(c.h, c.high, Array.isArray(c) ? c[2] : null);
+      const l = num(c.l, c.low, Array.isArray(c) ? c[3] : null);
+      const close = num(c.c, c.close, Array.isArray(c) ? c[4] : null);
+      if (![o, h, l, close].every(Number.isFinite)) return null;
+      return { i, t: num(c.t, c.time, Array.isArray(c) ? c[0] : null) || i, o, h, l, c: close, v: num(c.v, c.volume, Array.isArray(c) ? c[5] : null) || 0 };
+    };
+    const candlesV5 = (Array.isArray(window.__ASFX_DETAIL_CANDLES_V1__) ? window.__ASFX_DETAIL_CANDLES_V1__ : [])
+      .map(normalizeCandleV5)
+      .filter(Boolean)
+      .slice(-240);
+    const atrV5 = (list, period = 14) => {
+      const src = list.slice(-period - 1);
+      if (src.length < 2) return 0;
+      let total = 0;
+      let count = 0;
+      for (let i = 1; i < src.length; i += 1) {
+        const prevClose = src[i - 1].c;
+        const tr = Math.max(src[i].h - src[i].l, Math.abs(src[i].h - prevClose), Math.abs(src[i].l - prevClose));
+        if (Number.isFinite(tr)) {
+          total += tr;
+          count += 1;
+        }
+      }
+      return count ? total / count : 0;
+    };
+
+    const p = { ...packet };
+    const last = candlesV5[candlesV5.length - 1] || {};
+    const price = num(p.price, p.currentPrice, p.source?.currentPrice, p.source?.price, last.c);
+    const entry = zoneV5(p.entryPrimary);
+    const demand = zoneV5(p.sop?.snr?.demand || p.mtfContext?.demandZone || p.demandZone);
+    const supply = zoneV5(p.sop?.snr?.supply || p.mtfContext?.supplyZone || p.supplyZone);
+
+    let side = String(p.side || "").toUpperCase();
+    if (side !== "BUY" && side !== "SELL" && entry && finite(p.tp1)) {
+      side = Number(p.tp1) >= Number(entry.mid) ? "BUY" : "SELL";
+    }
+
+    const atrValue = Math.max(
+      num(p.sop?.indicator?.atr14, p.zoneBrain?.atrValue, atrV5(candlesV5, 14), price ? Math.abs(price) * 0.0015 : null, 1) || 1,
+      1e-9
+    );
+    const buffer = Math.max(atrValue * 0.45, price ? Math.abs(price) * 0.0005 : 0);
+    const statusText = [p.decision, p.lifecycle, p.activeZoneRole, p.zoneType].filter(Boolean).join(" ").toUpperCase();
+
+    const insideZone = (z) => z && Number.isFinite(price) && price >= z.low - buffer && price <= z.high + buffer;
+    const distanceToZone = (z) => {
+      if (!z || !Number.isFinite(price)) return Infinity;
+      if (price < z.low) return z.low - price;
+      if (price > z.high) return price - z.high;
+      return 0;
+    };
+    const inEntry = insideZone(entry);
+    const inDemand = insideZone(demand);
+    const inSupply = insideZone(supply);
+
+    const hit = {
+      entry: !!(p.hit?.entry || inEntry),
+      sl: !!p.hit?.sl,
+      tp1: !!p.hit?.tp1,
+      tp2: !!p.hit?.tp2,
+      tp3: !!p.hit?.tp3
+    };
+    if (side === "BUY") {
+      if (finite(p.sl) && price <= Number(p.sl) + buffer) hit.sl = true;
+      if (finite(p.tp1) && price >= Number(p.tp1) - buffer) hit.tp1 = true;
+      if (finite(p.tp2) && price >= Number(p.tp2) - buffer) hit.tp2 = true;
+      if (finite(p.tp3) && price >= Number(p.tp3) - buffer) hit.tp3 = true;
+    } else if (side === "SELL") {
+      if (finite(p.sl) && price >= Number(p.sl) - buffer) hit.sl = true;
+      if (finite(p.tp1) && price <= Number(p.tp1) + buffer) hit.tp1 = true;
+      if (finite(p.tp2) && price <= Number(p.tp2) + buffer) hit.tp2 = true;
+      if (finite(p.tp3) && price <= Number(p.tp3) + buffer) hit.tp3 = true;
+    }
+
+    const liquidityV5 = (() => {
+      const list = candlesV5.slice(-50);
+      if (list.length < 12 || !Number.isFinite(price)) {
+        return { equalHigh: null, equalLow: null, sweepHigh: false, sweepLow: false, stopHunt: false, note: "Liquidity belum cukup terbaca." };
+      }
+      const prev = list.slice(0, -1);
+      const highs = prev.map((c) => c.h).filter(Number.isFinite).slice(-24);
+      const lows = prev.map((c) => c.l).filter(Number.isFinite).slice(-24);
+      const maxHigh = highs.length ? Math.max(...highs) : null;
+      const minLow = lows.length ? Math.min(...lows) : null;
+      const highTouches = maxHigh ? highs.filter((v) => Math.abs(v - maxHigh) <= buffer).length : 0;
+      const lowTouches = minLow ? lows.filter((v) => Math.abs(v - minLow) <= buffer).length : 0;
+      const lastHigh = Number(list[list.length - 1].h);
+      const lastLow = Number(list[list.length - 1].l);
+      const lastClose = Number(list[list.length - 1].c);
+      const sweepHigh = Number.isFinite(maxHigh) && lastHigh > maxHigh + buffer * 0.2 && lastClose < maxHigh;
+      const sweepLow = Number.isFinite(minLow) && lastLow < minLow - buffer * 0.2 && lastClose > minLow;
+      let note = "Liquidity normal.";
+      if (sweepHigh) note = "Sweep equal high terdeteksi; buyer berpotensi kehabisan tenaga.";
+      else if (sweepLow) note = "Sweep equal low terdeteksi; seller berpotensi kehabisan tenaga.";
+      else if (highTouches >= 2) note = "Equal high/liquidity atas terpantau.";
+      else if (lowTouches >= 2) note = "Equal low/liquidity bawah terpantau.";
+      return {
+        equalHigh: maxHigh ? { level: roundV5(maxHigh), touches: highTouches } : null,
+        equalLow: minLow ? { level: roundV5(minLow), touches: lowTouches } : null,
+        sweepHigh,
+        sweepLow,
+        stopHunt: sweepHigh || sweepLow,
+        note
+      };
+    })();
+
+    const indicator = p.sop?.indicator || {};
+    const rules = p.sop?.rules || {};
+    const structure = p.sop || {};
+    const rsi14 = num(indicator.rsi14, 50) || 50;
+    const volumePressure = String(indicator.volumePressure || p.volumeFlow?.direction || "").toUpperCase();
+    const structureUp = !!p.sop?.swing?.structureUp;
+    const structureDown = !!p.sop?.swing?.structureDown;
+    const nearDemand = !!rules.nearDemand || inDemand;
+    const nearSupply = !!rules.nearSupply || inSupply;
+    const demandReject = !!rules.demandReject;
+    const supplyReject = !!rules.supplyReject;
+
+    let continuationScore = 50;
+    if (side === "BUY") {
+      if (structureUp) continuationScore += 8;
+      if (volumePressure.includes("BUYER")) continuationScore += 9;
+      if (rsi14 >= 42 && rsi14 <= 72) continuationScore += 6;
+      if (nearSupply || supplyReject) continuationScore -= 18;
+      if (rsi14 > 76 || liquidityV5.sweepHigh) continuationScore -= 14;
+      if (liquidityV5.sweepLow) continuationScore += 6;
+    } else if (side === "SELL") {
+      if (structureDown) continuationScore += 8;
+      if (volumePressure.includes("SELLER")) continuationScore += 9;
+      if (rsi14 >= 28 && rsi14 <= 58) continuationScore += 6;
+      if (nearDemand || demandReject) continuationScore -= 18;
+      if (rsi14 < 24 || liquidityV5.sweepLow) continuationScore -= 14;
+      if (liquidityV5.sweepHigh) continuationScore += 6;
+    }
+    continuationScore = Math.max(0, Math.min(100, Math.round(continuationScore)));
+    const tp2Valid = continuationScore >= 54 && !hit.sl && !hit.tp3;
+    const tp3Valid = continuationScore >= 66 && !hit.sl && !hit.tp3;
+
+    const hasEntryPlan = !!entry && (side === "BUY" || side === "SELL") && p.valid !== false && finite(p.sl) && finite(p.tp1) && finite(p.tp2);
+    const closed = hit.sl || hit.tp3 || /INVALID|CLOSED|COMPLETED|SL HIT/.test(statusText);
+    const running = /TP AREA|RUNNING|PROTECT|TP1 HIT|TP2 HIT|TP3 HIT/.test(statusText) || hit.tp1 || hit.tp2;
+    let chartMode = "ZONE_SCAN";
+    let decision = "ZONE SCAN";
+    let lifecycle = "SCANNING ZONE";
+    let freshEntry = false;
+    let contextZone = null;
+    let targetReason = "Belum ada zona aktif yang cukup bersih.";
+
+    if (closed) {
+      chartMode = "SETUP_CLOSED";
+      decision = hit.sl ? "INVALID" : side + " COMPLETED";
+      lifecycle = hit.sl ? "SL HIT / SETUP CLOSED" : "TP3 HIT / SETUP COMPLETED";
+      targetReason = hit.sl ? "SL/invalidasi terkena. Setup ditutup." : "TP3 sudah tercapai. Setup selesai.";
+    } else if (hit.tp2) {
+      chartMode = tp3Valid ? "TP2_HIT_TP3_VALID" : "TP2_HIT_PROTECT_PROFIT";
+      decision = side + (tp3Valid ? " TP2 HIT — TP3 VALID" : " TP2 HIT — PROTECT PROFIT");
+      lifecycle = side + (tp3Valid ? " RUNNING — TP3 WATCH" : " RUNNING — PROTECT PROFIT");
+      targetReason = tp3Valid ? "TP2 sudah kena; TP3 masih valid tapi wajib dijaga." : "TP2 sudah kena; momentum ke TP3 melemah. Protect profit lebih aman.";
+      contextZone = side === "BUY" ? supply : demand;
+    } else if (hit.tp1 || running) {
+      chartMode = tp2Valid ? "TP1_HIT_TP2_VALID" : "TP1_HIT_PROTECT_PROFIT";
+      decision = side + (tp2Valid ? " TP1 HIT — TP2 VALID" : " TP1 HIT — PROTECT PROFIT");
+      lifecycle = side + (tp2Valid ? " RUNNING — TP2 WATCH" : " RUNNING — PROTECT PROFIT");
+      targetReason = tp2Valid ? "TP1 sudah kena; TP2 masih valid berdasarkan momentum, volume, zona lawan, RSI, dan liquidity." : "TP1 sudah kena atau harga berada di TP area; TP2/TP3 kurang sehat. Protect profit, jangan kejar entry baru.";
+      contextZone = side === "BUY" ? supply : demand;
+    } else if (hasEntryPlan && inEntry) {
+      chartMode = "FRESH_ENTRY";
+      decision = side === "BUY" ? "OFFICIAL BUY" : "OFFICIAL SELL";
+      lifecycle = side + " ENTRY ZONE ACTIVE";
+      freshEntry = true;
+      contextZone = entry;
+      targetReason = "Harga sudah berada di dalam/dekat entry zone. Entry/SL/TP valid untuk chart indicator.";
+    } else if (hasEntryPlan && !inEntry) {
+      chartMode = "WAITING_ZONE";
+      decision = side + " WATCH";
+      lifecycle = side + " WAITING ENTRY ZONE";
+      contextZone = entry;
+      targetReason = "Zona entry sudah terbaca, tapi harga belum masuk zona. Tunggu price masuk zona dan konfirmasi candle/volume.";
+    } else if (demand || supply) {
+      const demandDist = distanceToZone(demand);
+      const supplyDist = distanceToZone(supply);
+      const useDemand = demand && (!supply || demandDist <= supplyDist);
+      side = useDemand ? "BUY" : "SELL";
+      contextZone = useDemand ? demand : supply;
+      chartMode = insideZone(contextZone) ? "REACTION_ZONE" : "WAITING_ZONE";
+      decision = side + " WATCH";
+      lifecycle = useDemand ? "DEMAND/RBR WATCH ZONE" : "SUPPLY/DBD WATCH ZONE";
+      targetReason = useDemand ? "Demand/support context terbaca. Tunggu harga masuk zona dan rejection buyer." : "Supply/resistance context terbaca. Tunggu harga masuk zona dan rejection seller.";
+    }
+
+    p.version = "5.0.0-sop-engine";
+    p.engineName = "AiSignal SOP Engine V5";
+    p.side = side === "BUY" || side === "SELL" ? side : p.side;
+    p.price = roundV5(price);
+    p.valid = chartMode !== "ZONE_SCAN" && chartMode !== "SETUP_CLOSED" && p.valid !== false;
+    p.decision = decision;
+    p.lifecycle = lifecycle;
+    p.chartMode = chartMode;
+    p.visualMode = chartMode;
+    p.freshEntry = !!freshEntry;
+    p.noFreshEntry = !freshEntry;
+    p.hit = hit;
+    p.liquidity = liquidityV5;
+    p.contextZone = zoneV5(contextZone);
+    p.watchZone = chartMode === "WAITING_ZONE" || chartMode === "REACTION_ZONE" ? zoneV5(contextZone) : null;
+    p.contextZoneText = p.contextZone ? `${p.contextZone.low} - ${p.contextZone.high}` : "";
+    p.targetValidity = {
+      continuationScore,
+      tp2Valid,
+      tp3Valid,
+      protectProfit: /PROTECT/.test(chartMode),
+      reason: targetReason
+    };
+    p.activeLines = {
+      entry: chartMode === "FRESH_ENTRY",
+      sl: chartMode === "FRESH_ENTRY",
+      tp1: chartMode === "FRESH_ENTRY" && !hit.tp1,
+      tp2: chartMode === "FRESH_ENTRY" || chartMode === "TP1_HIT_TP2_VALID",
+      tp3: chartMode === "FRESH_ENTRY" || chartMode === "TP1_HIT_TP2_VALID" || chartMode === "TP2_HIT_TP3_VALID",
+      contextZone: chartMode === "WAITING_ZONE" || chartMode === "REACTION_ZONE" || /PROTECT|TP/.test(chartMode)
+    };
+    p.sop = {
+      ...(p.sop || {}),
+      name: "AiSignal SOP Engine V5",
+      version: "5.0.0",
+      finalizer: {
+        chartMode,
+        inEntry,
+        buffer: roundV5(buffer),
+        contextZone: p.contextZone,
+        liquidity: liquidityV5,
+        targetValidity: p.targetValidity
+      }
+    };
+    p.reason = targetReason + " " + String(p.reason || "");
+
+    STATE.last = p;
+    window.__ASFX_PLAN_PACKET_LAST_V1__ = p;
+    try { window.dispatchEvent(new CustomEvent("asfx:plan-packet:v1", { detail: p })); } catch (_) {}
+    return p;
+  };
+
+  const update = () => asfxSopEngineFinalV5(asfxTechnicalSopV41(asfxDecisiveZoneV401(buildPacket())));
 window.ASFXPlanPacketV1 = {
-    version: "4.0.1-decisive-zone",
+    version: "5.0.0-sop-engine",
     build: update,
     latest: () => window.__ASFX_PLAN_PACKET_LAST_V1__ || update(),
     state: STATE
@@ -1344,6 +1623,6 @@ window.ASFXPlanPacketV1 = {
   update();
   setInterval(update, 1200);
 
-  console.info("ASFX Zone Brain V4.0.1 Decisive ready.");
+  console.info("ASFX SOP Engine V5 ready.");
 })();
 
