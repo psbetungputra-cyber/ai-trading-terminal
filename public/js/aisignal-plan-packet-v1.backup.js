@@ -460,7 +460,10 @@
     return state.lifecycle;
   };
 
-  /* ASFX_ZONE_BRAIN_V4_ENGINE */
+  /* ASFX_ZONE_BRAIN_V4_ENGINE
+     Official zone brain: converts candle history into BUY/SELL zone packet.
+     Signal tab and chart consume this packet; Risk/AI explain safety and reason.
+  */
   const avgRange = (candles, period = 20) => {
     const list = (candles || []).slice(-period);
     if (!list.length) return 0;
@@ -767,7 +770,10 @@
   };
 
 
-  /* ASFX_DECISIVE_ZONE_V401 */
+  /* ASFX_DECISIVE_ZONE_V401
+     Small safe normalizer only.
+     Does not touch chart renderer, indicator source, or UI layout.
+  */
   const asfxDecisiveZoneV401 = (packet) => {
     if (!packet || typeof packet !== "object") return packet;
 
@@ -828,7 +834,11 @@
     return p;
   };
 
-  /* ASFX_TECHNICAL_SOP_ENGINE_V41 */
+  /* ASFX_TECHNICAL_SOP_ENGINE_V41
+     Full SOP layer: swing, trendline, SNR/RBS/SBR, BRN, EMA/RSI/ATR/volume,
+     active zone selector, TP area guard, continuation zone, and hit flags.
+     This upgrades the brain only; chart/UI render is untouched.
+  */
   function asfxTechnicalSopV41(packet) {
     const finite = (value) => Number.isFinite(Number(value));
     const num = (...values) => {
@@ -1018,39 +1028,6 @@
     const tolerance = Math.max(atrValue * 0.65, buffer);
 
     const swing = swings(recent, 2);
-    
-    // --- ASFX SURGICAL MODULE: BOS & CHOCH DETECTOR ---
-    let bosStatus = "NONE";
-    let chochStatus = "NONE";
-    let smcTrendSignal = "NEUTRAL";
-
-    const structureUp =
-      swing.lows.length >= 2 &&
-      swing.highs.length >= 2 &&
-      swing.lows[swing.lows.length - 1].price > swing.lows[swing.lows.length - 2].price &&
-      swing.highs[swing.highs.length - 1].price > swing.highs[swing.highs.length - 2].price;
-
-    const structureDown =
-      swing.lows.length >= 2 &&
-      swing.highs.length >= 2 &&
-      swing.lows[swing.lows.length - 1].price < swing.lows[swing.lows.length - 2].price &&
-      swing.highs[swing.highs.length - 1].price < swing.highs[swing.highs.length - 2].price;
-
-    if (swing.highs.length >= 2 && swing.lows.length >= 2) {
-        const recentHigh = swing.highs[swing.highs.length - 1].price;
-        const recentLow = swing.lows[swing.lows.length - 1].price;
-
-        // Validasi penembusan menggunakan Body Candle (Harga Close), bukan sekadar Wick
-        if (last.c > recentHigh) {
-            if (structureUp) { bosStatus = "BULLISH_BOS"; smcTrendSignal = "BUY"; }
-            else { chochStatus = "BULLISH_CHOCH"; smcTrendSignal = "BUY"; }
-        } else if (last.c < recentLow) {
-            if (structureDown) { bosStatus = "BEARISH_BOS"; smcTrendSignal = "SELL"; }
-            else { chochStatus = "BEARISH_CHOCH"; smcTrendSignal = "SELL"; }
-        }
-    }
-    // --- END BOS/CHOCH MODULE ---
-
     const lowCluster = cluster(swing.lows.slice(-16).map((p) => p.price), tolerance) || cluster(recent.slice(-80).map((c) => c.l), tolerance);
     const highCluster = cluster(swing.highs.slice(-16).map((p) => p.price), tolerance) || cluster(recent.slice(-80).map((c) => c.h), tolerance);
 
@@ -1075,12 +1052,23 @@
       ? (last.c >= last.o ? "BUYER PRESSURE" : "SELLER PRESSURE")
       : "NORMAL";
 
+    const structureUp =
+      swing.lows.length >= 2 &&
+      swing.highs.length >= 2 &&
+      swing.lows[swing.lows.length - 1].price > swing.lows[swing.lows.length - 2].price &&
+      swing.highs[swing.highs.length - 1].price > swing.highs[swing.highs.length - 2].price;
+
+    const structureDown =
+      swing.lows.length >= 2 &&
+      swing.highs.length >= 2 &&
+      swing.lows[swing.lows.length - 1].price < swing.lows[swing.lows.length - 2].price &&
+      swing.highs[swing.highs.length - 1].price < swing.highs[swing.highs.length - 2].price;
+
     const emaBias = Number.isFinite(ema21) && Number.isFinite(ema50)
       ? (ema21 >= ema50 ? "BUY" : "SELL")
       : text(out.side, "WAIT").toUpperCase();
 
-    // Integrasi SMC Signal ke dalam penentu arah struktur utama
-    const structureBias = smcTrendSignal !== "NEUTRAL" ? smcTrendSignal : (structureUp ? "BUY" : structureDown ? "SELL" : emaBias);
+    const structureBias = structureUp ? "BUY" : structureDown ? "SELL" : emaBias;
 
     let side = text(out.side, structureBias).toUpperCase();
     if (side !== "BUY" && side !== "SELL") side = structureBias === "SELL" ? "SELL" : "BUY";
@@ -1256,18 +1244,6 @@
     if ((side === "BUY" && rsi14 < 35) || (side === "SELL" && rsi14 > 65)) score += 4;
     if ((side === "BUY" && volumePressure === "BUYER PRESSURE") || (side === "SELL" && volumePressure === "SELLER PRESSURE")) score += 4;
 
-    // Tambahan Skor dari SMC BOS/CHOCH Detector
-    if (bosStatus === "BULLISH_BOS" && side === "BUY") score += 10;
-    if (bosStatus === "BEARISH_BOS" && side === "SELL") score += 10;
-    if (chochStatus === "BULLISH_CHOCH" && side === "BUY") { 
-        score += 15; 
-        reason += " Terdeteksi Bullish CHoCH (Trend berbalik naik)."; 
-    }
-    if (chochStatus === "BEARISH_CHOCH" && side === "SELL") { 
-        score += 15; 
-        reason += " Terdeteksi Bearish CHoCH (Trend berbalik turun)."; 
-    }
-
     score = Math.max(20, Math.min(98, Math.round(score)));
 
     out.version = "4.1.0-technical-sop";
@@ -1294,10 +1270,6 @@
       status: activeZoneRole,
       structureBias,
       emaBias,
-      smc: {
-        bos: bosStatus,
-        choch: chochStatus
-      },
       swing: {
         highs: swing.highs.slice(-4),
         lows: swing.lows.slice(-4),
@@ -1360,7 +1332,14 @@
     return out;
   }
 
-  /* ASFX_SOP_ENGINE_FINAL_V5 */
+
+
+
+  /* ASFX_SOP_ENGINE_FINAL_V5
+     Final packet normalizer for the active web engine.
+     This keeps the existing SOP reader, then forces one clean output contract:
+     FRESH_ENTRY, WAITING_ZONE, REACTION_ZONE, TP/PROTECT, or SETUP_CLOSED.
+  */
   const asfxSopEngineFinalV5 = (packet) => {
     if (!packet || typeof packet !== "object") return packet;
 
@@ -1499,6 +1478,7 @@
 
     const indicator = p.sop?.indicator || {};
     const rules = p.sop?.rules || {};
+    const structure = p.sop || {};
     const rsi14 = num(indicator.rsi14, 50) || 50;
     const volumePressure = String(indicator.volumePressure || p.volumeFlow?.direction || "").toUpperCase();
     const structureUp = !!p.sop?.swing?.structureUp;
@@ -1529,19 +1509,8 @@
     const tp3Valid = continuationScore >= 66 && !hit.sl && !hit.tp3;
 
     const hasEntryPlan = !!entry && (side === "BUY" || side === "SELL") && p.valid !== false && finite(p.sl) && finite(p.tp1) && finite(p.tp2);
-
-    // --- ASFX SURGICAL MODULE: MTF MAGNET TRACKER & SCALING ---
-    const mtfMagnetDistance = atrValue * 6.5; 
-    const mtfMagnetZone = {
-      low: side === "BUY" ? roundV5(price + mtfMagnetDistance) : roundV5(price - mtfMagnetDistance - buffer),
-      high: side === "BUY" ? roundV5(price + mtfMagnetDistance + buffer) : roundV5(price - mtfMagnetDistance),
-      role: "HTF_MAGNET_TARGET"
-    };
-
-    const closed = hit.sl || /INVALID|CLOSED|SL HIT/.test(statusText);
-    const magnetReached = side === "BUY" ? price >= mtfMagnetZone.low : price <= mtfMagnetZone.high;
-    const running = /TP AREA|RUNNING|PROTECT|TP1 HIT|TP2 HIT|TP3 HIT/.test(statusText) || hit.tp1 || hit.tp2 || hit.tp3;
-    
+    const closed = hit.sl || hit.tp3 || /INVALID|CLOSED|COMPLETED|SL HIT/.test(statusText);
+    const running = /TP AREA|RUNNING|PROTECT|TP1 HIT|TP2 HIT|TP3 HIT/.test(statusText) || hit.tp1 || hit.tp2;
     let chartMode = "ZONE_SCAN";
     let decision = "ZONE SCAN";
     let lifecycle = "SCANNING ZONE";
@@ -1551,33 +1520,34 @@
 
     if (closed) {
       chartMode = "SETUP_CLOSED";
-      decision = "INVALID";
-      lifecycle = "SL HIT / SETUP CLOSED";
-      targetReason = "SL/invalidasi terkena. Setup ditutup.";
-    } else if (magnetReached) {
-      chartMode = "SETUP_CLOSED";
-      decision = side + " COMPLETED";
-      lifecycle = "HTF MAGNET HIT / SETUP COMPLETED";
-      targetReason = "Harga sudah mencapai Magnet Target di Timeframe Besar. Mesin berhenti mencari entri searah.";
-    } else if (hit.tp3 || hit.tp2 || hit.tp1) {
-      chartMode = "SCALING_IN_MODE";
-      decision = side + " RUNNING — SCALING ALLOWED";
-      lifecycle = "PULLBACK WATCH FOR NEW ENTRY";
-      targetReason = `TP sudah tercapai, TAPI target HTF Magnet masih di ${mtfMagnetZone.low}. Mesin memantau pullback untuk entri bertumpuk (Scaling In).`;
-      contextZone = side === "BUY" ? demand : supply;
+      decision = hit.sl ? "INVALID" : side + " COMPLETED";
+      lifecycle = hit.sl ? "SL HIT / SETUP CLOSED" : "TP3 HIT / SETUP COMPLETED";
+      targetReason = hit.sl ? "SL/invalidasi terkena. Setup ditutup." : "TP3 sudah tercapai. Setup selesai.";
+    } else if (hit.tp2) {
+      chartMode = tp3Valid ? "TP2_HIT_TP3_VALID" : "TP2_HIT_PROTECT_PROFIT";
+      decision = side + (tp3Valid ? " TP2 HIT — TP3 VALID" : " TP2 HIT — PROTECT PROFIT");
+      lifecycle = side + (tp3Valid ? " RUNNING — TP3 WATCH" : " RUNNING — PROTECT PROFIT");
+      targetReason = tp3Valid ? "TP2 sudah kena; TP3 masih valid tapi wajib dijaga." : "TP2 sudah kena; momentum ke TP3 melemah. Protect profit lebih aman.";
+      contextZone = side === "BUY" ? supply : demand;
+    } else if (hit.tp1 || running) {
+      chartMode = tp2Valid ? "TP1_HIT_TP2_VALID" : "TP1_HIT_PROTECT_PROFIT";
+      decision = side + (tp2Valid ? " TP1 HIT — TP2 VALID" : " TP1 HIT — PROTECT PROFIT");
+      lifecycle = side + (tp2Valid ? " RUNNING — TP2 WATCH" : " RUNNING — PROTECT PROFIT");
+      targetReason = tp2Valid ? "TP1 sudah kena; TP2 masih valid berdasarkan momentum, volume, zona lawan, RSI, dan liquidity." : "TP1 sudah kena atau harga berada di TP area; TP2/TP3 kurang sehat. Protect profit, jangan kejar entry baru.";
+      contextZone = side === "BUY" ? supply : demand;
     } else if (hasEntryPlan && inEntry) {
       chartMode = "FRESH_ENTRY";
       decision = side === "BUY" ? "OFFICIAL BUY" : "OFFICIAL SELL";
       lifecycle = side + " ENTRY ZONE ACTIVE";
       freshEntry = true;
       contextZone = entry;
-      targetReason = "Harga berada di entry zone. Potensi pergerakan menuju HTF Magnet.";
+      targetReason = "Harga sudah berada di dalam/dekat entry zone. Entry/SL/TP valid untuk chart indicator.";
     } else if (hasEntryPlan && !inEntry) {
       chartMode = "WAITING_ZONE";
       decision = side + " WATCH";
       lifecycle = side + " WAITING ENTRY ZONE";
       contextZone = entry;
-      targetReason = "Menunggu harga pullback ke dalam zona sebelum mengejar HTF Magnet.";
+      targetReason = "Zona entry sudah terbaca, tapi harga belum masuk zona. Tunggu price masuk zona dan konfirmasi candle/volume.";
     } else if (demand || supply) {
       const demandDist = distanceToZone(demand);
       const supplyDist = distanceToZone(supply);
@@ -1586,14 +1556,9 @@
       contextZone = useDemand ? demand : supply;
       chartMode = insideZone(contextZone) ? "REACTION_ZONE" : "WAITING_ZONE";
       decision = side + " WATCH";
-      lifecycle = useDemand ? "DEMAND WATCH ZONE" : "SUPPLY WATCH ZONE";
-      targetReason = useDemand ? "Demand context terbaca. Tunggu rejection buyer." : "Supply context terbaca. Tunggu rejection seller.";
+      lifecycle = useDemand ? "DEMAND/RBR WATCH ZONE" : "SUPPLY/DBD WATCH ZONE";
+      targetReason = useDemand ? "Demand/support context terbaca. Tunggu harga masuk zona dan rejection buyer." : "Supply/resistance context terbaca. Tunggu harga masuk zona dan rejection seller.";
     }
-    
-    p.mtfContext = p.mtfContext || {};
-    p.mtfContext.magnetZone = mtfMagnetZone;
-    p.mtfContext.magnetReached = magnetReached;
-    // --- END SURGICAL MODULE ---
 
     p.version = "5.0.0-sop-engine";
     p.engineName = "AiSignal SOP Engine V5";
@@ -1618,17 +1583,14 @@
       protectProfit: /PROTECT/.test(chartMode),
       reason: targetReason
     };
-    
-    const isScalingOrFresh = chartMode === "FRESH_ENTRY" || chartMode === "SCALING_IN_MODE";
     p.activeLines = {
-      entry: isScalingOrFresh,
-      sl: isScalingOrFresh,
-      tp1: (isScalingOrFresh && !hit.tp1) || chartMode === "SCALING_IN_MODE",
-      tp2: isScalingOrFresh || chartMode === "TP1_HIT_TP2_VALID",
-      tp3: isScalingOrFresh || chartMode === "TP1_HIT_TP2_VALID" || chartMode === "TP2_HIT_TP3_VALID",
-      contextZone: chartMode === "WAITING_ZONE" || chartMode === "REACTION_ZONE" || /PROTECT|TP|SCALING/.test(chartMode)
+      entry: chartMode === "FRESH_ENTRY",
+      sl: chartMode === "FRESH_ENTRY",
+      tp1: chartMode === "FRESH_ENTRY" && !hit.tp1,
+      tp2: chartMode === "FRESH_ENTRY" || chartMode === "TP1_HIT_TP2_VALID",
+      tp3: chartMode === "FRESH_ENTRY" || chartMode === "TP1_HIT_TP2_VALID" || chartMode === "TP2_HIT_TP3_VALID",
+      contextZone: chartMode === "WAITING_ZONE" || chartMode === "REACTION_ZONE" || /PROTECT|TP/.test(chartMode)
     };
-    
     p.sop = {
       ...(p.sop || {}),
       name: "AiSignal SOP Engine V5",
@@ -1644,136 +1606,23 @@
     };
     p.reason = targetReason + " " + String(p.reason || "");
 
-    const asfxCheckZoneTouch = (currentPrice, candleHigh, candleLow, zoneLow, zoneHigh) => {
-        if (!currentPrice || !zoneLow || !zoneHigh) return false;
-        if (currentPrice >= zoneLow && currentPrice <= zoneHigh) return true;
-        if (candleLow && candleHigh && candleLow <= zoneHigh && candleHigh >= zoneLow) return true;
-        return false;
-    };
-
-    const asfxBuildPrecisionPlan = (side, zoneLow, zoneHigh) => {
-        const zBuffer = (zoneHigh + zoneLow) / 2 * 0.001; 
-        let entryPrimary, sl, risk;
-        if (side === "BUY") { entryPrimary = zoneHigh; sl = zoneLow - zBuffer; risk = entryPrimary - sl; } 
-        else if (side === "SELL") { entryPrimary = zoneLow; sl = zoneHigh + zBuffer; risk = sl - entryPrimary; } 
-        else return null; 
-        if (risk <= 0) risk = entryPrimary * 0.001; 
-        return {
-            entryPrimary: Number(entryPrimary.toFixed(4)),
-            sl: Number(sl.toFixed(4)),
-            tp1: Number((side === "BUY" ? entryPrimary + risk : entryPrimary - risk).toFixed(4)),
-            tp2: Number((side === "BUY" ? entryPrimary + (risk * 2.0) : entryPrimary - (risk * 2.0)).toFixed(4)),
-            tp3: Number((side === "BUY" ? entryPrimary + (risk * 3.5) : entryPrimary - (risk * 3.5)).toFixed(4))
-        };
-    };
-
-    if (p.side === "BUY" || p.side === "SELL") {
-        const zLow = p.watchZone?.low || p.contextZone?.low || p.entryPrimary?.low;
-        const zHigh = p.watchZone?.high || p.contextZone?.high || p.entryPrimary?.high;
-
-        if (zLow && zHigh) {
-            const isTouched = asfxCheckZoneTouch(price, last?.h || price, last?.l || price, zLow, zHigh);
-            const precisionPlan = asfxBuildPrecisionPlan(p.side, zLow, zHigh);
-
-            if (isTouched && precisionPlan) {
-                p.zoneTouched = true;
-                p.freshEntry = true;
-                if(typeof p.entryPrimary === 'object' && p.entryPrimary !== null) {
-                    p.entryPrimary.low = zLow; p.entryPrimary.high = zHigh; p.entryPrimary.mid = (zLow + zHigh) / 2;
-                } else {
-                    p.entryPrimary = { low: zLow, high: zHigh, mid: (zLow + zHigh) / 2 };
-                }
-                p.sl = precisionPlan.sl; p.tp1 = precisionPlan.tp1; p.tp2 = precisionPlan.tp2; p.tp3 = precisionPlan.tp3;
-                if (!/TP1_HIT|TP2_HIT|TP3_HIT|PROTECT_PROFIT|COMPLETED/.test(p.decision)) {
-                     p.decision = "ACTIVE_PLAN"; p.chartMode = "FRESH_ENTRY"; p.lifecycle = p.side + " ENTRY ZONE ACTIVE";
-                     p.activeLines = { entry: true, sl: true, tp1: true, tp2: true, tp3: true, contextZone: true };
-                }
-            }
-        }
-    }
-    
-    if (/COMPLETED|INVALID|CLOSED/.test(p.decision) || p.chartMode === "SETUP_CLOSED") {
-        const priceDistance = p.entryPrimary ? Math.abs(price - p.entryPrimary.mid) : 0;
-        const safeDistance = p.entryPrimary ? Math.abs(p.entryPrimary.high - p.entryPrimary.low) * 2.5 : price * 0.005;
-        if (priceDistance > safeDistance) {
-            p.decision = "WAIT_NEW_ZONE"; p.lifecycle = "ROTATING TO NEW SBR/RBS"; p.chartMode = "ZONE_SCAN";
-            p.reason = "Harga sudah beranjak jauh dari setup lama. Mesin mereset memori untuk memindai zona SBR/RBS baru (Active Zone Rotation).";
-            p.entryPrimary = null; p.sl = null; p.tp1 = null; p.tp2 = null; p.tp3 = null; p.valid = false;
-        }
-    }
-
     STATE.last = p;
     window.__ASFX_PLAN_PACKET_LAST_V1__ = p;
     try { window.dispatchEvent(new CustomEvent("asfx:plan-packet:v1", { detail: p })); } catch (_) {}
     return p;
   };
 
-  // --- ASFX SURGICAL MODULE: HISTORY LOGGER V1 ---
-  const asfxHistoryLoggerV1 = (packet) => {
-    if (!packet || !packet.valid) return packet;
-    
-    const isEntry = packet.chartMode === "FRESH_ENTRY";
-    const isClosed = packet.chartMode === "SETUP_CLOSED";
-    const isTP = /TP1|TP2|TP3|PROTECT/.test(packet.chartMode);
-    const isScaling = packet.chartMode === "SCALING_IN_MODE";
-
-    if (!isEntry && !isClosed && !isTP && !isScaling) return packet;
-
-    try {
-        const historyKey = "ASFX_TRADE_HISTORY_V1";
-        let history = JSON.parse(localStorage.getItem(historyKey)) || [];
-        
-        const setupId = `${packet.pair}_${packet.timeframe}_${packet.side}_${packet.entryPrimary?.mid}`;
-        const existingIndex = history.findIndex(h => h.id === setupId);
-        
-        let profitStatus = 'RUNNING';
-        if (packet.hit?.tp1 || packet.hit?.tp2 || packet.hit?.tp3) profitStatus = 'PROFIT';
-        else if (packet.hit?.sl) profitStatus = 'LOSS';
-
-        const logEntry = {
-            id: setupId,
-            timestamp: new Date().toISOString(),
-            pair: packet.pair,
-            timeframe: packet.timeframe,
-            side: packet.side,
-            decision: packet.decision,
-            lifecycle: packet.lifecycle,
-            entry: packet.entryPrimary?.mid,
-            sl: packet.sl,
-            tp3: packet.tp3,
-            profitStatus: profitStatus,
-            targetReason: packet.targetValidity?.reason || packet.reason || ""
-        };
-
-        if (existingIndex >= 0) {
-            if (history[existingIndex].lifecycle !== packet.lifecycle) {
-                 history[existingIndex] = { ...history[existingIndex], ...logEntry, updateTime: new Date().toISOString() };
-            } else return packet; 
-        } else {
-            history.unshift(logEntry);
-        }
-
-        if (history.length > 50) history = history.slice(0, 50);
-        localStorage.setItem(historyKey, JSON.stringify(history));
-        window.dispatchEvent(new CustomEvent("asfx:history-update", { detail: history }));
-    } catch (e) { console.warn("ASFX Logger failed:", e); }
-
-    return packet;
-  };
-  // --- END HISTORY LOGGER ---
-
-  const update = () => asfxHistoryLoggerV1(asfxSopEngineFinalV5(asfxTechnicalSopV41(asfxDecisiveZoneV401(buildPacket()))));
-  
-  window.ASFXPlanPacketV1 = {
-    version: "5.1.0-sop-engine-with-logger",
+  const update = () => asfxSopEngineFinalV5(asfxTechnicalSopV41(asfxDecisiveZoneV401(buildPacket())));
+window.ASFXPlanPacketV1 = {
+    version: "5.0.0-sop-engine",
     build: update,
     latest: () => window.__ASFX_PLAN_PACKET_LAST_V1__ || update(),
-    state: STATE,
-    getHistory: () => JSON.parse(localStorage.getItem("ASFX_TRADE_HISTORY_V1")) || []
+    state: STATE
   };
 
   update();
   setInterval(update, 1200);
 
-  console.info("ASFX SOP Engine V5.1 (With Logger & CHoCH) ready.");
+  console.info("ASFX SOP Engine V5 ready.");
 })();
+
