@@ -801,5 +801,11 @@
   <script src="./js/aisignal-plan-packet-v1.js"></script>
   <script src="./js/scanner-mobile-functional-v2.js?v=9"></script>
   <script src="./js/sentinel-community-disable-v1.js?v=1"></script> <!-- ASFX_COMMUNITY_DISABLE_V1 -->
+<script>
+        // Obat untuk smzText dan smz yang hilang di scanner-mobile-functional-v2
+        window.smzText = function(val, defaultVal) { return (val && val !== '') ? val : defaultVal; };
+        window.smz = window.smz || { signalStatus: "Waiting Zone", statusDetail: "Tunggu reaksi candle bersih sebelum Final Signal Plan aktif." };
+    </script>
+    <script src="/js/final-packet-adapter-v1.js"></script>
 </body>
 </html>
