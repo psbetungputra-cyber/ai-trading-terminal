@@ -10722,3 +10722,41 @@ document.addEventListener("click", function(e){
 
   document.head.appendChild(style);
 })();
+// --- JEMBATAN SAKTI: SINKRONISASI ENGINE V5 KE DASBOR ---
+window.addEventListener("asfx:plan-packet:v1", (e) => {
+    const packet = e.detail;
+    if (!packet) return;
+
+    // 1. Curi data dari layar biar lolos sensor ketat asfxScannerFinalPacketForMainV5
+    const activeSymbol = document.querySelector(".asfx-focus-top h2")?.textContent || "BTCUSDT";
+    const activeTf = document.querySelector(".asfx-tf-rail button.active")?.textContent || "15m";
+    
+    packet.pair = activeSymbol;
+    packet.symbol = activeSymbol;
+    packet.timeframe = activeTf;
+    packet.tf = activeTf;
+
+    // 2. Taruh di meja utama AiSignalfx
+    window.__ASFX_FINAL_SIGNAL_PACKET_V5__ = packet;
+
+    // 3. FORCE UPDATE UI LANGSUNG (Tanpa perlu klik/refresh)
+    const badge = document.querySelector(".asfx-focus-card .asfx-badge");
+    if (badge) {
+        const bias = packet.bias || (packet.decision?.includes("BUY") ? "BUY" : packet.decision?.includes("SELL") ? "SELL" : "WAIT");
+        badge.textContent = bias;
+        badge.className = "asfx-badge " + (bias === "BUY" ? "buy" : bias === "SELL" ? "sell" : "wait");
+    }
+
+    const metrics = document.querySelectorAll(".asfx-metric-grid b");
+    if (metrics.length >= 3) {
+        metrics[0].textContent = (packet.confidence || packet.score || 0) + "%"; 
+        metrics[1].textContent = packet.risk || "Medium"; 
+        metrics[2].textContent = packet.decision || packet.status || packet.signalStatus || "NO TRADE"; 
+    }
+
+    const setup = document.querySelector(".asfx-preview-box div:nth-child(2) b");
+    if (setup) {
+        setup.textContent = packet.setupType || packet.decision || "AiSignalfx Engine Active";
+    }
+});
+// --- END JEMBATAN SAKTI ---
