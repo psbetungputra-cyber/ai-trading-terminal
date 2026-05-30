@@ -69,7 +69,7 @@
   function updateMainScannerCountdown() {
     const node = document.querySelector("[data-main-tf-countdown]");
     if (!node) return;
-    node.textContent = " Â· next " + tfCountdown(state.tf);
+    node.textContent = "  -  next " + tfCountdown(state.tf);
   }
 
   function safe(v) {
@@ -227,7 +227,7 @@
         <article class="asfx-focus-card">
           <div class="asfx-focus-top">
             <div>
-              <small>${safe(data.market)} Â· ${safe(state.tf)}<span data-main-tf-countdown> Â· next ${safe(tfCountdown(state.tf))}</span></small>
+              <small>${safe(data.market)}  -  ${safe(state.tf)}<span data-main-tf-countdown>  -  next ${safe(tfCountdown(state.tf))}</span></small>
               <h2>${safe(data.symbol)}</h2>
             </div>
             <b class="asfx-badge ${biasClass(data.bias)}">${safe(data.bias)}</b>
@@ -335,11 +335,11 @@
         </div>
 
         <div class="asfx-vip-list">
-          <span>âœ“ Full chart analysis room</span>
-          <span>âœ“ AI chat signal explanation</span>
-          <span>âœ“ Entry zone, Stop Loss, Take Profit</span>
-          <span>âœ“ Risk plan and invalidation level</span>
-          <span>âœ“ Full institutional reasoning</span>
+          <span>OK Full chart analysis room</span>
+          <span>OK AI chat signal explanation</span>
+          <span>OK Entry zone, Stop Loss, Take Profit</span>
+          <span>OK Risk plan and invalidation level</span>
+          <span>OK Full institutional reasoning</span>
         </div>
 
         <div class="asfx-vip-actions">
@@ -674,10 +674,10 @@
     room.className = "asfx-detail-room";
     room.innerHTML = `
       <div class="asfx-detail-top">
-        <button class="asfx-detail-back" data-close-detail="1">â† Back</button>
+        <button class="asfx-detail-back" data-close-detail="1"><- Back</button>
         <div class="asfx-detail-title">
           <small>SIGNAL DETAIL ROOM</small>
-          <h2>${safe(data.symbol)} Â· ${safe(state.tf)}</h2>
+          <h2>${safe(data.symbol)}  -  ${safe(state.tf)}</h2>
         </div>
       </div>
 
@@ -914,7 +914,7 @@
         <rect x="${w-padR+18}" y="${lastY-16}" width="74" height="31" rx="8" fill="rgba(37,99,235,.95)"/>
         <text x="${w-padR+26}" y="${lastY+5}" fill="#fff" font-size="12" font-weight="900">${lastPrice}</text>
 
-        <text x="${padL}" y="22" fill="#93c5fd" font-size="12" font-weight="900">${safe(state.pair)} Â· ${safe(state.tf)}</text>
+        <text x="${padL}" y="22" fill="#93c5fd" font-size="12" font-weight="900">${safe(state.pair)}  -  ${safe(state.tf)}</text>
       </svg>
     `;
   }
@@ -924,7 +924,7 @@
       <div class="asfx-room-ref-chart">
         <div>
           <small>Reference Mode</small>
-          <b>${safe(data.symbol)} Â· ${safe(state.tf)}</b>
+          <b>${safe(data.symbol)}  -  ${safe(state.tf)}</b>
           <p>Forex/gold masih reference mode. Real broker/provider feed akan ditambahkan tahap berikutnya.</p>
         </div>
       </div>
@@ -948,8 +948,8 @@
     } catch (_) {}
       const last = candles.length ? candles[candles.length - 1] : null;
       const price = last && last.c ? Number(last.c).toLocaleString("en-US", { maximumFractionDigits: 2 }) : "Loading";
-      const high = candles.length ? Math.max(...candles.map(c => Number(c.h || 0))).toLocaleString("en-US", { maximumFractionDigits: 2 }) : "â€”";
-      const low = candles.length ? Math.min(...candles.map(c => Number(c.l || 0))).toLocaleString("en-US", { maximumFractionDigits: 2 }) : "â€”";
+      const high = candles.length ? Math.max(...candles.map(c => Number(c.h || 0))).toLocaleString("en-US", { maximumFractionDigits: 2 }) : "-";
+      const low = candles.length ? Math.min(...candles.map(c => Number(c.l || 0))).toLocaleString("en-US", { maximumFractionDigits: 2 }) : "-";
       return `
         <div class="asfx-room-chart asfx-room-chart-v1" data-room-chart>
           ${isCrypto ? detailChartHTML() : referenceChartHTML(data)}
@@ -971,7 +971,7 @@
           </div>
           <div>
             <small>Status</small>
-            <b class="live-dot">â— Live</b>
+            <b class="live-dot"> Live</b>
           </div>
         </div>
 
@@ -984,7 +984,7 @@
           <button class="${state.tf === "4h" ? "active" : ""}">4H</button>
           <button class="${state.tf === "1d" ? "active" : ""}">1D</button>
           <button class="${state.tf === "1w" ? "active" : ""}">1W</button>
-          <button class="icon">â–¥</button>
+          <button class="icon">[]</button>
           <button class="icon">Æ’x</button>
         </div>
       `;
@@ -2291,7 +2291,7 @@
   }
 
   function ctx(){
-    const title = document.querySelector(".asfx-detail-title h2")?.textContent || "BTCUSDT Â· 15m";
+    const title = document.querySelector(".asfx-detail-title h2")?.textContent || "BTCUSDT  -  15m";
     const pairMatch = title.match(/([A-Z0-9]{5,20})/);
     const tfMatch = title.match(/(1m|3m|5m|15m|30m|1h|4h|1d|1w)/i);
 
@@ -2311,7 +2311,7 @@
 
   function fmt(n){
     const x = Number(n);
-    if (!Number.isFinite(x)) return "â€”";
+    if (!Number.isFinite(x)) return "-";
     return x.toLocaleString("en-US", { maximumFractionDigits: x > 100 ? 2 : 5 });
   }
 
@@ -2348,7 +2348,7 @@
       <span>
         <i class="asfx-standalone-dot"></i>
         Scanner <strong class="${ok ? "asfx-standalone-live" : "asfx-standalone-wait"}">${safe(status)}</strong>
-        Â· ${safe(ctx().tf)} ${safe(leftText())}
+         -  ${safe(ctx().tf)} ${safe(leftText())}
       </span>
     `;
   }
@@ -3046,7 +3046,7 @@
         ${grid}
         ${vgrid}
         ${priceScale}
-        <text x="${padL}" y="28" fill="#93c5fd" font-size="13" font-weight="900">${safe(pair)} Â· ${safe(tf)}</text>
+        <text x="${padL}" y="28" fill="#93c5fd" font-size="13" font-weight="900">${safe(pair)}  -  ${safe(tf)}</text>
         <g clip-path="url(#asfxChartClipV1)">${candleSvg}</g>
         ${asfxIndicatorSvg}
         ${asfxChartCountdownSvgV1B}
@@ -3092,7 +3092,7 @@
       </div>
       <div>
         <small>Status</small>
-        <b class="asfx-price-up">â— Live</b>
+        <b class="asfx-price-up"> Live</b>
       </div>
     `;
   }
@@ -3182,7 +3182,7 @@
     const current = ctx();
 
     if (title) {
-      title.textContent = `${current.pair} Â· ${displayTf(tf)}`;
+      title.textContent = `${current.pair}  -  ${displayTf(tf)}`;
     }
 
     candles = [];
@@ -3338,7 +3338,7 @@
   }
 
   function ctx(){
-    const title = document.querySelector(".asfx-detail-title h2")?.textContent || "BTCUSDT Â· 15m";
+    const title = document.querySelector(".asfx-detail-title h2")?.textContent || "BTCUSDT  -  15m";
     const pair = (title.match(/([A-Z0-9]{5,20})/) || [,"BTCUSDT"])[1];
     const tf = (title.match(/(1m|3m|5m|15m|30m|1h|4h|1d|1w)/i) || [,"15m"])[1];
 
@@ -6470,7 +6470,7 @@ document.addEventListener("click", function(e){
       : (price > zone.high ? "above demand" : "below demand");
     return {
       state: pct <= nearPct ? "Zone Watch" : "Waiting Zone",
-      text: `${pct.toFixed(2)}% ${relation} (${fmt(price)} â†’ ${fmt(target)})`,
+      text: `${pct.toFixed(2)}% ${relation} (${fmt(price)} <-’ ${fmt(target)})`,
       pct
     };
   }
@@ -6928,7 +6928,7 @@ document.addEventListener("click", function(e){
     if (price >= zone.low && price <= zone.high) return { inside:true, pct:0, text:"Price inside active zone" };
     const target = price > zone.high ? zone.high : zone.low;
     const pct = Math.abs(price - target) / price * 100;
-    return { inside:false, pct, text:`${pct.toFixed(2)}% from active zone (${fmt(price)} â†’ ${fmt(target)})` };
+    return { inside:false, pct, text:`${pct.toFixed(2)}% from active zone (${fmt(price)} <-’ ${fmt(target)})` };
   }
 
   function buildPacket(payload = {}){
@@ -7047,7 +7047,7 @@ document.addEventListener("click", function(e){
       tp2Guide = `Extended target near ${fmt(supply.high)}`;
     }
 
-    const liquidity = `Buy-side liquidity near ${fmt(swingHigh)} Â· Sell-side liquidity near ${fmt(swingLow)}`;
+    const liquidity = `Buy-side liquidity near ${fmt(swingHigh)}  -  Sell-side liquidity near ${fmt(swingLow)}`;
 
     const statusDetail = zoneBiasConflict
       ? bias === "BUY"
@@ -7625,10 +7625,10 @@ document.addEventListener("click", function(e){
       phase: clean(raw.phase || raw.smzPhase, "Observation"),
       smzPhase: clean(raw.smzPhase || raw.phase, "Observation"),
 
-      slGuide: clean(raw.slGuide || raw.stopLossGuide, "Waiting invalidation level"),
-      stopLossGuide: clean(raw.stopLossGuide || raw.slGuide, "Waiting invalidation level"),
-      tp1Guide: clean(raw.tp1Guide, "Waiting target area"),
-      tp2Guide: clean(raw.tp2Guide, "Waiting extended target"),
+      slGuide: clean(raw.slGuide || raw.stopLossGuide || raw.sl || raw.stopLoss || raw.invalidationLevel, "Waiting invalidation level"),
+      stopLossGuide: clean(raw.stopLossGuide || raw.slGuide || raw.sl || raw.stopLoss || raw.invalidationLevel, "Waiting invalidation level"),
+      tp1Guide: clean(raw.tp1Guide || raw.tp1 || raw.takeProfit1, "Waiting target area"),
+      tp2Guide: clean(raw.tp2Guide || raw.tp2 || raw.takeProfit2, "Waiting extended target"),
 
       reason: clean(raw.reason || raw.statusDetail, "Reading market context."),
       statusDetail: clean(raw.statusDetail || raw.reason, "Reading market context."),
@@ -7662,8 +7662,8 @@ document.addEventListener("click", function(e){
     packet.vipDetail = {
       entryGuide: packet.activeZone,
       slGuide: packet.stopLossGuide,
-      tp1Guide: packet.tp1Guide,
-      tp2Guide: packet.tp2Guide,
+      tp1Guide: packet.tp1Guide || packet.tp1 || packet.takeProfit1,
+      tp2Guide: packet.tp2Guide || packet.tp2 || packet.takeProfit2,
       structure: packet.structure,
       liquidity: packet.liquidity,
       imbalance: packet.imbalance,
@@ -8036,9 +8036,9 @@ document.addEventListener("click", function(e){
         </p>
 
         <div class="asfx-access-gate-list-v1">
-          <div>âœ… Public: bias/status preview & Sentinel AI limited.</div>
-          <div>ðŸ”’ VIP: full Signal Detail Room, entry zone, SL/TP, dan full reasoning.</div>
-          <div>ðŸ‘‘ Owner/Admin: full access untuk testing dan kontrol sistem.</div>
+          <div>OK Public: bias/status preview & Sentinel AI limited.</div>
+          <div>VIP VIP: full Signal Detail Room, entry zone, SL/TP, dan full reasoning.</div>
+          <div>Owner Owner/Admin: full access untuk testing dan kontrol sistem.</div>
         </div>
 
         <div class="asfx-access-gate-actions-v1">
@@ -8405,9 +8405,9 @@ document.addEventListener("click", function(e){
       actionStatus,
       executionNote: note,
       statusDetail: note,
-      displayHeadline: `${cleanStatus} Â· ${b} Â· ${r} Risk`,
-      publicSummary: `${packet.pair || packet.symbol || "BTCUSDT"} Â· ${packet.timeframe || packet.tf || "15m"} Â· ${b} Â· ${cleanStatus}`,
-      vipSummary: `${b} setup Â· ${r} Risk Â· ${cleanStatus}`
+      displayHeadline: `${cleanStatus}  -  ${b}  -  ${r} Risk`,
+      publicSummary: `${packet.pair || packet.symbol || "BTCUSDT"}  -  ${packet.timeframe || packet.tf || "15m"}  -  ${b}  -  ${cleanStatus}`,
+      vipSummary: `${b} setup  -  ${r} Risk  -  ${cleanStatus}`
     });
 
     window.__ASFX_LAST_SIGNAL_PACKET_V1__ = next;
@@ -8560,9 +8560,9 @@ document.addEventListener("click", function(e){
       liquidity: clean(packet.liquidity, "Waiting liquidity"),
       imbalance: clean(packet.imbalance, "Waiting imbalance/FVG"),
 
-      slGuide: clean(packet.slGuide || packet.stopLossGuide, "Waiting invalidation level"),
-      tp1Guide: clean(packet.tp1Guide, "Waiting target area"),
-      tp2Guide: clean(packet.tp2Guide, "Waiting extended target"),
+      slGuide: clean(packet.slGuide || packet.stopLossGuide || packet.sl || packet.stopLoss || packet.invalidationLevel, "Waiting invalidation level"),
+      tp1Guide: clean(packet.tp1Guide || packet.tp1 || packet.takeProfit1, "Waiting target area"),
+      tp2Guide: clean(packet.tp2Guide || packet.tp2 || packet.takeProfit2, "Waiting extended target"),
 
       reason: clean(packet.reason || packet.statusDetail || packet.executionNote, "Market context snapshot."),
       insight: clean(packet.executionNote || packet.statusDetail || packet.reason, "Signal snapshot saved."),
@@ -8788,15 +8788,15 @@ document.addEventListener("click", function(e){
       pick(/\bBTCUSDT\s+([\d,]+(?:\.\d+)?)/i, "");
 
     const demand =
-      pick(/Demand\s*:\s*([\d,]+(?:\.\d+)?\s*[â€“-]\s*[\d,]+(?:\.\d+)?)/i, "") ||
-      pick(/Active Zone\s+Demand\s+([\d,]+(?:\.\d+)?\s*[â€“-]\s*[\d,]+(?:\.\d+)?)/i, "");
+      pick(/Demand\s*:\s*([\d,]+(?:\.\d+)?\s*[--]\s*[\d,]+(?:\.\d+)?)/i, "") ||
+      pick(/Active Zone\s+Demand\s+([\d,]+(?:\.\d+)?\s*[--]\s*[\d,]+(?:\.\d+)?)/i, "");
 
     const supply =
-      pick(/Supply\s*:\s*([\d,]+(?:\.\d+)?\s*[â€“-]\s*[\d,]+(?:\.\d+)?)/i, "") ||
-      pick(/Active Zone\s+Supply\s+([\d,]+(?:\.\d+)?\s*[â€“-]\s*[\d,]+(?:\.\d+)?)/i, "");
+      pick(/Supply\s*:\s*([\d,]+(?:\.\d+)?\s*[--]\s*[\d,]+(?:\.\d+)?)/i, "") ||
+      pick(/Active Zone\s+Supply\s+([\d,]+(?:\.\d+)?\s*[--]\s*[\d,]+(?:\.\d+)?)/i, "");
 
     const activeZone =
-      pick(/Active Zone\s+((?:Demand|Supply)\s+[\d,]+(?:\.\d+)?\s*[â€“-]\s*[\d,]+(?:\.\d+)?)/i, "");
+      pick(/Active Zone\s+((?:Demand|Supply)\s+[\d,]+(?:\.\d+)?\s*[--]\s*[\d,]+(?:\.\d+)?)/i, "");
 
     const structure =
       pick(/Structure\s*:\s*([^\n]+)/i, "");
@@ -8941,9 +8941,9 @@ document.addEventListener("click", function(e){
       liquidity: clean(d.liquidity || p.liquidity, "Waiting confirmation"),
       imbalance: clean(d.imbalance || p.imbalance, "Waiting"),
 
-      slGuide: clean(d.sl || p.slGuide || p.stopLossGuide, "Waiting invalidation level"),
-      tp1Guide: clean(d.tp1 || p.tp1Guide, "Waiting target area"),
-      tp2Guide: clean(d.tp2 || p.tp2Guide, "Waiting extended target"),
+      slGuide: clean(p.slGuide || p.stopLossGuide || p.sl || p.stopLoss || p.invalidationLevel || d.sl, "Waiting invalidation level"),
+      tp1Guide: clean(p.tp1Guide || p.tp1 || p.takeProfit1 || d.tp1, "Waiting target area"),
+      tp2Guide: clean(p.tp2Guide || p.tp2 || p.takeProfit2 || d.tp2, "Waiting extended target"),
 
       reason: clean(p.reason || p.statusDetail || p.executionNote || d.insight, "Reading market context."),
       insight: clean(d.insight || p.executionNote || p.statusDetail || p.reason, "Reading market context."),
@@ -9086,12 +9086,12 @@ document.addEventListener("click", function(e){
   function readDetailHeader(){
     const text = bodyText();
 
-    // Prefer header: SIGNAL DETAIL ROOM BTCUSDT Â· 15m
-    let m = text.match(/SIGNAL DETAIL ROOM\s+([A-Z0-9]{5,14})\s*[Â·\-.]\s*(5m|15m|1H|4H|1D|1W)/i);
+    // Prefer header: SIGNAL DETAIL ROOM BTCUSDT  -  15m
+    let m = text.match(/SIGNAL DETAIL ROOM\s+([A-Z0-9]{5,14})\s*[ - \-.]\s*(5m|15m|1H|4H|1D|1W)/i);
     if (m) return { pair: m[1].toUpperCase(), timeframe: displayTf(m[2]) };
 
-    // Fallback: BTCUSDT Â· 15m anywhere in detail room.
-    m = text.match(/\b([A-Z0-9]{5,14})\s*[Â·\-.]\s*(5m|15m|1H|4H|1D|1W)\b/i);
+    // Fallback: BTCUSDT  -  15m anywhere in detail room.
+    m = text.match(/\b([A-Z0-9]{5,14})\s*[ - \-.]\s*(5m|15m|1H|4H|1D|1W)\b/i);
     if (m) return { pair: m[1].toUpperCase(), timeframe: displayTf(m[2]) };
 
     return {};
@@ -9126,15 +9126,15 @@ document.addEventListener("click", function(e){
       pick(/\bBTCUSDT\s+([\d,]+(?:\.\d+)?)/i, "");
 
     const demand =
-      pick(/Demand\s*:\s*([\d,]+(?:\.\d+)?\s*[â€“-]\s*[\d,]+(?:\.\d+)?)/i, "") ||
-      pick(/Active Zone\s+Demand\s+([\d,]+(?:\.\d+)?\s*[â€“-]\s*[\d,]+(?:\.\d+)?)/i, "");
+      pick(/Demand\s*:\s*([\d,]+(?:\.\d+)?\s*[--]\s*[\d,]+(?:\.\d+)?)/i, "") ||
+      pick(/Active Zone\s+Demand\s+([\d,]+(?:\.\d+)?\s*[--]\s*[\d,]+(?:\.\d+)?)/i, "");
 
     const supply =
-      pick(/Supply\s*:\s*([\d,]+(?:\.\d+)?\s*[â€“-]\s*[\d,]+(?:\.\d+)?)/i, "") ||
-      pick(/Active Zone\s+Supply\s+([\d,]+(?:\.\d+)?\s*[â€“-]\s*[\d,]+(?:\.\d+)?)/i, "");
+      pick(/Supply\s*:\s*([\d,]+(?:\.\d+)?\s*[--]\s*[\d,]+(?:\.\d+)?)/i, "") ||
+      pick(/Active Zone\s+Supply\s+([\d,]+(?:\.\d+)?\s*[--]\s*[\d,]+(?:\.\d+)?)/i, "");
 
     const activeZone =
-      pick(/Active Zone\s+((?:Demand|Supply)\s+[\d,]+(?:\.\d+)?\s*[â€“-]\s*[\d,]+(?:\.\d+)?)/i, "");
+      pick(/Active Zone\s+((?:Demand|Supply)\s+[\d,]+(?:\.\d+)?\s*[--]\s*[\d,]+(?:\.\d+)?)/i, "");
 
     const structure = pick(/Structure\s*:\s*([^\n]+)/i, "");
     const liquidity = pick(/Liquidity\s*:\s*([^\n]+)/i, "");
@@ -9266,9 +9266,9 @@ document.addEventListener("click", function(e){
       liquidity: clean(d.liquidity || p.liquidity, "Waiting confirmation"),
       imbalance: clean(d.imbalance || p.imbalance, "Waiting"),
 
-      slGuide: clean(d.sl || p.slGuide || p.stopLossGuide, "Waiting invalidation level"),
-      tp1Guide: clean(d.tp1 || p.tp1Guide, "Waiting target area"),
-      tp2Guide: clean(d.tp2 || p.tp2Guide, "Waiting extended target"),
+      slGuide: clean(p.slGuide || p.stopLossGuide || p.sl || p.stopLoss || p.invalidationLevel || d.sl, "Waiting invalidation level"),
+      tp1Guide: clean(p.tp1Guide || p.tp1 || p.takeProfit1 || d.tp1, "Waiting target area"),
+      tp2Guide: clean(p.tp2Guide || p.tp2 || p.takeProfit2 || d.tp2, "Waiting extended target"),
 
       reason: clean(p.reason || p.statusDetail || p.executionNote || d.insight, "Reading market context."),
       insight: clean(d.insight || p.executionNote || p.statusDetail || p.reason, "Reading market context."),
@@ -9439,8 +9439,8 @@ document.addEventListener("click", function(e){
       packet.signalStatus || packet.actionStatus || packet.setupType || "Observation",
       packet.activeZone || packet.zoneState || packet.zone || "zone",
       packet.stopLossGuide || packet.slGuide || "sl",
-      packet.tp1Guide || "tp1",
-      packet.tp2Guide || "tp2"
+      packet.tp1Guide || packet.tp1 || packet.takeProfit1 || "tp1",
+      packet.tp2Guide || packet.tp2 || packet.takeProfit2 || "tp2"
     ].join("|");
   };
 
@@ -9770,29 +9770,29 @@ document.addEventListener("click", function(e){
     }
 
     let state = "SIGNAL ACTIVE";
-    let note = side + " active Â· price " + fmt(price);
+    let note = side + " active  -  price " + fmt(price);
 
     if (side === "BUY") {
       if (price <= sl) {
         state = "SL HIT";
-        note = "BUY invalidated Â· SL touched at " + fmt(price);
+        note = "BUY invalidated  -  SL touched at " + fmt(price);
       } else if (Number.isFinite(tp2) && price >= tp2) {
         state = "TP2 HIT";
-        note = "BUY target 2 reached Â· price " + fmt(price);
+        note = "BUY target 2 reached  -  price " + fmt(price);
       } else if (price >= tp1) {
         state = "TP1 HIT";
-        note = "BUY target 1 reached Â· price " + fmt(price);
+        note = "BUY target 1 reached  -  price " + fmt(price);
       }
     } else {
       if (price >= sl) {
         state = "SL HIT";
-        note = "SELL invalidated Â· SL touched at " + fmt(price);
+        note = "SELL invalidated  -  SL touched at " + fmt(price);
       } else if (Number.isFinite(tp2) && price <= tp2) {
         state = "TP2 HIT";
-        note = "SELL target 2 reached Â· price " + fmt(price);
+        note = "SELL target 2 reached  -  price " + fmt(price);
       } else if (price <= tp1) {
         state = "TP1 HIT";
-        note = "SELL target 1 reached Â· price " + fmt(price);
+        note = "SELL target 1 reached  -  price " + fmt(price);
       }
     }
 
