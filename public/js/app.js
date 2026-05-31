@@ -925,36 +925,6 @@ window.saveJournalEntry = saveJournalEntry;
 window.renderJournalEntries = renderJournalEntries;
 
 
-const forexDemoSignals = [
-  { symbol: "XAUUSD", market: "gold", bias: "BUY", confidence: 82, note: "Liquidity sweep preview. Tunggu retest demand dan confirmation candle." },
-  { symbol: "EURUSD", market: "forex", bias: "SELL", confidence: 76, note: "Bearish structure preview. Pantau premium zone retest." },
-  { symbol: "GBPUSD", market: "forex", bias: "WAIT", confidence: 58, note: "Struktur belum bersih. Tunggu BOS/CHoCH valid." },
-  { symbol: "USDJPY", market: "forex", bias: "BUY", confidence: 69, note: "Momentum bullish preview, validasi saat London/NY." },
-  { symbol: "GBPJPY", market: "forex", bias: "WAIT", confidence: 54, note: "Volatilitas tinggi. Hindari entry tanpa konfirmasi." },
-  { symbol: "NAS100", market: "indices", bias: "BUY", confidence: 71, note: "Momentum positif. Tunggu pullback sehat." }
-];
-
-const demoCommunityPosts = [
-  { id: "p1", user: "Romadon Saputra", tier: "Sentinel Elite", pair: "XAUUSD", bias: "BUY", likes: 8400, comments: 128, caption: "Liquidity sweep + demand retest. Tunggu confirmation candle.", image: "" },
-  { id: "p2", user: "BTC Mapper", tier: "Pro Mapper", pair: "BTCUSDT", bias: "WAIT", likes: 5100, comments: 92, caption: "BTC sedang konsolidasi, tunggu breakout valid.", image: "" },
-  { id: "p3", user: "GBPJPY Analyst", tier: "Rising Analyst", pair: "GBPJPY", bias: "SELL", likes: 3800, comments: 71, caption: "Bearish retest zone. Valid saat London session.", image: "" },
-  { id: "p4", user: "Gold Hunter", tier: "Top Mapper", pair: "XAUUSD", bias: "WAIT", likes: 2600, comments: 44, caption: "No trade sebelum high impact news.", image: "" },
-  { id: "p5", user: "Crypto SMC", tier: "Top Mapper", pair: "ETHUSDT", bias: "BUY", likes: 2400, comments: 38, caption: "ETH momentum positif, tunggu retest area breakout.", image: "" }
-];
-
-const demoLeaderboard = [
-  { rank: 1, name: "Romadon Saputra", tier: "Sentinel Elite", followers: "1.2K", likes: "8.4K", posts: 34 },
-  { rank: 2, name: "BTC Mapper", tier: "Pro Mapper", followers: "870", likes: "5.1K", posts: 22 },
-  { rank: 3, name: "GBPJPY Analyst", tier: "Rising Analyst", followers: "640", likes: "3.8K", posts: 19 },
-  { rank: 4, name: "Gold Hunter", tier: "Top Mapper", followers: "520", likes: "2.6K", posts: 16 },
-  { rank: 5, name: "Crypto SMC", tier: "Top Mapper", followers: "490", likes: "2.4K", posts: 14 },
-  { rank: 6, name: "London Session", tier: "Top Mapper", followers: "410", likes: "2.1K", posts: 12 },
-  { rank: 7, name: "NY Scalper", tier: "Top Mapper", followers: "390", likes: "1.9K", posts: 11 },
-  { rank: 8, name: "Liquidity Pro", tier: "Top Mapper", followers: "350", likes: "1.7K", posts: 10 },
-  { rank: 9, name: "FVG Hunter", tier: "Top Mapper", followers: "320", likes: "1.5K", posts: 9 },
-  { rank: 10, name: "Asia Range", tier: "Top Mapper", followers: "280", likes: "1.2K", posts: 8 }
-];
-
 let scannerMode = "all";
 
 async function loadCryptoMarket(){
