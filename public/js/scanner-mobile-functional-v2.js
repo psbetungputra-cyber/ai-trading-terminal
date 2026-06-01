@@ -2736,12 +2736,8 @@
   }
 
   function asfxSyncSignalTabFromIndicator(plan){
-    /* ASFX_SIGNAL_DIRECT_MANAGEMENT_V51
-       Active Signal renderer now follows ASFXPlanPacketV1:
-       - WAITING_ZONE = locked plan, no SL/TP execution display
-       - FRESH_ENTRY = Entry/SL/TP active
-       - PROTECT/TP hit = management mode, no new entry
-    */
+    /* ASFX_SIGNAL_DIRECT_MANAGEMENT_V51 */
+    if (window.__ASFX_PACKET_UI_AUTHORITY_V5__) return; // Gating: Cegah bentrokan jika UI Authority V5 aktif
     const panel = document.querySelector('[data-asfx-bridge-rendered="signal"]');
     if (!panel) return;
 
@@ -3135,10 +3131,22 @@
       last.c = live;
       last.h = Math.max(Number(last.h || live), live);
       last.l = Math.min(Number(last.l || live), live);
-
       asfxExportDetailCandlesV4();
       render();
       ensureWorkspace("LIVE");
+      
+      // FORCE TICKER: Paksa suplai harga live ke semua objek global dan jalankan pembaruan detikan tab aktif
+      if (window.__ASFX_FINAL_SIGNAL_PACKET_V5__) {
+        window.__ASFX_FINAL_SIGNAL_PACKET_V5__.price = live;
+        window.__ASFX_FINAL_SIGNAL_PACKET_V5__.currentPrice = live;
+      }
+      if (window.__ASFX_LAST_SMZ_ANALYSIS__) {
+        window.__ASFX_LAST_SMZ_ANALYSIS__.price = live;
+        window.__ASFX_LAST_SMZ_ANALYSIS__.currentPrice = live;
+      }
+      // GLOBAL REPAINT TRIGGER: Paksa seluruh modul layar tab untuk ikut berdetak live setiap detik
+      if (window.ASFXPacketUiAuthorityV5?.paint) window.ASFXPacketUiAuthorityV5.paint();
+      if (window.ASFXSignalFreshnessValidityGuardV1?.paint) window.ASFXSignalFreshnessValidityGuardV1.paint();
     } catch(e) {
       console.warn("Standalone scanner live wait:", e.message);
       ensureWorkspace("WAIT");
@@ -3218,14 +3226,8 @@
     setTimeout(tick, 250);
   }, true);
 
-  const observer = new MutationObserver(() => {
-    setTimeout(tick, 250);
-  });
-
-  observer.observe(document.documentElement, {
-    childList: true,
-    subtree: true
-  });
+  // FIX: Global MutationObserver dihapus total untuk mencegah infinite render loop yang membuat UI freeze.
+  // Sinkronisasi chart live kini sepenuhnya ditangani oleh seft-interval dan click event listener secara aman.
 
   setTimeout(tick, 700);
 })();
@@ -4504,6 +4506,11 @@ function renderBridge(tab){
   const p = panel();
   if (!p || tab === "chart") return;
 
+  // Gating V5: Jika kontainer UI sudah terbentuk di DOM, serahkan hak sisa render sepenuhnya ke UI Authority V5
+  if ((tab === "signal" || tab === "risk") && document.querySelector(`[data-asfx-bridge-rendered="${tab}"]`)) {
+    return;
+  }
+
   const d = readSignal();
   const smz = readSmz();
 
@@ -5425,6 +5432,11 @@ document.addEventListener("click", function(e){
 
   const updateRootPrice = (root, symbol, price) => {
     if (!root || !isVisible(root)) return;
+    
+    // IMMUNITY GUARD: Jangan biarkan price source merusak tatanan angka di Detail Room
+    if (root.classList.contains("asfx-detail-room") || root.closest(".asfx-detail-room") || root.querySelector(".asfx-bridge-wrap")) {
+      return;
+    }
 
     const formatted = formatPrice(symbol, price);
 
@@ -5898,14 +5910,29 @@ document.addEventListener("click", function(e){
 
   const latest = () => {
     try {
-      return (
-        window.AiSignalSMZStatusFlowV1?.last?.() ||
-        window.AiSignalSMZEngineV1?.last?.() ||
-        window.__ASFX_LAST_SMZ_ANALYSIS__ ||
-        {}
-      );
+      const api = window.ASFXPlanPacketV1;
+      const p = api && typeof api.latest === "function" ? api.latest() : null;
+      
+      // Buat storage map global jika belum ada untuk memisahkan paket data per tipe
+      if (!window.__ASFX_ROUTING_PACKETS_MAP__) {
+        window.__ASFX_ROUTING_PACKETS_MAP__ = {};
+      }
+      
+      // Amankan dan petakan paket data yang masuk berdasarkan Pair dan Timeframe aslinya
+      if (p) {
+        const pPair = String(p.pair || p.symbol || "BTCUSDT").toUpperCase();
+        const pTf = String(p.timeframe || p.tf || "15m").toLowerCase();
+        window.__ASFX_ROUTING_PACKETS_MAP__[`${pPair}_${pTf}`] = p;
+      }
+      
+      // Deteksi timeframe dan pair yang SEDANG DILIHAT oleh user di layar Detail Room saat ini
+      const currentRoom = ctx();
+      const activeKey = `${currentRoom.pair}_${currentRoom.tf}`;
+      
+      // Kembalikan paket data yang murni milik timeframe aktif tersebut agar tidak saling tindih
+      return window.__ASFX_ROUTING_PACKETS_MAP__[activeKey] || p;
     } catch (_) {
-      return window.__ASFX_LAST_SMZ_ANALYSIS__ || {};
+      return null;
     }
   };
 
@@ -9405,17 +9432,10 @@ document.addEventListener("click", function(e){
   };
 
   const currentPrice = () => {
-    const chartPrice =
-      document.querySelector(".asfx-chart-info-strip b")?.textContent ||
-      document.querySelector(".asfx-room-chart .asfx-price-label")?.textContent;
-
-    return (
-      cleanNum(chartPrice) ||
-      cleanNum(window.__ASFX_LAST_SMZ_ANALYSIS__?.currentPrice) ||
-      cleanNum(window.__ASFX_LAST_SIGNAL_PACKET_V1__?.currentPrice) ||
-      cleanNum(window.__ASFX_LAST_SMZ_ANALYSIS__?.price) ||
-      null
-    );
+    const chartPrice = document.querySelector(".asfx-chart-info-strip b")?.textContent;
+    // BYPASS GATE: Jika tab berganti dan chartPrice hilang, langsung rampas harga live dari V5 Engine
+    const engineLive = window.__ASFX_FINAL_SIGNAL_PACKET_V5__?.price || window.__ASFX_LAST_SMZ_ANALYSIS__?.price;
+    return cleanNum(chartPrice) || cleanNum(engineLive) || null;
   };
 
   const getPacket = () => {
@@ -9641,16 +9661,20 @@ document.addEventListener("click", function(e){
       else panel.prepend(card);
     }
 
+    // COMPACT STYLE: Perkecil ruang boks agar pas dan proporsional di layar ponsel/laptop
+    card.style.padding = "10px 14px";
     card.innerHTML = `
-      <b style="color:#fff;">${data.cardTitle || "Signal State"}</b><br>
-      Entry Permission: <b style="color:#fff;">${data.entryPermission || "Reading"}</b><br>
-      Status: <b style="color:#fff;">${data.status}</b><br>
-      Generated: <b style="color:#fff;">${timeText(data.generatedAtMs)}</b><br>
-      Price at signal: <b style="color:#fff;">${fmt(data.priceAtSignal)}</b><br>
-      Current price: <b style="color:#fff;">${fmt(data.live)}</b><br>
-      Drift: <b style="color:#fff;">${data.driftPct >= 0 ? "+" : ""}${data.driftPct.toFixed(2)}%</b><br>
-      Invalid if: <b style="color:#fff;">${data.invalidation ? fmt(data.invalidation) : "Waiting invalidation"}</b><br>
-      <span style="opacity:.78;">${data.detail}</span>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:12px;">
+        <b style="color:#38bdf8;letter-spacing:0.05em;">${data.cardTitle || "Signal State"}</b>
+        <span style="color:#86efac;font-weight:900;font-size:11px;background:rgba(34,197,94,0.1);padding:2px 8px;border-radius:99px;">${data.entryPermission || "Reading"}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;font-size:11px;opacity:0.95;border-top:1px solid rgba(255,255,255,0.06);padding-top:6px;">
+        <div>Gen Time: <b style="color:#fff">${timeText(data.generatedAtMs)}</b></div>
+        <div>Live Price: <b style="color:#60a5fa">${fmt(data.live)}</b></div>
+        <div>Base Price: <b style="color:#fff">${fmt(data.priceAtSignal)}</b></div>
+        <div>Drift Pct: <b style="color:${data.driftPct >= 0 ? '#22c55e' : '#ef4444'}">${data.driftPct >= 0 ? "+" : ""}${data.driftPct.toFixed(2)}%</b></div>
+      </div>
+      <div style="font-size:11px;margin-top:6px;opacity:0.75;line-height:1.4;border-top:1px solid rgba(255,255,255,0.06);padding-top:5px;">${data.detail}</div>
     `;
 
     const title = panel.querySelector(".asfx-bridge-title");
@@ -10506,13 +10530,14 @@ document.addEventListener("click", function(e){
     const boxLabel = freshEntry ? "Entry Zone" : contextOnly ? "Watch / Context Zone" : "Status";
     const boxValue = freshEntry ? range(p.entryPrimary) : contextOnly ? range(contextZone) : (tv.reason || p.lifecycle || "No fresh entry");
 
-    const sl = freshEntry ? fmt(p.sl) : hit.sl ? "SL HIT" : "—";
-    const tp1 = freshEntry ? fmt(p.tp1) : hit.tp1 ? "TP1 HIT" : "—";
-    const tp2 = freshEntry ? fmt(p.tp2) : hit.tp2 ? "TP2 HIT" : tv.tp2Valid ? "TP2 VALID" : "—";
-    const tp3 = freshEntry ? fmt(p.tp3) : hit.tp3 ? "TP3 HIT" : tv.tp3Valid ? "TP3 VALID" : chartMode.includes("PROTECT") ? "WATCH" : "—";
+    // FIX: Selalu baca data angka indikator paket utama jika tersedia di objek p
+    const sl = p.sl ? fmt(p.sl) : (hit.sl ? "SL HIT" : "—");
+    const tp1 = p.tp1 ? fmt(p.tp1) : (hit.tp1 ? "TP1 HIT" : "—");
+    const tp2 = p.tp2 ? fmt(p.tp2) : (hit.tp2 ? "TP2 HIT" : (tv.tp2Valid ? "TP2 VALID" : "—"));
+    const tp3 = p.tp3 ? fmt(p.tp3) : (hit.tp3 ? "TP3 HIT" : (tv.tp3Valid ? "TP3 VALID" : (chartMode.includes("PROTECT") ? "WATCH" : "—")));
 
     const key = [
-      "signal-authority-v5",
+      "signal-authority-v5-fixed",
       title,
       p.pair,
       p.timeframe,
@@ -10533,7 +10558,7 @@ document.addEventListener("click", function(e){
         '<div class="asfx-bridge-head">' +
           '<div class="asfx-bridge-kicker">Signal Zone</div>' +
           '<div class="asfx-bridge-title" style="color:' + titleColor + ';">' + esc(title) + '</div>' +
-          '<div class="asfx-bridge-sub">' + esc(String(p.pair || "Market").toUpperCase()) + ' | ' + esc(p.timeframe || "15m") + ' | ' + esc(freshEntry ? "Fixed execution levels" : "No fresh execution") + '</div>' +
+          '<div class="asfx-bridge-sub">' + esc(String(p.pair || "Market").toUpperCase()) + ' | ' + esc(p.timeframe || "15m") + ' | ' + esc(p.sl ? "Fixed execution levels" : "No fresh execution") + '</div>' +
         '</div>' +
 
         '<div class="asfx-bridge-box">' +
@@ -10548,7 +10573,7 @@ document.addEventListener("click", function(e){
           '<div class="asfx-bridge-mini"><small>TP3</small><b>' + esc(tp3) + '</b></div>' +
         '</div>' +
 
-        '<div class="asfx-bridge-lock">Signal tab dikunci ke fixed packet V5. SL/TP tidak mengikuti harga live.</div>' +
+        '<div class="asfx-bridge-lock">Signal tab dikunci ke fixed packet V5. SL/TP konsisten mengikuti indikator.</div>' +
       '</div>';
   };
 
@@ -10574,13 +10599,14 @@ document.addEventListener("click", function(e){
       ? "Only inside zone"
       : "No fresh entry";
 
-    const invalidation = freshEntry ? fmt(p.sl) : "Inactive";
-    const ladder = validLadder ? "VALID" : freshEntry ? "CHECK" : "STANDBY";
-    const rr = freshEntry ? String(p.rr || "—") : "—";
-    const minTarget = freshEntry ? fmt(p.minTarget) : "—";
+    // FIX: Sinkronisasi tab Risk agar menampilkan data numerik yang sama dengan tab Signal
+    const invalidation = p.sl ? fmt(p.sl) : "Inactive";
+    const ladder = validLadder ? "VALID" : (p.sl ? "VALID" : "STANDBY");
+    const rr = p.rr ? String(p.rr) : "—";
+    const minTarget = p.minTarget ? fmt(p.minTarget) : "—";
 
     const key = [
-      "risk-authority-v5",
+      "risk-authority-v5-fixed",
       guard,
       p.pair,
       p.timeframe,
@@ -10626,15 +10652,6 @@ document.addEventListener("click", function(e){
           '<div class="asfx-bridge-mini"><small>Min Target</small><b>' + esc(minTarget) + '</b></div>' +
           '<div class="asfx-bridge-mini"><small>TP2 / TP3</small><b>' + esc((tv.tp2Valid ? "TP2 Valid" : "TP2 Watch") + " / " + (tv.tp3Valid ? "TP3 Valid" : "TP3 Pending")) + '</b></div>' +
         '</div>' +
-
-        '<details class="asfx-bridge-box">' +
-          '<summary style="cursor:pointer;color:#fff;font-weight:900;">Risk Context</summary><br>' +
-          'Side: <b style="color:#fff;">' + esc(side) + '</b><br>' +
-          'Entry Zone: <b style="color:#fff;">' + esc(range(p.entryPrimary, "—")) + '</b><br>' +
-          'Session: <b style="color:#fff;">' + esc(p.session?.name || "Reading") + '</b><br>' +
-          'Volume: <b style="color:#fff;">' + esc(p.volumeFlow?.label || "Reading") + '</b><br>' +
-          'Rule: <b style="color:#fff;">' + esc(side === "SELL" ? "SL wajib di atas supply, TP wajib di bawah entry." : side === "BUY" ? "SL wajib di bawah demand, TP wajib di atas entry." : "No execution rule.") + '</b>' +
-        '</details>' +
 
         '<div class="asfx-bridge-lock">Risk tab hanya validasi risiko. Signal tab tetap khusus execution plan.</div>' +
       '</div>';
