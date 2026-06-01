@@ -4467,8 +4467,18 @@ function asfxPlanPacketAiBridgeHtmlV2(d, smz){
     "Volume: " + volume + ". RSI: " + rsi + ". EMA21/50: " + ema21 + " / " + ema50 + ". ATR: " + atr + ". " +
     liquidityNote;
 
-  const title = decision && decision !== "NO TRADE" ? decision : chartMode;
+  let title = decision && decision !== "NO TRADE" ? decision : chartMode;
+  // FIX: Selesaikan kontradiksi headline jika noFreshEntry / protect mode aktif
+  if (packet?.noFreshEntry === true || packet?.freshEntry === false || /PROTECT|RUNNING|TP/i.test(statusText)) {
+    title = String(title).toUpperCase().replace("SCALING ALLOWED", "PROTECT PROFIT");
+  }
+  
   const sub = pair + " | " + tf + " | " + session + " | Score " + safe(packet?.score || v.score, "0") + "%";
+  
+  // FIX: Format otomatis angka desimal floating point mentah panjang di dalam teks narasi deskripsi
+  const cleanText = (txt) => String(txt || "").replace(/(\d+\.\d{2,})/g, (m) => {
+    const val = parseFloat(m); return val >= 1000 ? val.toFixed(1) : val.toFixed(2);
+  });
 
   return '' +
     '<div class="asfx-bridge-wrap" data-asfx-bridge-rendered="chat" data-asfx-ai-insight-composer-v5="1">' +
@@ -4478,10 +4488,10 @@ function asfxPlanPacketAiBridgeHtmlV2(d, smz){
         '<div class="asfx-bridge-sub">' + esc(sub) + '</div>' +
       '</div>' +
 
-      '<div class="asfx-bridge-box"><b style="color:#fff;">Market Context</b><br>' + esc(marketContext) + '</div>' +
-      '<div class="asfx-bridge-box"><b style="color:#fff;">Zone Reading</b><br>' + esc(zoneReading) + '</div>' +
-      '<div class="asfx-bridge-box"><b style="color:#fff;">Confirmation Needed</b><br>' + esc(confirmation) + '</div>' +
-      '<div class="asfx-bridge-box"><b style="color:#fff;">Invalidation Scenario</b><br>' + esc(invalidation) + '</div>' +
+      '<div class="asfx-bridge-box"><b style="color:#fff;">Market Context</b><br>' + esc(cleanText(marketContext)) + '</div>' +
+      '<div class="asfx-bridge-box"><b style="color:#fff;">Zone Reading</b><br>' + esc(cleanText(zoneReading)) + '</div>' +
+      '<div class="asfx-bridge-box"><b style="color:#fff;">Confirmation Needed</b><br>' + esc(cleanText(confirmation)) + '</div>' +
+      '<div class="asfx-bridge-box"><b style="color:#fff;">Invalidation Scenario</b><br>' + esc(cleanText(invalidation)) + '</div>' +
 
       '<div class="asfx-bridge-grid">' +
         '<div class="asfx-bridge-mini"><small>Bias</small><b class="' + titleClass + '">' + esc(side) + '</b></div>' +
@@ -10482,75 +10492,42 @@ document.addEventListener("click", function(e){
     }
   };
 
-  const packetOk = (p) => {
-    if (!p || typeof p !== "object") return false;
-    return String(p.version || "").includes("5.0.0") || String(p.engineName || "").includes("SOP Engine V5");
-  };
-
-  const targetLadderValid = (p) => {
-    const side = String(p.side || "").toUpperCase();
-    const entry = p.entryPrimary;
-    const sl = num(p.sl);
-    const tp1 = num(p.tp1);
-    const tp2 = num(p.tp2);
-    const tp3 = num(p.tp3);
-    if (!hasRange(entry) || ![sl, tp1, tp2].every(Number.isFinite)) return false;
-
-    const low = Number(entry.low);
-    const high = Number(entry.high);
-
-    if (side === "SELL") {
-      return sl > high && tp1 < low && tp2 < tp1 && (!Number.isFinite(tp3) || tp3 < tp2);
-    }
-
-    if (side === "BUY") {
-      return sl < low && tp1 > high && tp2 > tp1 && (!Number.isFinite(tp3) || tp3 > tp2);
-    }
-
-    return false;
-  };
-
-  const slDistance = (p) => {
-    const side = String(p.side || "").toUpperCase();
-    const entry = p.entryPrimary;
-    const sl = num(p.sl);
-    if (!hasRange(entry) || !Number.isFinite(sl)) return "—";
-
-    if (side === "SELL") return fmt(sl - Number(entry.high));
-    if (side === "BUY") return fmt(Number(entry.low) - sl);
-    return "—";
-  };
-
   const paintSignal = (p) => {
     const panel = document.querySelector('[data-asfx-bridge-rendered="signal"]');
     if (!panel) return;
 
     const side = String(p.side || "WAIT").toUpperCase();
     const chartMode = String(p.chartMode || p.visualMode || "ZONE_SCAN").toUpperCase();
-    const freshEntry = p.freshEntry === true && p.noFreshEntry !== true && chartMode === "FRESH_ENTRY" && hasRange(p.entryPrimary);
+    const isProtectMode = /PROTECT|RUNNING|TP/i.test(chartMode + " " + (p.decision || "") + " " + (p.lifecycle || "")) || p.noFreshEntry === true;
+    const freshEntry = !isProtectMode && p.freshEntry === true && p.noFreshEntry !== true && chartMode === "FRESH_ENTRY" && hasRange(p.entryPrimary);
     const hit = p.hit || {};
     const tv = p.targetValidity || {};
 
     const contextZone = p.contextZone || p.watchZone || p.entryPrimary;
     const contextOnly = !freshEntry && hasRange(contextZone);
 
-    const title = freshEntry
+    let title = freshEntry
       ? String(p.decision || (side === "SELL" ? "OFFICIAL SELL" : side === "BUY" ? "OFFICIAL BUY" : "SIGNAL ACTIVE")).toUpperCase()
       : String(p.decision || p.lifecycle || "ZONE WATCH").toUpperCase();
+
+    // FIX: Sinkronisasi dan selesaikan kontradiksi headline jika noFreshEntry / protect mode aktif
+    if (isProtectMode) {
+      title = title.replace("SCALING ALLOWED", "PROTECT PROFIT");
+    }
 
     const titleColor = side === "SELL" ? "#ef4444" : side === "BUY" ? "#22c55e" : "#e5e7eb";
 
     const boxLabel = freshEntry ? "Entry Zone" : contextOnly ? "Watch / Context Zone" : "Status";
     const boxValue = freshEntry ? range(p.entryPrimary) : contextOnly ? range(contextZone) : (tv.reason || p.lifecycle || "No fresh entry");
 
-    // FIX: Selalu baca data angka indikator paket utama jika tersedia di objek p
-    const sl = p.sl ? fmt(p.sl) : (hit.sl ? "SL HIT" : "—");
-    const tp1 = p.tp1 ? fmt(p.tp1) : (hit.tp1 ? "TP1 HIT" : "—");
-    const tp2 = p.tp2 ? fmt(p.tp2) : (hit.tp2 ? "TP2 HIT" : (tv.tp2Valid ? "TP2 VALID" : "—"));
-    const tp3 = p.tp3 ? fmt(p.tp3) : (hit.tp3 ? "TP3 HIT" : (tv.tp3Valid ? "TP3 VALID" : (chartMode.includes("PROTECT") ? "WATCH" : "—")));
+    // FIX: Smart Display - Kosongkan angka mentah menjadi strip (—) atau teks status jika sudah NO NEW ENTRY
+    const sl = freshEntry && p.sl ? fmt(p.sl) : (hit.sl ? "SL HIT" : "LOCKED");
+    const tp1 = freshEntry && p.tp1 ? fmt(p.tp1) : (hit.tp1 ? "TP1 HIT" : "—");
+    const tp2 = freshEntry && p.tp2 ? fmt(p.tp2) : (hit.tp2 ? "TP2 HIT" : (tv.tp2Valid ? "TP2 VALID" : "—"));
+    const tp3 = freshEntry && p.tp3 ? fmt(p.tp3) : (hit.tp3 ? "TP3 HIT" : (tv.tp3Valid ? "TP3 VALID" : (isProtectMode ? "WATCH" : "—")));
 
     const key = [
-      "signal-authority-v5-fixed",
+      "signal-authority-v5-precision-v3",
       title,
       p.pair,
       p.timeframe,
@@ -10571,7 +10548,7 @@ document.addEventListener("click", function(e){
         '<div class="asfx-bridge-head">' +
           '<div class="asfx-bridge-kicker">Signal Zone</div>' +
           '<div class="asfx-bridge-title" style="color:' + titleColor + ';">' + esc(title) + '</div>' +
-          '<div class="asfx-bridge-sub">' + esc(String(p.pair || "Market").toUpperCase()) + ' | ' + esc(p.timeframe || "15m") + ' | ' + esc(p.sl ? "Fixed execution levels" : "No fresh execution") + '</div>' +
+          '<div class="asfx-bridge-sub">' + esc(String(p.pair || "Market").toUpperCase()) + ' | ' + esc(p.timeframe || "15m") + ' | ' + esc(p.sl && freshEntry ? "Fixed execution levels" : "No fresh execution") + '</div>' +
         '</div>' +
 
         '<div class="asfx-bridge-box">' +
@@ -10596,30 +10573,26 @@ document.addEventListener("click", function(e){
 
     const side = String(p.side || "WAIT").toUpperCase();
     const chartMode = String(p.chartMode || p.visualMode || "ZONE_SCAN").toUpperCase();
-    const freshEntry = p.freshEntry === true && p.noFreshEntry !== true && chartMode === "FRESH_ENTRY" && hasRange(p.entryPrimary);
+    const isProtectMode = /PROTECT|RUNNING|TP/i.test(chartMode + " " + (p.decision || "") + " " + (p.lifecycle || "")) || p.noFreshEntry === true;
+    const freshEntry = !isProtectMode && p.freshEntry === true && p.noFreshEntry !== true && chartMode === "FRESH_ENTRY" && hasRange(p.entryPrimary);
     const tv = p.targetValidity || {};
     const validLadder = targetLadderValid(p);
 
-    const guard = freshEntry
-      ? "EXECUTION RISK VALIDATION"
-      : chartMode.includes("PROTECT")
-        ? "PROTECT PROFIT RISK"
-        : chartMode.includes("WAITING") || chartMode.includes("REACTION")
-          ? "WATCH ZONE RISK"
-          : "RISK STANDBY";
+    // FIX: Kunci judul agar tetap "RISK STANDBY" saat status protect / NO NEW ENTRY aktif
+    const guard = isProtectMode ? "RISK STANDBY" : (freshEntry ? "EXECUTION RISK VALIDATION" : "RISK STANDBY");
 
-    const entrySafety = freshEntry
-      ? "Only inside zone"
-      : "No fresh entry";
+    // FIX: Pastikan Entry Safety & Mode terformat bersih tanpa enum mentah internal
+    const entrySafety = isProtectMode ? "No fresh entry" : (freshEntry ? "Only inside zone" : "No fresh entry");
+    const displayMode = isProtectMode ? "Protect profit / Management Mode" : formatEnumMode(chartMode || p.decision);
 
-    // FIX: Sinkronisasi tab Risk agar menampilkan data numerik yang sama dengan tab Signal
+    // FIX: Format desimal angka dikunci maksimal 1 angka desimal untuk BTC level (angka >= 1000)
     const invalidation = p.sl ? fmt(p.sl) : "Inactive";
     const ladder = validLadder ? "VALID" : (p.sl ? "VALID" : "STANDBY");
-    const rr = p.rr ? String(p.rr) : "—";
+    const rr = p.rr ? String(fmt(p.rr)) : "—";
     const minTarget = p.minTarget ? fmt(p.minTarget) : "—";
 
     const key = [
-      "risk-authority-v5-fixed",
+      "risk-authority-v5-precision-v2",
       guard,
       p.pair,
       p.timeframe,
@@ -10647,11 +10620,11 @@ document.addEventListener("click", function(e){
         '<div class="asfx-bridge-grid">' +
           '<div class="asfx-bridge-mini"><small>Risk Tier</small><b>' + esc(p.risk || "Medium") + '</b></div>' +
           '<div class="asfx-bridge-mini"><small>Entry Safety</small><b>' + esc(entrySafety) + '</b></div>' +
-          '<div class="asfx-bridge-mini"><small>Mode</small><b>' + esc(chartMode) + '</b></div>' +
+          '<div class="asfx-bridge-mini"><small>Mode</small><b>' + esc(displayMode) + '</b></div>' +
         '</div>' +
 
         '<div class="asfx-bridge-box"><b style="color:#fff;">Risk Validation</b><br>' +
-          esc(tv.reason || p.reason || "Risk guard membaca posisi harga, zona, SL, target, session, dan volume.") +
+          esc(cleanNumbersInText(tv.reason || p.reason || "Risk guard membaca posisi harga, zona, SL, target, session, dan volume.")) +
         '</div>' +
 
         '<div class="asfx-bridge-grid">' +
