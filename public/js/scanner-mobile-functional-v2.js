@@ -2306,7 +2306,8 @@
   }
 
   function isDetailOpen(){
-    return !!box();
+    // FIX: Deteksi berdasarkan kontainer Detail Room agar interval waktu tetap berdetak di tab Signal/Risk/AI Insight
+    return !!document.querySelector(".asfx-detail-room");
   }
 
   function fmt(n){
@@ -9432,10 +9433,22 @@ document.addEventListener("click", function(e){
   };
 
   const currentPrice = () => {
-    const chartPrice = document.querySelector(".asfx-chart-info-strip b")?.textContent;
-    // BYPASS GATE: Jika tab berganti dan chartPrice hilang, langsung rampas harga live dari V5 Engine
-    const engineLive = window.__ASFX_FINAL_SIGNAL_PACKET_V5__?.price || window.__ASFX_LAST_SMZ_ANALYSIS__?.price;
-    return cleanNum(chartPrice) || cleanNum(engineLive) || null;
+    // FIX: Hubungkan langsung ke pusat cache ticker live global agar harga di box Signal State terus bergerak aktif
+    const currentPair = String(window.__ASFX_FINAL_SIGNAL_PACKET_V5__?.pair || (typeof ctx === "function" ? ctx().pair : "BTCUSDT")).toUpperCase();
+    const globalLivePrice = window.AiSignalPriceSourceV1?.cache?.[currentPair]?.price;
+
+    const chartPrice =
+      document.querySelector(".asfx-chart-info-strip b")?.textContent ||
+      document.querySelector(".asfx-room-chart .asfx-price-label")?.textContent;
+
+    return (
+      cleanNum(globalLivePrice) ||
+      cleanNum(chartPrice) ||
+      cleanNum(window.__ASFX_LAST_SMZ_ANALYSIS__?.currentPrice) ||
+      cleanNum(window.__ASFX_LAST_SIGNAL_PACKET_V1__?.currentPrice) ||
+      cleanNum(window.__ASFX_LAST_SMZ_ANALYSIS__?.price) ||
+      null
+    );
   };
 
   const getPacket = () => {
