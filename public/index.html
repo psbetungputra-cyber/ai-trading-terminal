@@ -104,15 +104,21 @@
       <div class="nav-title">Core Terminal</div>
       <button class="nav active" onclick="showPage('dashboard', this)"><span class="nav-ico">⌁</span> Dashboard</button>
       <button class="nav" onclick="showPage('scanner', this)"><span class="nav-ico">◈</span> Scanner <small class="badge vip">VIP</small></button>
-      <button class="nav" onclick="showPage('sentinel', this)"><span class="nav-ico">◆</span> Sentinel AI <small class="badge free">Limited</small></button>
-      <button class="nav" onclick="showPage('vip', this)"><span class="nav-ico">♛</span> VIP Center</button>
+      <button class="nav" onclick="showPage('sentinel', this)"><span class="nav-ico">🤖</span> Sentinel AI</button>
+      <button class="nav" onclick="showPage('vip', this)"><span class="nav-ico">♛</span> VIP Status</button>
       <button class="nav" onclick="showPage('profile', this)"><span class="nav-ico">◍</span> Profile</button>
 
       <div class="nav-title owner-only">System Admin</div>
       <button class="nav owner-only" onclick="showPage('admin', this)"><span class="nav-ico">⚙</span> Admin Control</button>
 
-      <!-- Legacy modules are hidden from the main navigation to keep the core UI clean. -->
-      <div id="hidden-legacy-features" style="display: none;"></div>
+      <div id="hidden-legacy-features" style="display: none !important;">
+        <button class="nav" onclick="showPage('community', this)">Community</button>
+        <button class="nav" onclick="showPage('mapping', this)">Mapping</button>
+        <button class="nav" onclick="showPage('lab', this)">Trading Lab</button>
+        <button class="nav" onclick="showPage('sentiment', this)">Sentiment</button>
+        <button class="nav" onclick="showPage('fundamental', this)">Calendar</button>
+        <button class="nav" onclick="showPage('ads', this)">Ads</button>
+      </div>
     </nav>
     <div class="sidebar-footer"><button class="disconnect" onclick="location.reload()">Disconnect</button></div>
   </aside>
