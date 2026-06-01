@@ -100,22 +100,19 @@
       </div>
       <div class="user-mini"><div id="avatar" class="avatar">P</div><div><h3 id="display-name">PSBETUNG</h3><span id="role-badge" class="role-badge">Founder</span></div></div>
     </div>
-    <nav>
-      <div class="nav-title">Main Ecosystem</div>
+    <nav id="sidebar-nav">
+      <div class="nav-title">Core Terminal</div>
       <button class="nav active" onclick="showPage('dashboard', this)"><span class="nav-ico">⌁</span> Dashboard</button>
-      <button class="nav" onclick="showPage('chart', this)"><span class="nav-ico">▰</span> Chart Terminal</button>
-      <button class="nav" onclick="showPage('scanner', this)"><span class="nav-ico">◈</span> Signal Scanner <small class="badge vip">VIP</small></button>
+      <button class="nav" onclick="showPage('scanner', this)"><span class="nav-ico">◈</span> Scanner <small class="badge vip">VIP</small></button>
       <button class="nav" onclick="showPage('sentinel', this)"><span class="nav-ico">◆</span> Sentinel AI <small class="badge free">Limited</small></button>
-      <button class="nav" onclick="showPage('sentiment', this)"><span class="nav-ico">◉</span> Market Sentiment</button>
-      <button class="nav" onclick="showPage('fundamental', this)"><span class="nav-ico">◌</span> Fundamental Calendar</button>
-      <button class="nav" onclick="showPage('mapping', this)"><span class="nav-ico">▧</span> Sentinel Community</button>
-      <div class="nav-title">Education & Account</div>
-      <button class="nav" onclick="showPage('lab', this)"><span class="nav-ico">◇</span> Sentinel Trading Lab</button>
+      <button class="nav" onclick="showPage('vip', this)"><span class="nav-ico">♛</span> VIP Center</button>
       <button class="nav" onclick="showPage('profile', this)"><span class="nav-ico">◍</span> Profile</button>
-      <button class="nav" onclick="showPage('vip', this)"><span class="nav-ico">♛</span> VIP Access</button>
-      <div class="nav-title owner-only">Owner</div>
+
+      <div class="nav-title owner-only">System Admin</div>
       <button class="nav owner-only" onclick="showPage('admin', this)"><span class="nav-ico">⚙</span> Admin Control</button>
-      <button class="nav owner-only" onclick="showPage('ads', this)"><span class="nav-ico">▣</span> Ads Manager</button>
+
+      <!-- Legacy modules are hidden from the main navigation to keep the core UI clean. -->
+      <div id="hidden-legacy-features" style="display: none;"></div>
     </nav>
     <div class="sidebar-footer"><button class="disconnect" onclick="location.reload()">Disconnect</button></div>
   </aside>
@@ -164,10 +161,10 @@
             <h2>AiSignalFx PRO Dashboard</h2>
             <p>Ringkasan market, signal, sentiment, calendar, dan akses cepat ke terminal trading.</p>
           </div>
-          <button class="small-btn hero-action" onclick="showPageById('chart')">Open Chart Terminal</button>
+          <button class="small-btn hero-action" onclick="showPageById('scanner')">Open Scanner</button>
         </div>
 
-        <div class="grid-3 dashboard-status">
+        <div class="grid-3 dashboard-status" style="display:none;">
           <div class="card stat"><p>Market Bias</p><h2 class="green">Bullish</h2><small>XAUUSD session view</small></div>
           <div class="card stat"><p>Sentinel Usage</p><h2 id="usage-stat" class="blue">3/day</h2><small>Free analysis quota</small></div>
           <div class="card stat"><p>VIP Scanner</p><h2 id="scanner-stat" class="yellow">Locked</h2><small>Upgrade untuk full signal</small></div>
@@ -218,7 +215,7 @@
         </div>
 
         
-        <div class="grid-2 dashboard-community-market">
+        <div class="grid-2 dashboard-community-market" style="display:none;">
           <div class="card community-spotlight-card">
             <div class="section-head">
               <h3>Community Spotlight</h3>
@@ -251,7 +248,7 @@
           </div>
         </div>
 
-        <div class="card dashboard-fyp">
+        <div class="card dashboard-fyp" style="display:none;">
           <div class="section-head">
             <h3>Community Mapping FYP</h3>
             <button class="small-btn" onclick="showPageById('mapping')">Open Sentinel Community</button>
@@ -259,7 +256,7 @@
           <div id="dashboard-fyp-list" class="grid-3"></div>
         </div>
 
-        <div class="grid-3 performance-strip">
+        <div class="grid-3 performance-strip" style="display:none;">
           <div class="card stat"><p>Signals</p><h2 class="blue">20</h2><small>Demo snapshot</small></div>
           <div class="card stat"><p>Win Rate</p><h2 class="green">94.2%</h2><small>Backtest preview</small></div>
           <div class="card stat"><p>Total Pips</p><h2 class="green">+25,430</h2><small>Performance preview</small></div>
