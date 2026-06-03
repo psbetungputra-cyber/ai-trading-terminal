@@ -580,7 +580,7 @@
     nav.innerHTML = `
       <button data-page="dashboard" class="active" onclick="v4Go('dashboard')"><span>⌂</span><b>Home</b></button>
       <button data-page="scanner" onclick="v4Go('scanner')"><span>⌕</span><b>Scanner</b></button>
-      <button data-page="sentinel-signal" onclick="v4Go('sentinel-signal')"><span>◉</span><b>Sentinel</b></button>
+            <button data-page="sentinel" onclick="v4Go('sentinel')"><span>◉</span><b>Sentinel</b></button>
       <button data-page="profile" onclick="v4Go('profile')"><span>♙</span><b>Profile</b></button>
     `;
     document.body.appendChild(nav);
