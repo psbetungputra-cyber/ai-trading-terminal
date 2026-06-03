@@ -248,105 +248,107 @@
     `;
   }
 
-  function renderDashboard() {
+    function renderDashboard() {
     const dash = document.getElementById("dashboard");
     if (!dash) return;
 
     const pair = selectedPairData();
-    const posts = communityPosts();
-    const spotlight = posts.find((p) => p.image) || posts[0] || {};
-    const rows = pairUniverse().slice(0, 5);
+    const rows = pairUniverse().slice(0, 4);
+    const activeSymbol = esc(pair.symbol || "BTCUSDT");
+    const activeBias = esc(pair.bias || "WAIT");
+    const activeConfidence = Number(pair.confidence || 78);
 
     dash.innerHTML = `
       <div class="v4-shell-page v4-dashboard">
         <section class="v4-hero">
           <div>
-            <span class="v4-kicker">COMMAND CENTER</span>
-            <h1>AiSignalFx PRO</h1>
-            <p>Terminal trading AI untuk membaca market, scanner setup, dan mapping komunitas dalam satu ekosistem.</p>
+            <span class="v4-kicker">AI MARKET COMMAND CENTER</span>
+            <h1>Welcome back, AiSignalFx Trader 👋</h1>
+            <p>Fokus ke dua fitur utama: Scanner untuk signal engine, dan Sentinel AI untuk analisa visual chart.</p>
             <div class="v4-actions">
               <button class="v4-btn" onclick="v4Go('scanner')">Open Scanner</button>
-              <button class="v4-btn secondary" onclick="v4Go('sentinel-signal')">Sentinel Signal</button>
-              <button class="v4-btn ghost" onclick="v4Go('mapping')">Community</button>
+              <button class="v4-btn secondary" onclick="v4Go('sentinel')">Open Sentinel AI</button>
             </div>
           </div>
           <div class="v4-bias-box">
-            <small>Market Bias</small>
-            <strong>Bullish</strong>
-            <span>XAUUSD session view</span>
-            <div class="v4-meter"><i style="width:72%"></i></div>
+            <small>Your Status</small>
+            <strong>VIP Member</strong>
+            <span>Scanner + Sentinel AI access active</span>
+            <div class="v4-meter"><i style="width:82%"></i></div>
           </div>
         </section>
 
         <section class="v4-dashboard-grid">
           <article class="v4-card v4-active-signal">
             <div class="v4-card-head">
-              <div><span class="v4-dot"></span><strong>Active Signal Preview</strong></div>
-              <button class="v4-chip-btn" onclick="v4Go('scanner')">Scanner</button>
+              <div><span class="v4-dot"></span><strong>AiSignal Scanner</strong></div>
+              <span class="v4-pill">LIVE</span>
             </div>
 
             <div class="v4-signal-row">
               <div>
-                <h2>${esc(pair.symbol || "XAUUSD")}</h2>
-                <span class="v4-badge ${norm(pair.bias)}">${esc(pair.bias || "BUY")}</span>
+                <h2>${activeSymbol}</h2>
+                <span class="v4-badge ${norm(pair.bias)}">${activeBias}</span>
               </div>
-              <div class="v4-confidence"><small>Confidence</small><b>${Number(pair.confidence || 72)}%</b></div>
+              <div class="v4-confidence"><small>Confidence</small><b>${activeConfidence}%</b></div>
             </div>
 
-            <div class="v4-chart-wrap">${customSignalChart({ bias: pair.bias || "BUY" })}</div>
+            <p class="v4-muted">Real-time market scanner untuk membaca setup, bias, risk, dan membuka Signal Detail Room.</p>
 
-            <div class="v4-levels">
-              <div><small>Entry</small><b class="blue">2345.12</b></div>
-              <div><small>Stop Loss</small><b class="red">2331.20</b></div>
-              <div><small>Take Profit</small><b class="green">2365.00</b></div>
+                        <div class="v4-chart-wrap v4-dashboard-terminal-chart">
+              <div class="v4-chart-terminal-head">
+                <div>
+                  <small>AiSignal Live Preview</small>
+                  <strong>${activeSymbol}</strong>
+                </div>
+                <span>15m · Scanner Style</span>
+              </div>
+              ${customSignalChart({ bias: pair.bias || "WAIT" })}
             </div>
 
-            <button class="v4-wide-btn" onclick="v4Go('scanner')">Open Signal Scanner</button>
+            <div class="v4-levels v4-dashboard-signal-boxes">
+              <div><small>Market</small><b class="blue">${activeSymbol}</b></div>
+              <div><small>Mode</small><b class="green">Scanner</b></div>
+              <div><small>Status</small><b class="yellow">${activeBias}</b></div>
+            </div>
+
+            <button class="v4-wide-btn" onclick="v4Go('scanner')">Open Scanner</button>
           </article>
 
           <aside class="v4-side-stack">
             <article class="v4-card">
               <div class="v4-card-head">
-                <strong>Market Sentiment</strong>
-                <span class="v4-pill">XAUUSD</span>
+                <strong>Sentinel AI</strong>
+                <span class="v4-pill">Visual Analyst</span>
               </div>
-              <div class="v4-sentiment-line"><span>Long <b class="green">59%</b></span><span>Short <b class="red">41%</b></span></div>
-              <div class="v4-bar"><i></i></div>
-              <div class="v4-session-strip">
-                <div><b>Asia</b><span>Calm</span></div>
-                <div><b>London</b><span>Watch</span></div>
-                <div><b>NY</b><span>Active</span></div>
+
+              <div class="v4-chart-wrap">${customSignalChart({ bias: "BUY" })}</div>
+
+              <p class="v4-muted">Upload screenshot chart, lalu Sentinel AI membaca struktur, liquidity, bias, dan potensi area reaksi market.</p>
+
+              <div class="v4-levels">
+                <div><small>Input</small><b class="blue">Image</b></div>
+                <div><small>Mode</small><b class="green">AI Scan</b></div>
+                <div><small>Access</small><b class="yellow">VIP</b></div>
               </div>
+
+              <button class="v4-wide-btn" onclick="v4Go('sentinel')">Open Sentinel AI</button>
             </article>
 
             <article class="v4-card v4-quick">
               <div class="v4-card-head"><strong>Quick Access</strong></div>
               <button onclick="v4Go('scanner')">Signal Scanner</button>
-              <button onclick="v4Go('sentinel-signal')">Sentinel Signal Desk</button>
-              <button onclick="v4Go('mapping')">Sentinel Community</button>
-              <button onclick="v4Go('lab')">Trading Lab</button>
+              <button onclick="v4Go('sentinel')">Sentinel AI Visual</button>
+              <button onclick="v4Go('vip')">VIP Center</button>
+              <button onclick="v4Go('profile')">Profile</button>
             </article>
           </aside>
         </section>
 
-        <section class="v4-spotlight">
-          <div>
-            <div class="v4-card-head">
-              <strong>Sentinel Mapping Spotlight</strong>
-              <button class="v4-chip-btn" onclick="v4Go('mapping')">View All</button>
-            </div>
-            ${postCard(spotlight, true)}
-          </div>
-          <div class="v4-mini-rank">
-            <div><b>#2 BTCUSDT</b><span>Breakout watch</span></div>
-            <div><b>#3 EURUSD</b><span>Range reaction</span></div>
-          </div>
-        </section>
-
         <section class="v4-card v4-pulse">
           <div class="v4-card-head">
-            <strong>Market Pulse</strong>
-            <span class="v4-pill">Live Watchlist</span>
+            <strong>Market Overview</strong>
+            <span class="v4-pill">Core Watchlist</span>
           </div>
           <div class="v4-pulse-list">
             ${rows.map((x) => `

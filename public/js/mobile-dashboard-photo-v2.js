@@ -495,7 +495,7 @@
 
   function chartSvg() {
   const state = window.asfxMobileRealChart || {};
-  const candles = Array.isArray(state.candles) ? state.candles.slice(-42) : [];
+  const candles = Array.isArray(state.candles) ? state.candles.slice(-44) : [];
   const symbol = state.symbol || "BTCUSDT";
   const interval = state.interval || "15m";
   const status = state.status || "loading";
@@ -505,20 +505,8 @@
     return `
       <svg class="m2-chart" viewBox="0 0 760 540" preserveAspectRatio="none" aria-label="Real candle chart loading">
         <rect x="0" y="0" width="760" height="540" rx="34" fill="#020617"/>
-        <g opacity=".45" stroke="rgba(148,163,184,.22)" stroke-width="1.2">
-          <line x1="0" y1="108" x2="760" y2="108"/>
-          <line x1="0" y1="216" x2="760" y2="216"/>
-          <line x1="0" y1="324" x2="760" y2="324"/>
-          <line x1="0" y1="432" x2="760" y2="432"/>
-          <line x1="152" y1="0" x2="152" y2="540"/>
-          <line x1="304" y1="0" x2="304" y2="540"/>
-          <line x1="456" y1="0" x2="456" y2="540"/>
-          <line x1="608" y1="0" x2="608" y2="540"/>
-        </g>
         <text x="42" y="72" fill="#60a5fa" font-size="24" font-weight="900">${symbol}</text>
-        <text x="42" y="108" fill="#94a3b8" font-size="16" font-weight="700">Crypto Live · Binance ${interval}</text>
-        <text x="42" y="286" fill="#e5e7eb" font-size="22" font-weight="800">${msg}</text>
-        <text x="42" y="322" fill="#94a3b8" font-size="14" font-weight="700"> Waiting for real market data.</text>
+        <text x="42" y="104" fill="#94a3b8" font-size="16" font-weight="800">${msg}</text>
       </svg>
     `;
   }
@@ -528,28 +516,64 @@
   const max = Math.max(...highs);
   const min = Math.min(...lows);
   const range = Math.max(max - min, 1);
-  const pad = range * 0.12;
+  const pad = range * 0.025;
   const top = max + pad;
   const bottom = min - pad;
-  const chartH = 420;
-  const chartTop = 62;
-  const chartLeft = 38;
-  const chartW = 565;
+
+  const chartTop = 24;
+  const chartLeft = 24;
+  const chartW = 608;
+  const chartH = 468;
+  const chartBottom = chartTop + chartH;
+  const chartRight = chartLeft + chartW;
   const step = chartW / candles.length;
-  const bodyW = Math.max(5, step * 0.55);
+  const bodyW = Math.max(7, step * 0.66);
 
   const y = (price) => chartTop + ((top - price) / (top - bottom)) * chartH;
   const fmt = (v) => Number(v).toLocaleString("en-US", { maximumFractionDigits: v > 100 ? 2 : 5 });
 
   const last = candles[candles.length - 1];
   const lastPrice = last.c;
-  const lastY = y(lastPrice);
+  const lastY = Math.max(chartTop + 6, Math.min(chartBottom - 6, y(lastPrice)));
 
-  const grid = [1/6, 2/6, 3/6, 4/6, 5/6].map(p => {
+  const intervalMs = interval.endsWith("m")
+    ? Number(interval.replace("m", "")) * 60 * 1000
+    : 15 * 60 * 1000;
+  const closeAt = Number(last.t || Date.now()) + intervalMs;
+  const remainMs = Math.max(0, closeAt - Date.now());
+  const remainMin = String(Math.floor(remainMs / 60000)).padStart(2, "0");
+  const remainSec = String(Math.floor((remainMs % 60000) / 1000)).padStart(2, "0");
+  const candleTimer = `${remainMin}:${remainSec}`;
+  const tfLabel = interval.toUpperCase();
+
+  const grid = Array.from({ length: 10 }, (_, i) => i / 9).map(p => {
     const gy = chartTop + chartH * p;
     const price = top - (top - bottom) * p;
-    return `<line x1="${chartLeft}" y1="${gy}" x2="${chartLeft + chartW}" y2="${gy}" stroke="rgba(148,163,184,.20)" stroke-width="1.2"/>
-            <text x="${chartLeft + chartW + 12}" y="${gy + 5}" fill="#94a3b8" font-size="13" font-weight="700">${fmt(price)}</text>`;
+    return `<line x1="${chartLeft}" y1="${gy}" x2="${chartRight}" y2="${gy}" stroke="rgba(148,163,184,.16)" stroke-width="1"/>
+            <text x="${chartRight + 10}" y="${gy + 4}" fill="#cbd5e1" font-size="11" font-weight="850">${fmt(price)}</text>`;
+  }).join("");
+
+  const timeFmt = (ts) => {
+    try {
+      return new Date(ts).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
+    } catch (_) {
+      return "--:--";
+    }
+  };
+
+  const timeMarks = Array.from({ length: 6 }, (_, i) => {
+    const ratio = i / 5;
+    const gx = chartLeft + chartW * ratio;
+    const idx = Math.min(candles.length - 1, Math.max(0, Math.round((candles.length - 1) * ratio)));
+    return { gx, label: timeFmt(candles[idx]?.t || Date.now()) };
+  });
+
+  const verticalGrid = timeMarks.map(mark => {
+    return `<line x1="${mark.gx}" y1="${chartTop}" x2="${mark.gx}" y2="${chartBottom}" stroke="rgba(148,163,184,.13)" stroke-width="1"/>`;
+  }).join("");
+
+  const timeLabels = timeMarks.map(mark => {
+    return `<text x="${mark.gx}" y="${chartBottom + 26}" text-anchor="middle" fill="#94a3b8" font-size="10" font-weight="850">${mark.label}</text>`;
   }).join("");
 
   const candleSvg = candles.map((c, i) => {
@@ -563,9 +587,12 @@
     const bodyY = Math.min(openY, closeY);
     const bodyH = Math.max(Math.abs(closeY - openY), 3);
 
-    return `<line x1="${cx}" y1="${highY}" x2="${cx}" y2="${lowY}" stroke="${color}" stroke-width="2" stroke-linecap="round"/>
+    return `<line x1="${cx}" y1="${highY}" x2="${cx}" y2="${lowY}" stroke="${color}" stroke-width="2.1" stroke-linecap="round"/>
             <rect x="${cx - bodyW / 2}" y="${bodyY}" width="${bodyW}" height="${bodyH}" rx="3" fill="${color}"/>`;
   }).join("");
+
+  const badgeX = chartRight + 8;
+  const badgeY = Math.max(chartTop + 8, Math.min(chartBottom - 42, lastY - 21));
 
   return `
     <svg class="m2-chart" viewBox="0 0 760 540" preserveAspectRatio="none" aria-label="Real Binance candle chart">
@@ -574,28 +601,29 @@
           <stop offset="0%" stop-color="#020617" stop-opacity=".98"/>
           <stop offset="100%" stop-color="#0f172a" stop-opacity=".78"/>
         </linearGradient>
+        <clipPath id="m2ChartClip">
+          <rect x="${chartLeft}" y="${chartTop}" width="${chartW}" height="${chartH}" rx="0"/>
+        </clipPath>
       </defs>
 
       <rect x="0" y="0" width="760" height="540" rx="34" fill="url(#realCandleBgM2)"/>
 
-      <g opacity=".48" stroke="rgba(148,163,184,.18)" stroke-width="1">
-        <line x1="178" y1="42" x2="178" y2="498"/>
-        <line x1="308" y1="42" x2="308" y2="498"/>
-        <line x1="438" y1="42" x2="438" y2="498"/>
-        <line x1="568" y1="42" x2="568" y2="498"/>
-      </g>
-
+      <g>${verticalGrid}</g>
       <g>${grid}</g>
 
-      <line x1="${chartLeft}" y1="${lastY}" x2="${chartLeft + chartW}" y2="${lastY}" stroke="rgba(96,165,250,.72)" stroke-width="1.7" stroke-dasharray="6 6"/>
-      <rect x="${chartLeft + chartW + 12}" y="${lastY - 16}" width="108" height="30" rx="8" fill="rgba(37,99,235,.95)"/>
-      <text x="${chartLeft + chartW + 20}" y="${lastY + 4}" fill="#ffffff" font-size="13" font-weight="900">${fmt(lastPrice)}</text>
+      <g clip-path="url(#m2ChartClip)">
+        ${candleSvg}
+      </g>
 
-      <g>${candleSvg}</g>
+      <line x1="${chartLeft}" y1="${lastY}" x2="${chartRight}" y2="${lastY}" stroke="rgba(56,189,248,.86)" stroke-width="1.8" stroke-dasharray="6 6"/>
+      <rect x="${badgeX}" y="${badgeY}" width="112" height="42" rx="10" fill="rgba(14,165,233,.96)" stroke="rgba(255,255,255,.18)"/>
+      <text x="${badgeX + 10}" y="${badgeY + 17}" fill="#ffffff" font-size="12" font-weight="950">${fmt(lastPrice)}</text>
+      <text x="${badgeX + 10}" y="${badgeY + 33}" fill="#e0f2fe" font-size="10" font-weight="900">${tfLabel} · ${candleTimer}</text>
+
+      <g>${timeLabels}</g>
     </svg>
   `;
 }
-
   function miniChart() {
     return `
       <svg width="100%" height="76" viewBox="0 0 120 76" preserveAspectRatio="none">
@@ -754,11 +782,11 @@
             ${chartSvg()}
           </div>
 
-          <div class="m2-stats">
-          <div><small>Pair</small><b class="blue asfx-stat-blur">BTCUSDT</b></div>
-          <div><small>Price</small><b class="blue asfx-stat-blur">${mobileRealChartPriceLabel()}</b></div>
-          <div><small>Status</small><b class="green asfx-stat-blur">${mobileRealChartStatusLabel()}</b></div>
-          <div><small>VIP</small><b class="red asfx-stat-blur">Locked</b></div>
+                    <div class="m2-stats">
+          <div><small>Pair</small><b class="blue">BTCUSDT</b></div>
+          <div><small>Price</small><b class="blue">${mobileRealChartPriceLabel()}</b></div>
+          <div><small>Status</small><b class="green">${mobileRealChartStatusLabel()}</b></div>
+          <div><small>Access</small><b class="yellow">Preview</b></div>
         </div>
       </section>
 
@@ -917,11 +945,11 @@ function refreshMobileRealChartCard() {
 
   const stats = signal.querySelector(".m2-stats");
   if (stats) {
-    stats.innerHTML = `
-      <div><small>Pair</small><b class="blue asfx-stat-blur">BTCUSDT</b></div>
-      <div><small>Price</small><b class="blue asfx-stat-blur">${mobileRealChartPriceLabel()}</b></div>
-      <div><small>Status</small><b class="green asfx-stat-blur">${mobileRealChartStatusLabel()}</b></div>
-      <div><small>VIP</small><b class="red asfx-stat-blur">Locked</b></div>
+        stats.innerHTML = `
+      <div><small>Pair</small><b class="blue">BTCUSDT</b></div>
+      <div><small>Price</small><b class="blue">${mobileRealChartPriceLabel()}</b></div>
+      <div><small>Status</small><b class="green">${mobileRealChartStatusLabel()}</b></div>
+      <div><small>Access</small><b class="yellow">Preview</b></div>
     `;
   }
 }
@@ -964,6 +992,7 @@ function startMobileRealChartEngineV1() {
   window.asfxMobileRealChartStarted = true;
   injectMobileRealChartSizeFix();
   setTimeout(refreshMobileRealChartCard, 250);
+  setInterval(refreshMobileRealChartCard, 1000);
   loadMobileRealChartCandles();
   setInterval(loadMobileRealChartCandles, 15000);
 }
