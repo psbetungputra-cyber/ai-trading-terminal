@@ -4875,13 +4875,13 @@ body.v31-chart-mode .chart-terminal-compact-top {
     z-index: 9999;
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 4px;
-    background: rgba(2, 6, 23, 0.92);
+    gap: 3px;
+    background: rgba(2, 6, 23, 0.62);
     border: 1px solid rgba(96, 165, 250, 0.18);
-    border-radius: 24px;
-    padding: 10px 8px;
+    border-radius: 20px;
+    padding: 5px 6px;
     backdrop-filter: blur(14px);
-    box-shadow: 0 20px 60px rgba(0, 0, 0, .35);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .30);
   }
 
   .v4-bottom-nav button {
@@ -4890,12 +4890,12 @@ body.v31-chart-mode .chart-terminal-compact-top {
     display: grid;
     place-items: center;
     gap: 3px;
-    font-size: 11px;
+    font-size: 9px;
     font-weight: 800;
   }
 
   .v4-bottom-nav button span {
-    font-size: 22px;
+    font-size: 15px;
     line-height: 1;
   }
 

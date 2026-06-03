@@ -572,7 +572,7 @@
     });
   }
 
-  function ensureBottomNav() {
+    function ensureBottomNav() {
     if ($(".v4-bottom-nav")) return;
 
     const nav = document.createElement("nav");
@@ -580,7 +580,7 @@
     nav.innerHTML = `
       <button data-page="dashboard" class="active" onclick="v4Go('dashboard')"><span>⌂</span><b>Home</b></button>
       <button data-page="scanner" onclick="v4Go('scanner')"><span>⌕</span><b>Scanner</b></button>
-      <button data-page="mapping" onclick="v4Go('mapping')"><span>◎</span><b>Community</b></button>
+      <button data-page="sentinel-signal" onclick="v4Go('sentinel-signal')"><span>◉</span><b>Sentinel</b></button>
       <button data-page="profile" onclick="v4Go('profile')"><span>♙</span><b>Profile</b></button>
     `;
     document.body.appendChild(nav);
