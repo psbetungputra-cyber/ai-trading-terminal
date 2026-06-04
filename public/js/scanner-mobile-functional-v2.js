@@ -827,24 +827,33 @@
     return detailCandleSvg(candles);
   }
 
-  function detailCandleSvg(candles) {
+    function detailCandleSvg(candles) {
     const visible = candles.slice(-48);
     const w = 760;
-    const h = 360;
+    const h = 370;
+
     const padL = 34;
-    const padR = 88;
-    const padT = 30;
-    const padB = 34;
+    const padR = 106;
+    const padT = 28;
+    const padB = 52;
+
     const chartW = w - padL - padR;
     const chartH = h - padT - padB;
+    const chartRight = padL + chartW;
+    const chartBottom = padT + chartH;
 
     const highs = visible.map(c => c.h);
     const lows = visible.map(c => c.l);
-    const max = Math.max(...highs);
-    const min = Math.min(...lows);
+    const maxRaw = Math.max(...highs);
+    const minRaw = Math.min(...lows);
+    const rangeRaw = Math.max(maxRaw - minRaw, 1);
+    const pad = rangeRaw * 0.035;
+    const max = maxRaw + pad;
+    const min = minRaw - pad;
     const range = Math.max(max - min, 1);
-    const step = chartW / Math.max(visible.length - 1, 1);
-    const bodyW = Math.max(5, Math.min(10, step * .55));
+
+    const step = chartW / Math.max(visible.length, 1);
+    const bodyW = Math.max(6, Math.min(10, step * .62));
 
     function y(price) {
       return padT + ((max - price) / range) * chartH;
@@ -854,21 +863,59 @@
       return Number(v).toLocaleString("en-US", { maximumFractionDigits: v > 100 ? 2 : 5 });
     }
 
-    const grid = [1/6,2/6,3/6,4/6,5/6].map(p => {
+    function tfMs(tf) {
+      const raw = String(tf || "15m").toLowerCase();
+      if (raw.endsWith("m")) return Number(raw.replace("m", "")) * 60 * 1000;
+      if (raw.endsWith("h")) return Number(raw.replace("h", "")) * 60 * 60 * 1000;
+      if (raw.endsWith("d")) return Number(raw.replace("d", "")) * 24 * 60 * 60 * 1000;
+      if (raw.endsWith("w")) return Number(raw.replace("w", "")) * 7 * 24 * 60 * 60 * 1000;
+      return 15 * 60 * 1000;
+    }
+
+    function fmtTime(ts) {
+      try {
+        return new Date(Number(ts)).toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false
+        });
+      } catch (_) {
+        return "--:--";
+      }
+    }
+
+    const grid = Array.from({ length: 9 }, (_, i) => i / 8).map(p => {
       const yy = padT + chartH * p;
       const price = max - range * p;
       return `
-        <line x1="${padL}" y1="${yy}" x2="${w-padR+12}" y2="${yy}" stroke="rgba(148,163,184,.16)" />
-        <text x="${w-padR+20}" y="${yy+5}" fill="#94a3b8" font-size="12" font-weight="800">${fmtPrice(price)}</text>
+        <line x1="${padL}" y1="${yy}" x2="${chartRight}" y2="${yy}" stroke="rgba(148,163,184,.15)" stroke-width="1"/>
+        <text x="${chartRight + 10}" y="${yy + 4}" fill="#cbd5e1" font-size="10.5" font-weight="850">${fmtPrice(price)}</text>
       `;
     }).join("");
 
-    const priceScale = Array.from({ length: 9 }, (_, i) => {
-      const p = i / 8;
-      const yy = padT + chartH * p;
-      const priceLevel = max - ((max - min) * p);
-      return `<text x="${w-padR+10}" y="${yy+4}" fill="rgba(226,232,240,.72)" font-size="10" font-weight="800">${fmt(priceLevel)}</text>`;
+    const timeMarks = Array.from({ length: 6 }, (_, i) => {
+      const ratio = i / 5;
+      const idx = Math.min(visible.length - 1, Math.max(0, Math.round((visible.length - 1) * ratio)));
+      const candle = visible[idx] || visible[0] || {};
+      const x = padL + (idx + 0.5) * step;
+      return {
+        x,
+        label: fmtTime(candle.t || Date.now())
+      };
+    });
+
+    const verticalGrid = timeMarks.map(mark => {
+      return `<line x1="${mark.x}" y1="${padT}" x2="${mark.x}" y2="${chartBottom}" stroke="rgba(148,163,184,.13)" stroke-width="1"/>`;
     }).join("");
+
+    const timeLabels = timeMarks.map(mark => {
+      return `
+        <line x1="${mark.x}" y1="${chartBottom - 8}" x2="${mark.x}" y2="${chartBottom}" stroke="rgba(148,163,184,.32)" stroke-width="1"/>
+        <rect x="${mark.x - 24}" y="${chartBottom - 18}" width="48" height="18" rx="6" fill="rgba(2,6,23,.82)" stroke="rgba(148,163,184,.16)"/>
+        <text x="${mark.x}" y="${chartBottom - 5}" text-anchor="middle" fill="#e5e7eb" font-size="10" font-weight="950">${mark.label}</text>
+      `;
+    }).join("");
+
     const candleSvg = visible.map((c, i) => {
       const x = padL + ((i + 0.5) * step);
       const up = c.c >= c.o;
@@ -882,39 +929,56 @@
 
       return `
         <line x1="${x}" y1="${highY}" x2="${x}" y2="${lowY}" stroke="${color}" stroke-width="2" stroke-linecap="round"/>
-        <rect x="${x - bodyW/2}" y="${top}" width="${bodyW}" height="${height}" rx="2" fill="${color}"/>
+        <rect x="${x - bodyW/2}" y="${top}" width="${bodyW}" height="${height}" rx="2.4" fill="${color}"/>
       `;
     }).join("");
 
     const last = visible[visible.length - 1];
-    const lastY = y(last.c);
+    const lastY = Math.max(padT + 8, Math.min(chartBottom - 8, y(last.c)));
     const lastPrice = fmtPrice(last.c);
+
+    const closeAt = Number(last.t || Date.now()) + tfMs(state.tf);
+    const remainMs = Math.max(0, closeAt - Date.now());
+    const mm = String(Math.floor(remainMs / 60000)).padStart(2, "0");
+    const ss = String(Math.floor((remainMs % 60000) / 1000)).padStart(2, "0");
+    const timer = `${mm}:${ss}`;
+    const tfLabel = String(state.tf || "15m").toUpperCase();
+
+    const badgeX = chartRight + 8;
+    const badgeY = Math.max(padT + 8, Math.min(chartBottom - 42, lastY - 21));
 
     return `
       <svg class="asfx-room-chart-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
         <defs>
           <linearGradient id="asfxRoomBg" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stop-color="#0f172a" stop-opacity=".72"/>
-            <stop offset="100%" stop-color="#020617" stop-opacity=".72"/>
+            <stop offset="0%" stop-color="#0f172a" stop-opacity=".78"/>
+            <stop offset="100%" stop-color="#020617" stop-opacity=".86"/>
           </linearGradient>
+          <clipPath id="asfxDetailChartClip">
+            <rect x="${padL}" y="${padT}" width="${chartW}" height="${chartH}" />
+          </clipPath>
         </defs>
 
         <rect x="0" y="0" width="${w}" height="${h}" fill="url(#asfxRoomBg)" rx="24"/>
-        <g opacity=".7">
+
+        <g opacity=".82">
+          ${verticalGrid}
           ${grid}
-          ${[0,1,2,3,4].map(i => {
-            const xx = padL + (chartW/4) * i;
-            return `<line x1="${xx}" y1="${padT}" x2="${xx}" y2="${padT+chartH}" stroke="rgba(148,163,184,.10)" />`;
-          }).join("")}
         </g>
 
-        <g>${candleSvg}</g>
+        <g clip-path="url(#asfxDetailChartClip)">
+          ${candleSvg}
+        </g>
 
-        <line x1="${padL}" y1="${lastY}" x2="${w-padR+12}" y2="${lastY}" stroke="rgba(96,165,250,.75)" stroke-dasharray="5 6" stroke-width="2"/>
-        <rect x="${w-padR+18}" y="${lastY-16}" width="74" height="31" rx="8" fill="rgba(37,99,235,.95)"/>
-        <text x="${w-padR+26}" y="${lastY+5}" fill="#fff" font-size="12" font-weight="900">${lastPrice}</text>
+        <line x1="${padL}" y1="${lastY}" x2="${chartRight}" y2="${lastY}" stroke="rgba(56,189,248,.82)" stroke-dasharray="5 6" stroke-width="1.8"/>
 
-        <text x="${padL}" y="22" fill="#93c5fd" font-size="12" font-weight="900">${safe(state.pair)}  -  ${safe(state.tf)}</text>
+        <rect x="${badgeX}" y="${badgeY}" width="98" height="42" rx="9" fill="rgba(14,165,233,.96)" stroke="rgba(255,255,255,.18)"/>
+        <text x="${badgeX + 8}" y="${badgeY + 17}" fill="#fff" font-size="11.5" font-weight="950">${lastPrice}</text>
+        <text x="${badgeX + 8}" y="${badgeY + 33}" fill="#e0f2fe" font-size="9.5" font-weight="900">${tfLabel} · ${timer}</text>
+
+        <text x="${padL}" y="20" fill="#93c5fd" font-size="11.5" font-weight="950">${safe(state.pair)}  -  ${safe(state.tf)}</text>
+
+        <g>${timeLabels}</g>
       </svg>
     `;
   }
@@ -2958,7 +3022,7 @@
     const padL = 38;
     const padR = 98;
     const padT = 30;
-    const padB = 32;
+    const padB = 52;
     const chartW = w - padL - padR;
     const chartH = h - padT - padB;
 
@@ -2983,9 +3047,44 @@
       return `<line x1="0" y1="${y}" x2="${w-padR}" y2="${y}" stroke="rgba(148,163,184,.12)" stroke-width="1"/>`;
     }).join("");
 
-    const vgrid = Array.from({ length: 5 }, (_, i) => {
-      const x = padL + (chartW / 4) * i;
-      return `<line x1="${x}" y1="${padT}" x2="${x}" y2="${padT+chartH}" stroke="rgba(148,163,184,.055)" stroke-width="1"/>`;
+    function fmtAxisTime(ts) {
+      try {
+        const raw = Number(ts || Date.now());
+        const ms = raw < 1000000000000 ? raw * 1000 : raw;
+        return new Date(ms).toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false
+        });
+      } catch (_) {
+        return "--:--";
+      }
+    }
+
+    const timeMarks = Array.from({ length: 6 }, (_, i) => {
+      const ratio = i / 5;
+      const idx = Math.min(
+        visible.length - 1,
+        Math.max(0, Math.round((visible.length - 1) * ratio))
+      );
+      const candle = visible[idx] || visible[0] || {};
+      const x = padL + ((idx + 0.5) * step);
+
+      return {
+        x,
+        label: fmtAxisTime(candle.t)
+      };
+    });
+
+    const vgrid = timeMarks.map((mark) => {
+      return `<line x1="${mark.x}" y1="${padT}" x2="${mark.x}" y2="${padT+chartH}" stroke="rgba(148,163,184,.10)" stroke-width="1"/>`;
+    }).join("");
+
+    const timeScale = timeMarks.map((mark) => {
+      return `
+        <line x1="${mark.x}" y1="${padT+chartH}" x2="${mark.x}" y2="${padT+chartH+7}" stroke="rgba(148,163,184,.28)" stroke-width="1"/>
+        <text x="${mark.x}" y="${padT+chartH+25}" text-anchor="middle" fill="rgba(226,232,240,.78)" font-size="10" font-weight="900">${mark.label}</text>
+      `;
     }).join("");
 
     const priceScale = Array.from({ length: 9 }, (_, i) => {
@@ -3043,6 +3142,7 @@
         ${grid}
         ${vgrid}
         ${priceScale}
+        ${timeScale}
         <text x="${padL}" y="28" fill="#93c5fd" font-size="13" font-weight="900">${safe(pair)}  -  ${safe(tf)}</text>
         <g clip-path="url(#asfxChartClipV1)">${candleSvg}</g>
         ${asfxIndicatorSvg}
