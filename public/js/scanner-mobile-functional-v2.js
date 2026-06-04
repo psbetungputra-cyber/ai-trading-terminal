@@ -3009,9 +3009,65 @@
       }
     }, 900);
   }
+  function asfxDetailChartViewV1() {
+    const view = window.__ASFX_DETAIL_CHART_VIEW_V1__ || {
+      limit: 48,
+      offset: 0
+    };
+
+    view.limit = Math.max(24, Math.min(96, Number(view.limit) || 48));
+    view.offset = Math.max(0, Number(view.offset) || 0);
+
+    window.__ASFX_DETAIL_CHART_VIEW_V1__ = view;
+    return view;
+  }
+
+  function asfxResetDetailChartViewV1() {
+    const view = asfxDetailChartViewV1();
+    view.limit = 48;
+    view.offset = 0;
+  }
+
+  function asfxSetDetailChartViewV1(action) {
+    const view = asfxDetailChartViewV1();
+
+    if (action === "zoom-in") {
+      view.limit = Math.max(24, view.limit - 12);
+      view.offset = 0;
+    }
+
+    if (action === "zoom-out") {
+      view.limit = Math.min(96, view.limit + 12);
+      view.offset = 0;
+    }
+
+    if (action === "pan-left") {
+      view.offset += Math.max(6, Math.round(view.limit / 3));
+    }
+
+    if (action === "pan-right") {
+      view.offset = Math.max(0, view.offset - Math.max(6, Math.round(view.limit / 3)));
+    }
+
+    if (action === "live") {
+      view.offset = 0;
+    }
+
+    render();
+  }
   function chartSvg(){
     const { pair, tf } = ctx();
-    const visible = candles.slice(-48);
+    const view = asfxDetailChartViewV1();
+    const totalCandles = candles.length;
+    const viewLimit = Math.min(totalCandles || view.limit, view.limit);
+    const maxOffset = Math.max(0, totalCandles - viewLimit);
+
+    view.offset = Math.max(0, Math.min(view.offset, maxOffset));
+
+    const viewEnd = Math.max(viewLimit, totalCandles - view.offset);
+    const viewStart = Math.max(0, viewEnd - viewLimit);
+    const visible = candles.slice(viewStart, viewEnd);
+    const isLatestView = view.offset === 0;
 
     if (!visible.length) {
       return `<div class="asfx-chart-empty">Loading ${safe(pair)} candles...</div>`;
@@ -3026,11 +3082,20 @@
     const chartW = w - padL - padR;
     const chartH = h - padT - padB;
 
-    const highs = visible.map(c => Number(c.h));
-    const lows = visible.map(c => Number(c.l));
-    const asfxPlan = asfxBuildIndicatorPlan(visible, visible[visible.length - 1] || {});
+    const latestWindowSize = Math.max(48, Math.min(96, view.limit || 48));
+    const latestWindow = candles.slice(-latestWindowSize);
+    const planWindow = latestWindow.length ? latestWindow : visible;
+    const planLast = planWindow[planWindow.length - 1] || visible[visible.length - 1] || {};
+
+    const scaleWindow = [...visible, ...latestWindow].filter(Boolean);
+
+    const highs = scaleWindow.map(c => Number(c.h));
+    const lows = scaleWindow.map(c => Number(c.l));
+
+    const asfxPlan = asfxBuildIndicatorPlan(planWindow, planLast);
     const asfxPlanPrices = Array.isArray(asfxPlan.prices) ? asfxPlan.prices.filter(Number.isFinite) : [];
-    const scalePrices = [...highs, ...lows, ...asfxPlanPrices].filter(Number.isFinite);
+    const latestPriceForScale = Number(planLast.c ?? planLast.close ?? 0);
+    const scalePrices = [...highs, ...lows, ...asfxPlanPrices, latestPriceForScale].filter(Number.isFinite);
     const rawMax = Math.max(...scalePrices);
     const rawMin = Math.min(...scalePrices);
     const rawRange = Math.max(rawMax - rawMin, Math.abs(rawMax || 1) * 0.0015, 1e-9);
@@ -3121,9 +3186,39 @@
       </g>
     `;
     const asfxIndicatorSvg = asfxRenderIndicatorSvg(asfxPlan, min, max, padT, chartH, w, padL, padR);
-    asfxSyncSignalTabFromIndicator(asfxPlan);
+    if (isLatestView) {
+      asfxSyncSignalTabFromIndicator(asfxPlan);
+    }
     const tagColor = down ? "#ef4444" : "#2563eb";
     const lineColor = down ? "rgba(239,68,68,.82)" : "rgba(96,165,250,.86)";
+    const viewStatusText = isLatestView ? `LIVE · ${view.limit}` : `HISTORY · -${view.offset}`;
+    const viewButtons = [
+      ["zoom-in", "+"],
+      ["zoom-out", "-"],
+      ["pan-left", "‹"],
+      ["pan-right", "›"],
+      ["live", "LIVE"]
+    ];
+
+    const chartViewControlsSvg = `
+      <g data-asfx-chart-view-controls="1">
+        <rect x="${padL + 218}" y="8" width="300" height="24" rx="12" fill="rgba(2,6,23,.56)" stroke="rgba(148,163,184,.14)"/>
+        <text x="${padL + 230}" y="24" fill="#93c5fd" font-size="9.5" font-weight="900">${viewStatusText}</text>
+        ${viewButtons.map((btn, i) => {
+          const action = btn[0];
+          const label = btn[1];
+          const bw = action === "live" ? 46 : 25;
+          const gap = 5;
+          const x = padL + 338 + (i * 31) + (action === "live" ? 2 : 0);
+          return `
+            <g data-asfx-chart-view="${action}" style="cursor:pointer;pointer-events:all;">
+              <rect x="${x}" y="11" width="${bw}" height="18" rx="8" fill="rgba(15,23,42,.92)" stroke="rgba(96,165,250,.22)"/>
+              <text x="${x + bw / 2}" y="24" text-anchor="middle" fill="#e5e7eb" font-size="10" font-weight="950">${label}</text>
+            </g>
+          `;
+        }).join("")}
+      </g>
+    `;
 
     return `
       <svg class="asfx-room-chart-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
@@ -3144,6 +3239,7 @@
         ${priceScale}
         ${timeScale}
         <text x="${padL}" y="28" fill="#93c5fd" font-size="13" font-weight="900">${safe(pair)}  -  ${safe(tf)}</text>
+        ${chartViewControlsSvg}
         <g clip-path="url(#asfxChartClipV1)">${candleSvg}</g>
         ${asfxIndicatorSvg}
         ${asfxChartCountdownSvgV1B}
@@ -3201,6 +3297,15 @@
     b.innerHTML = chartSvg();
     updateStrip();
   }
+  document.addEventListener("click", function(event) {
+    const btn = event.target.closest("[data-asfx-chart-view]");
+    if (!btn) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    asfxSetDetailChartViewV1(btn.dataset.asfxChartView);
+  }, true);
 
   async function tick(){
     if (!isDetailOpen()) return;
@@ -3216,6 +3321,7 @@
         candles = [];
         lastLoad = 0;
         lastCtxKey = nowKey;
+        asfxResetDetailChartViewV1();
       }
 
       if (!candles.length || Date.now() - lastLoad > 12000) {
