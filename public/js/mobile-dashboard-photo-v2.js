@@ -511,14 +511,53 @@
     `;
   }
 
-  const highs = candles.map(c => c.h);
-  const lows = candles.map(c => c.l);
-  const max = Math.max(...highs);
-  const min = Math.min(...lows);
-  const range = Math.max(max - min, 1);
-  const pad = range * 0.025;
-  const top = max + pad;
-  const bottom = min - pad;
+  const last = candles[candles.length - 1];
+  const lastPrice = Number(last.c);
+
+  const highs = candles.map(c => Number(c.h)).filter(Number.isFinite);
+  const lows = candles.map(c => Number(c.l)).filter(Number.isFinite);
+  const max = highs.length ? Math.max(...highs, lastPrice) : lastPrice;
+  const min = lows.length ? Math.min(...lows, lastPrice) : lastPrice;
+  const range = Math.max(max - min, Math.abs(lastPrice || 1) * 0.0015, 1);
+  const pad = range * 0.04;
+
+  const targetTop = max + pad;
+  const targetBottom = min - pad;
+  const scaleKey = `${symbol}_${interval}`;
+  const previousScale = window.__ASFX_MOBILE_DASH_SCALE_V1__;
+
+  let top = targetTop;
+  let bottom = targetBottom;
+
+  if (
+    previousScale &&
+    previousScale.key === scaleKey &&
+    Number.isFinite(previousScale.top) &&
+    Number.isFinite(previousScale.bottom)
+  ) {
+    top = targetTop > previousScale.top
+      ? targetTop
+      : previousScale.top + (targetTop - previousScale.top) * 0.08;
+
+    bottom = targetBottom < previousScale.bottom
+      ? targetBottom
+      : previousScale.bottom + (targetBottom - previousScale.bottom) * 0.08;
+  }
+
+  if (lastPrice >= top) top = lastPrice + range * 0.08;
+  if (lastPrice <= bottom) bottom = lastPrice - range * 0.08;
+
+  if (!Number.isFinite(top) || !Number.isFinite(bottom) || top <= bottom) {
+    top = targetTop;
+    bottom = targetBottom;
+  }
+
+  window.__ASFX_MOBILE_DASH_SCALE_V1__ = {
+    key: scaleKey,
+    top,
+    bottom,
+    at: Date.now()
+  };
 
   const chartTop = 24;
   const chartLeft = 24;
@@ -529,11 +568,8 @@
   const step = chartW / candles.length;
   const bodyW = Math.max(7, step * 0.66);
 
-  const y = (price) => chartTop + ((top - price) / (top - bottom)) * chartH;
+  const y = (price) => chartTop + ((top - price) / Math.max(1e-9, top - bottom)) * chartH;
   const fmt = (v) => Number(v).toLocaleString("en-US", { maximumFractionDigits: v > 100 ? 2 : 5 });
-
-  const last = candles[candles.length - 1];
-  const lastPrice = last.c;
   const lastY = Math.max(chartTop + 6, Math.min(chartBottom - 6, y(lastPrice)));
 
   const intervalMs = interval.endsWith("m")
@@ -618,7 +654,7 @@
       <line x1="${chartLeft}" y1="${lastY}" x2="${chartRight}" y2="${lastY}" stroke="rgba(56,189,248,.86)" stroke-width="1.8" stroke-dasharray="6 6"/>
       <rect x="${badgeX}" y="${badgeY}" width="112" height="42" rx="10" fill="rgba(14,165,233,.96)" stroke="rgba(255,255,255,.18)"/>
       <text x="${badgeX + 10}" y="${badgeY + 17}" fill="#ffffff" font-size="12" font-weight="950">${fmt(lastPrice)}</text>
-      <text x="${badgeX + 10}" y="${badgeY + 33}" fill="#e0f2fe" font-size="10" font-weight="900">${tfLabel} · ${candleTimer}</text>
+      <text x="${badgeX + 10}" y="${badgeY + 33}" fill="#e0f2fe" font-size="10" font-weight="900">${candleTimer}</text>
 
       <g>${timeLabels}</g>
     </svg>
@@ -933,6 +969,56 @@ async function loadMobileRealChartCandles() {
   refreshMobileRealChartCard();
 }
 
+async function updateMobileRealChartLivePrice() {
+  const state = window.asfxMobileRealChart || {};
+  const symbol = state.symbol || "BTCUSDT";
+  const candles = Array.isArray(state.candles) ? state.candles : [];
+
+  if (!candles.length) return;
+
+  const endpoints = [
+    `https://data-api.binance.vision/api/v3/ticker/price?symbol=${symbol}`,
+    `https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`
+  ];
+
+  let livePrice = null;
+
+  for (const url of endpoints) {
+    try {
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) throw new Error(`Ticker HTTP ${res.status}`);
+      const payload = await res.json();
+      const price = Number(payload.price);
+
+      if (Number.isFinite(price) && price > 0) {
+        livePrice = price;
+        break;
+      }
+    } catch (err) {}
+  }
+
+  if (!Number.isFinite(livePrice) || livePrice <= 0) return;
+
+  const nextCandles = candles.slice();
+  const last = { ...nextCandles[nextCandles.length - 1] };
+
+  last.c = livePrice;
+  last.h = Math.max(Number(last.h || livePrice), livePrice);
+  last.l = Math.min(Number(last.l || livePrice), livePrice);
+
+  nextCandles[nextCandles.length - 1] = last;
+
+  window.asfxMobileRealChart = {
+    ...state,
+    symbol,
+    status: "live",
+    candles: nextCandles,
+    livePrice,
+    liveUpdatedAt: Date.now()
+  };
+
+  refreshMobileRealChartCard();
+}
 
 function refreshMobileRealChartCard() {
   const signal = document.querySelector(".m2-card.m2-signal");
@@ -990,11 +1076,17 @@ function injectMobileRealChartSizeFix() {
 function startMobileRealChartEngineV1() {
   if (window.asfxMobileRealChartStarted) return;
   window.asfxMobileRealChartStarted = true;
+
   injectMobileRealChartSizeFix();
+
   setTimeout(refreshMobileRealChartCard, 250);
-  setInterval(refreshMobileRealChartCard, 1000);
-  loadMobileRealChartCandles();
-  setInterval(loadMobileRealChartCandles, 15000);
+
+  loadMobileRealChartCandles().then(() => {
+    updateMobileRealChartLivePrice();
+  }).catch(() => {});
+
+  setInterval(updateMobileRealChartLivePrice, 2000);
+  setInterval(loadMobileRealChartCandles, 60000);
 }
 
 startMobileRealChartEngineV1();
