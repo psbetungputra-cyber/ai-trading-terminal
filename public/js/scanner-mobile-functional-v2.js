@@ -2429,7 +2429,7 @@
 
   async function loadKlines(){
     const { pair, tf } = ctx();
-    const raw = await getJson(`${BASE}/klines?symbol=${encodeURIComponent(pair)}&interval=${encodeURIComponent(tf)}&limit=80`);
+    const raw = await getJson(`${BASE}/klines?symbol=${encodeURIComponent(pair)}&interval=${encodeURIComponent(tf)}&limit=200`);
 
     candles = raw.map(k => ({
       t:Number(k[0]),
